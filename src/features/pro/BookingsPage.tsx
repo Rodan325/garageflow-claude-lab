@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { CalendarPlus, Check, Clock, Inbox, MessageSquare, X } from 'lucide-react'
+import { CalendarPlus, Check, Clock, Inbox, MessageSquare, Phone, X } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/ui/badge'
@@ -72,13 +72,18 @@ export function BookingsPage() {
     }
   }
 
-  async function confirmAndSchedule(r: ServiceRequest) {
+  // One click: accept if needed, then create the appointment + link client/vehicle.
+  async function confirmBooking(r: ServiceRequest) {
     try {
+      if (r.status === 'pending') {
+        await updateStatus.mutateAsync({ id: r.id, garageId: r.garage_id, clientId: r.client_id, status: 'accepted' })
+      }
       await convert.mutateAsync({ requestId: r.id, garageId: r.garage_id })
       toast.success('Rendez-vous confirmé', 'Ajouté à l’agenda et au CRM.')
     } catch (e) {
-      // Fallback: still mark confirmed even if the scheduling function is unavailable.
-      await updateStatus.mutateAsync({ id: r.id, garageId: r.garage_id, clientId: r.client_id, status: 'confirmed' })
+      await updateStatus
+        .mutateAsync({ id: r.id, garageId: r.garage_id, clientId: r.client_id, status: 'confirmed' })
+        .catch(() => {})
       toast.info('Demande confirmée', `Planification agenda à finaliser (${(e as Error).message}).`)
     }
   }
@@ -123,6 +128,11 @@ export function BookingsPage() {
                       <p className="mt-0.5 text-sm text-muted-foreground">
                         <span className="font-medium text-foreground">{r.service_name}</span> · {r.vehicle_label}
                       </p>
+                      {r.contact_phone && (
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" /> {r.contact_phone}
+                        </p>
+                      )}
                       <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
                         Souhaité : {shortDate(r.requested_date)} à {shortTime(r.requested_time)}
@@ -139,49 +149,44 @@ export function BookingsPage() {
                     <StatusPill tone={meta.tone} label={meta.label} />
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
-                    {isPending && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                    {(isPending || isAccepted) && (
                       <>
-                        <Button size="sm" onClick={() => setStatus(r, 'accepted', 'Demande acceptée')}>
-                          <Check className="h-4 w-4" /> Accepter
+                        <Button size="sm" loading={convert.isPending} onClick={() => confirmBooking(r)}>
+                          <Check className="h-4 w-4" /> Confirmer
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => setProposeFor(r)}>
-                          <CalendarPlus className="h-4 w-4" /> Proposer un créneau
+                          <CalendarPlus className="h-4 w-4" /> Autre créneau
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setStatus(r, 'declined', 'Demande refusée')}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setStatus(r, isPending ? 'declined' : 'cancelled', 'Demande refusée')}
+                        >
                           <X className="h-4 w-4" /> Refuser
                         </Button>
                       </>
                     )}
-                    {isAccepted && (
+                    {isProposed && (
                       <>
-                        <Button size="sm" loading={convert.isPending} onClick={() => confirmAndSchedule(r)}>
-                          <Check className="h-4 w-4" /> Confirmer le rendez-vous
-                        </Button>
+                        <span className="text-sm text-muted-foreground">En attente de la réponse du client…</span>
                         <Button size="sm" variant="ghost" onClick={() => setStatus(r, 'cancelled', 'Demande annulée')}>
                           Annuler
                         </Button>
                       </>
                     )}
-                    {isProposed && (
-                      <Button size="sm" variant="ghost" onClick={() => setStatus(r, 'cancelled', 'Demande annulée')}>
-                        En attente du client · Annuler
+                    {isConfirmed && (
+                      <Button size="sm" variant="outline" onClick={() => setStatus(r, 'completed', 'Marquée terminée')}>
+                        <Check className="h-4 w-4" /> Marquer terminée
                       </Button>
                     )}
-                    {isConfirmed && (
-                      <>
-                        {!r.appointment_id && (
-                          <Button size="sm" variant="outline" loading={convert.isPending} onClick={() => confirmAndSchedule(r)}>
-                            <CalendarPlus className="h-4 w-4" /> Planifier dans l’agenda
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => setStatus(r, 'completed', 'Marquée terminée')}>
-                          Marquer terminée
-                        </Button>
-                      </>
+                    {r.contact_phone && (
+                      <a href={`tel:${r.contact_phone}`} className="inline-flex">
+                        <Button size="sm" variant="ghost"><Phone className="h-4 w-4" /> Appeler</Button>
+                      </a>
                     )}
                     <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setDetailFor(r)}>
-                      <MessageSquare className="h-4 w-4" /> Détails & messages
+                      <MessageSquare className="h-4 w-4" /> Détails
                     </Button>
                   </div>
                 </Card>

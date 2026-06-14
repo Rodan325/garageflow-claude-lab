@@ -51,7 +51,7 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-muted/40 to-accent/40 p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md p-7">
         <Link to="/" className="mb-6 inline-flex"><Logo /></Link>
         <h1 className="text-2xl font-bold">Créer un compte client</h1>

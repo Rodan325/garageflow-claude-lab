@@ -20,7 +20,7 @@ const nav = [
 export function ClientShell() {
   const navigate = useNavigate()
   return (
-    <div className="min-h-dvh bg-background lg:flex lg:items-center lg:justify-center lg:bg-gradient-to-br lg:from-muted/60 lg:to-accent/40 lg:p-6">
+    <div className="min-h-dvh bg-background lg:flex lg:items-center lg:justify-center lg:bg-muted/40 lg:p-6">
       <div className="hidden max-w-xs pr-10 lg:block">
         <Logo className="text-lg" />
         <h2 className="mt-4 text-2xl font-bold leading-tight">L’app client GarageFlow</h2>

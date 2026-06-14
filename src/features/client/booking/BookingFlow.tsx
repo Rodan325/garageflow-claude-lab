@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { addDays, format } from 'date-fns'
+import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { ArrowLeft, Check, CheckCircle2, ChevronRight, Clock, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,10 +10,12 @@ import { Field, Input, Textarea } from '@/components/ui/input'
 import { EmptyState, LoadingState } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { useGarageServices, useGarageHours } from '@/data/garagePublic'
+import { useGarages, useGarageServices, useGarageHours } from '@/data/garagePublic'
 import { useClientVehicles, useUpsertClientVehicle } from '@/data/clientData'
 import { useCreateRequest } from '@/data/requests'
 import { useSelectedGarage } from '../useSelectedGarage'
+import { BOOK_SERVICE_KEY } from '../ClientHomePage'
+import { openDays, slotsForDate } from '@/lib/slots'
 import { euro } from '@/lib/format'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { GarageService, ClientVehicle } from '@/types/domain'
@@ -26,15 +28,6 @@ const STEP_LABEL: Record<Step, string> = {
   slot: 'Créneau',
   details: 'Coordonnées',
   done: 'Confirmé',
-}
-
-function buildSlots(open?: string | null, close?: string | null) {
-  if (!open || !close) return []
-  const start = parseInt(open.slice(0, 2), 10)
-  const end = parseInt(close.slice(0, 2), 10)
-  const slots: string[] = []
-  for (let h = start; h < end; h++) slots.push(`${String(h).padStart(2, '0')}:00`)
-  return slots
 }
 
 export function BookingFlow() {
@@ -60,26 +53,24 @@ export function BookingFlow() {
   const [contactPhone, setContactPhone] = useState(profile?.phone ?? '')
   const [reference, setReference] = useState<string | null>(null)
 
-  // Next 14 open days for the slot picker.
-  const days = useMemo(() => {
-    const out: { iso: string; label: string; weekday: number }[] = []
-    for (let i = 0; i < 14 && out.length < 8; i++) {
-      const d = addDays(new Date(), i)
-      const wd = d.getDay()
-      const h = hours?.find((x) => x.weekday === wd)
-      if (h && !h.is_closed && h.open_time) {
-        out.push({ iso: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE d MMM', { locale: fr }), weekday: wd })
+  const { data: garages } = useGarages()
+  const garageName = garages?.find((g) => g.id === selectedGarageId)?.name ?? ''
+
+  const days = useMemo(() => openDays(hours, 8), [hours])
+  const slots = useMemo(() => (date ? slotsForDate(hours, date) : []), [date, hours])
+
+  // Deep-link from the home prestation list: preselect service and skip step 1.
+  useEffect(() => {
+    const pre = sessionStorage.getItem(BOOK_SERVICE_KEY)
+    if (pre && services) {
+      const found = services.find((s) => s.id === pre)
+      sessionStorage.removeItem(BOOK_SERVICE_KEY)
+      if (found) {
+        setService(found)
+        setStep('vehicle')
       }
     }
-    return out
-  }, [hours])
-
-  const slots = useMemo(() => {
-    if (!date) return []
-    const wd = new Date(date).getDay()
-    const h = hours?.find((x) => x.weekday === wd)
-    return buildSlots(h?.open_time, h?.close_time)
-  }, [date, hours])
+  }, [services])
 
   if (!selectedGarageId) {
     return (
@@ -133,7 +124,15 @@ export function BookingFlow() {
   }
 
   if (step === 'done' && reference) {
-    return <Confirmation reference={reference} service={service?.name} onTrack={() => navigate('/app/bookings')} />
+    return (
+      <Confirmation
+        reference={reference}
+        service={service?.name}
+        garage={garageName}
+        when={date ? `${format(new Date(date), 'EEEE d MMM', { locale: fr })} à ${time}` : ''}
+        onTrack={() => navigate('/app/bookings')}
+      />
+    )
   }
 
   const transition = reduced ? { duration: 0 } : { duration: 0.25 }
@@ -342,32 +341,54 @@ function VehicleStep({
   )
 }
 
-function Confirmation({ reference, service, onTrack }: { reference: string; service?: string; onTrack: () => void }) {
+function Confirmation({
+  reference, service, garage, when, onTrack,
+}: {
+  reference: string
+  service?: string
+  garage?: string
+  when?: string
+  onTrack: () => void
+}) {
   return (
     <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-4 p-6 text-center">
       <motion.div
-        initial={{ scale: 0, rotate: -20 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={{ type: 'spring', damping: 12 }}
-        className="flex h-20 w-20 items-center justify-center rounded-full bg-success/15 text-success"
+        initial={{ scale: 0.6, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', damping: 14 }}
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success"
       >
-        <CheckCircle2 className="h-12 w-12" />
+        <CheckCircle2 className="h-9 w-9" />
       </motion.div>
       <div>
-        <h1 className="text-2xl font-bold">Demande envoyée !</h1>
-        <p className="mt-1 text-muted-foreground">
-          {service ? `« ${service} »` : 'Votre demande'} a bien été transmise au garage.
-        </p>
+        <h1 className="text-xl font-bold">Demande envoyée</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Le garage va vous répondre rapidement.</p>
       </div>
-      <Card className="w-full max-w-xs p-4">
-        <p className="text-xs text-muted-foreground">Référence de suivi</p>
-        <p className="text-xl font-bold tracking-wider text-primary">{reference}</p>
+
+      <Card className="w-full max-w-xs p-4 text-left">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">Référence</span>
+          <span className="font-bold tracking-wider text-primary">{reference}</span>
+        </div>
+        <div className="mt-2 space-y-1.5 border-t border-border pt-2 text-sm">
+          {service && <Row label="Prestation" value={service} />}
+          {garage && <Row label="Garage" value={garage} />}
+          {when && <Row label="Date" value={when} />}
+          <Row label="Statut" value="En attente" />
+        </div>
       </Card>
-      <p className="max-w-xs text-sm text-muted-foreground">
-        Le garage va l’étudier et vous répondre (acceptation, refus ou autre créneau).
-      </p>
-      <Button className="w-full max-w-xs" onClick={onTrack}>Suivre ma demande</Button>
+
+      <Button className="w-full max-w-xs" onClick={onTrack}>Voir ma demande</Button>
       <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground">Retour à l’accueil</Link>
+    </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-medium capitalize">{value}</span>
     </div>
   )
 }

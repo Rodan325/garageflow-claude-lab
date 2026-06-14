@@ -58,17 +58,15 @@ export function LoginPage() {
   return (
     <div className="grid min-h-dvh lg:grid-cols-2">
       {/* Brand panel (desktop) */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-primary to-[#0a4f49] p-10 text-primary-foreground lg:flex">
-        <Link to="/" className="relative z-10"><Logo className="text-white [&_.text-primary]:text-white/90" /></Link>
-        <div className="relative z-10 space-y-4">
-          <h2 className="text-3xl font-bold leading-tight">Le garage prend ses rendez-vous, vous gardez la main.</h2>
-          <p className="max-w-sm text-white/80">
-            Espace garage + application client réunis. Réservations centralisées, atelier lisible, données isolées par garage.
-          </p>
+      <aside className="hidden flex-col justify-between border-r border-border bg-primary p-10 text-primary-foreground lg:flex">
+        <Link to="/"><Logo className="text-white [&_.text-primary]:text-white" /></Link>
+        <div className="space-y-3">
+          <h2 className="text-2xl font-semibold leading-snug">
+            Recevez vos demandes de rendez-vous en ligne et gérez-les en quelques clics.
+          </h2>
+          <p className="max-w-sm text-sm text-white/80">Demandes centralisées, agenda propre, suivi client.</p>
         </div>
-        <p className="relative z-10 text-sm text-white/60">© {new Date().getFullYear()} GarageFlow</p>
-        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-black/10 blur-2xl" />
+        <p className="text-sm text-white/60">© {new Date().getFullYear()} GarageFlow</p>
       </aside>
 
       {/* Form panel */}
