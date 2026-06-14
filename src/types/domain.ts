@@ -16,7 +16,24 @@ export type ServiceRequestMessage = Tables<'service_request_messages'>
 export type Appointment = Tables<'appointments'>
 export type Repair = Tables<'repairs'>
 export type Quote = Tables<'quotes'>
+export type QuoteLine = Tables<'quote_lines'>
 export type Task = Tables<'tasks'>
+
+/** A default quote line stored on a service (garage_services.default_lines). */
+export interface DefaultLine {
+  label: string
+  quantity: number
+  unit_price: number
+  tax_rate: number
+}
+
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'refused'
+export const QUOTE_STATUS_META: Record<QuoteStatus, { label: string; tone: Tone }> = {
+  draft: { label: 'Brouillon', tone: 'neutral' },
+  sent: { label: 'Envoyé', tone: 'info' },
+  accepted: { label: 'Accepté', tone: 'success' },
+  refused: { label: 'Refusé', tone: 'danger' },
+}
 
 export type GarageRole = 'owner' | 'admin' | 'advisor' | 'mechanic' | 'front_desk'
 

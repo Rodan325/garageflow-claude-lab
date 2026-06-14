@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CalendarPlus, Check, Clock, Inbox, MessageSquare, Phone, X } from 'lucide-react'
+import { AlertTriangle, CalendarPlus, Check, Clock, FileText, Inbox, MessageSquare, Phone, X } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/ui/badge'
@@ -44,6 +45,7 @@ export function BookingsPage() {
   const { garage, userId } = useAuth()
   const gid = garage?.id
   const toast = useToast()
+  const navigate = useNavigate()
   const { data: requests, isLoading } = useGarageRequests(gid)
   const updateStatus = useUpdateRequestStatus()
   const convert = useConvertRequestToAppointment()
@@ -51,6 +53,7 @@ export function BookingsPage() {
   const [tab, setTab] = useState('pending')
   const [proposeFor, setProposeFor] = useState<ServiceRequest | null>(null)
   const [detailFor, setDetailFor] = useState<ServiceRequest | null>(null)
+  const [scheduleError, setScheduleError] = useState<Record<string, string>>({})
 
   const counts = useMemo(() => {
     const list = requests ?? []
@@ -73,18 +76,19 @@ export function BookingsPage() {
   }
 
   // One click: accept if needed, then create the appointment + link client/vehicle.
+  // On failure we NEVER fake a confirmation — the demand stays accepted and the
+  // garage sees a clear error with a retry.
   async function confirmBooking(r: ServiceRequest) {
     try {
       if (r.status === 'pending') {
         await updateStatus.mutateAsync({ id: r.id, garageId: r.garage_id, clientId: r.client_id, status: 'accepted' })
       }
       await convert.mutateAsync({ requestId: r.id, garageId: r.garage_id })
+      setScheduleError((m) => { const n = { ...m }; delete n[r.id]; return n })
       toast.success('Rendez-vous confirmé', 'Ajouté à l’agenda et au CRM.')
     } catch (e) {
-      await updateStatus
-        .mutateAsync({ id: r.id, garageId: r.garage_id, clientId: r.client_id, status: 'confirmed' })
-        .catch(() => {})
-      toast.info('Demande confirmée', `Planification agenda à finaliser (${(e as Error).message}).`)
+      setScheduleError((m) => ({ ...m, [r.id]: (e as Error).message }))
+      toast.error('Erreur agenda', 'Le rendez-vous n’a pas pu être créé. Réessayez.')
     }
   }
 
@@ -149,11 +153,17 @@ export function BookingsPage() {
                     <StatusPill tone={meta.tone} label={meta.label} />
                   </div>
 
+                  {scheduleError[r.id] && (
+                    <div className="mt-3 flex items-center gap-2 rounded-lg bg-danger/10 p-2 text-xs font-medium text-danger">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      Erreur agenda : le rendez-vous n’a pas été créé. Cliquez sur « Réessayer ».
+                    </div>
+                  )}
                   <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
                     {(isPending || isAccepted) && (
                       <>
                         <Button size="sm" loading={convert.isPending} onClick={() => confirmBooking(r)}>
-                          <Check className="h-4 w-4" /> Confirmer
+                          <Check className="h-4 w-4" /> {scheduleError[r.id] ? 'Réessayer' : 'Confirmer le RDV'}
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => setProposeFor(r)}>
                           <CalendarPlus className="h-4 w-4" /> Autre créneau
@@ -178,6 +188,11 @@ export function BookingsPage() {
                     {isConfirmed && (
                       <Button size="sm" variant="outline" onClick={() => setStatus(r, 'completed', 'Marquée terminée')}>
                         <Check className="h-4 w-4" /> Marquer terminée
+                      </Button>
+                    )}
+                    {(isPending || isAccepted || isConfirmed) && (
+                      <Button size="sm" variant="ghost" onClick={() => navigate(`/pro/quotes/new?request=${r.id}`)}>
+                        <FileText className="h-4 w-4" /> Créer un devis
                       </Button>
                     )}
                     {r.contact_phone && (

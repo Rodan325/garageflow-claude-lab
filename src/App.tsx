@@ -20,6 +20,9 @@ import { VehiclesPage } from '@/features/pro/VehiclesPage'
 import { ClientsPage } from '@/features/pro/ClientsPage'
 import { WorkshopPage } from '@/features/pro/WorkshopPage'
 import { QuotesPage } from '@/features/pro/QuotesPage'
+import { QuoteEditorPage } from '@/features/pro/QuoteEditorPage'
+import { QuotePrintPage } from '@/features/pro/QuotePrintPage'
+import { ServicesPage } from '@/features/pro/ServicesPage'
 import { TeamPage } from '@/features/pro/TeamPage'
 import { SettingsPage } from '@/features/pro/SettingsPage'
 // Client
@@ -51,15 +54,20 @@ export function App() {
           <Route path="vehicles" element={<VehiclesPage />} />
           <Route path="clients" element={<ClientsPage />} />
           <Route path="workshop" element={<WorkshopPage />} />
+          <Route path="services" element={<ServicesPage />} />
           <Route path="quotes" element={<QuotesPage />} />
+          <Route path="quotes/new" element={<QuoteEditorPage />} />
+          <Route path="quotes/:id" element={<QuoteEditorPage />} />
           <Route path="team" element={<TeamPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 
+        <Route path="/print/quote/:id" element={<RequireStaff><QuotePrintPage /></RequireStaff>} />
+
         <Route path="/app" element={<ClientShell />}>
           <Route index element={<ClientHomePage />} />
           <Route path="news" element={<ClientNewsPage />} />
-          <Route path="book" element={<RequireClientAuth><BookingFlow /></RequireClientAuth>} />
+          <Route path="book" element={<BookingFlow />} />
           <Route path="bookings" element={<RequireClientAuth><ClientBookingsPage /></RequireClientAuth>} />
           <Route path="bookings/:id" element={<RequireClientAuth><ClientBookingDetailPage /></RequireClientAuth>} />
           <Route path="vehicles" element={<RequireClientAuth><ClientVehiclesPage /></RequireClientAuth>} />

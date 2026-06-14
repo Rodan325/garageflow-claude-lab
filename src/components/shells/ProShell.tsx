@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, Settings, Users, Wrench, X,
+  CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, Settings, Tags, Users, Wrench, X,
 } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
@@ -22,6 +22,7 @@ const essentiel = [
 ]
 const avance = [
   { to: '/pro/workshop', label: 'Atelier', icon: Wrench, end: false },
+  { to: '/pro/services', label: 'Prestations', icon: Tags, end: false },
   { to: '/pro/quotes', label: 'Devis', icon: FileText, end: false },
   { to: '/pro/team', label: 'Équipe', icon: Users, end: false },
 ]

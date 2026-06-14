@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -23,14 +23,16 @@ export function SignupPage() {
   const { signUp, ready, session, accountType } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const redirect = params.get('redirect')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<Form>({ resolver: zodResolver(schema) })
 
   useEffect(() => {
-    if (done && ready && session && accountType === 'client') navigate('/app', { replace: true })
-  }, [done, ready, session, accountType, navigate])
+    if (done && ready && session && accountType === 'client') navigate(redirect || '/app', { replace: true })
+  }, [done, ready, session, accountType, redirect, navigate])
 
   const onSubmit = async (data: Form) => {
     setSubmitting(true)

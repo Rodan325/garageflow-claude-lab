@@ -61,6 +61,7 @@ export function ClientHomePage() {
       garageId={selected.id}
       garageName={selected.name}
       garageCity={selected.city}
+      logoUrl={selected.logo_url}
       firstName={profile?.full_name?.split(' ')[0]}
       onChange={() => select('')}
       isAuthed={!!userId}
@@ -69,11 +70,12 @@ export function ClientHomePage() {
 }
 
 function SelectedGarageHome({
-  garageId, garageName, garageCity, firstName, onChange, isAuthed,
+  garageId, garageName, garageCity, logoUrl, firstName, onChange, isAuthed,
 }: {
   garageId: string
   garageName: string
   garageCity: string | null
+  logoUrl: string | null
   firstName?: string
   onChange: () => void
   isAuthed: boolean
@@ -95,9 +97,12 @@ function SelectedGarageHome({
       <div>
         {firstName && <p className="text-sm text-muted-foreground">Bonjour {firstName}</p>}
         <div className="mt-1 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">{garageName}</h1>
-            <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {garageCity}</p>
+          <div className="flex items-center gap-3">
+            {logoUrl && <img src={logoUrl} alt="" className="h-12 w-12 rounded-lg border border-border object-contain" />}
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">{garageName}</h1>
+              <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {garageCity}</p>
+            </div>
           </div>
           <button onClick={onChange} className="shrink-0 text-xs font-medium text-primary hover:underline">Changer</button>
         </div>

@@ -372,6 +372,10 @@ export type Database = {
           name: string
           price_from: number | null
           sort_order: number
+          tax_rate: number
+          labor_hours: number | null
+          price_type: string
+          default_lines: Json
         }
         Insert: {
           category?: string | null
@@ -384,6 +388,10 @@ export type Database = {
           name: string
           price_from?: number | null
           sort_order?: number
+          tax_rate?: number
+          labor_hours?: number | null
+          price_type?: string
+          default_lines?: Json
         }
         Update: {
           category?: string | null
@@ -396,6 +404,10 @@ export type Database = {
           name?: string
           price_from?: number | null
           sort_order?: number
+          tax_rate?: number
+          labor_hours?: number | null
+          price_type?: string
+          default_lines?: Json
         }
         Relationships: []
       }
@@ -411,6 +423,9 @@ export type Database = {
           is_public: boolean
           legal_name: string | null
           logo_url: string | null
+          accent_color: string | null
+          legal_info: string | null
+          maps_url: string | null
           name: string
           phone: string | null
           postal_code: string | null
@@ -432,6 +447,9 @@ export type Database = {
           is_public?: boolean
           legal_name?: string | null
           logo_url?: string | null
+          accent_color?: string | null
+          legal_info?: string | null
+          maps_url?: string | null
           name: string
           phone?: string | null
           postal_code?: string | null
@@ -453,6 +471,9 @@ export type Database = {
           is_public?: boolean
           legal_name?: string | null
           logo_url?: string | null
+          accent_color?: string | null
+          legal_info?: string | null
+          maps_url?: string | null
           name?: string
           phone?: string | null
           postal_code?: string | null
@@ -530,6 +551,11 @@ export type Database = {
           created_at: string
           customer_id: string | null
           discount_total: number
+          client_name: string | null
+          vehicle_label: string | null
+          conditions: string | null
+          valid_until: string | null
+          service_request_id: string | null
           garage_id: string
           id: string
           notes: string | null
@@ -546,6 +572,11 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           discount_total?: number
+          client_name?: string | null
+          vehicle_label?: string | null
+          conditions?: string | null
+          valid_until?: string | null
+          service_request_id?: string | null
           garage_id: string
           id?: string
           notes?: string | null
@@ -562,6 +593,11 @@ export type Database = {
           created_at?: string
           customer_id?: string | null
           discount_total?: number
+          client_name?: string | null
+          vehicle_label?: string | null
+          conditions?: string | null
+          valid_until?: string | null
+          service_request_id?: string | null
           garage_id?: string
           id?: string
           notes?: string | null

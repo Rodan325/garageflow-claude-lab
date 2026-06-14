@@ -32,7 +32,8 @@
       "Bash(git add *)",
       "Bash(grep -E \"^\\\\.env$|vite.config.js\")",
       "Bash(git commit *)",
-      "Bash(echo \"commit: $?\")"
+      "Bash(echo \"commit: $?\")",
+      "Bash(grep -E \"^\\\\.env$|vite.config.js$|tailwind.config.js$\")"
     ]
   }
 }

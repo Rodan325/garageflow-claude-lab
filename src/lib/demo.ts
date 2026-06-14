@@ -6,7 +6,7 @@
  */
 import type {
   Appointment, ClientProfile, ClientVehicle, Customer, Garage, GarageHours,
-  GarageNews, GarageService, Repair, ServiceRequest, ServiceRequestMessage, Task,
+  GarageNews, GarageService, Quote, QuoteLine, Repair, ServiceRequest, ServiceRequestMessage, Task,
 } from '@/types/domain'
 import type { DashboardStats, TeamMember } from '@/data/proData'
 
@@ -58,8 +58,11 @@ interface Store {
   appointments: Appointment[]
   repairs: Repair[]
   tasks: Task[]
+  quotes: Quote[]
+  quoteLines: QuoteLine[]
   clientProfile: ClientProfile
   reqSeq: number
+  quoteSeq: number
 }
 type Vehicle = Customer extends never ? never : import('@/types/domain').Vehicle
 
@@ -71,11 +74,13 @@ function seed(): Store {
     address: '12 rue de la Mécanique', city: 'Lyon', postal_code: '69003', country: 'FR',
     description: 'Entretien, révision et réparation toutes marques au cœur de Lyon. Devis clair, délais respectés.',
     specialties: ['Entretien', 'Révision', 'Pneumatiques', 'Diagnostic', 'Climatisation'],
-    logo_url: null, is_public: true, settings: {}, created_at: today().toISOString(),
+    logo_url: null, accent_color: null, legal_info: null, maps_url: null,
+    is_public: true, settings: {}, created_at: today().toISOString(),
   }
   const svc = (name: string, description: string, category: string, duration_minutes: number, price_from: number, sort_order: number): GarageService => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, name, description, category, duration_minutes,
     price_from, is_active: true, sort_order, created_at: today().toISOString(),
+    tax_rate: 20, labor_hours: null, price_type: 'from', default_lines: [],
   })
   const services = [
     svc('Révision constructeur', 'Vidange, filtres et points de contrôle complets.', 'Entretien', 90, 149, 1),
@@ -145,9 +150,9 @@ function seed(): Store {
   }))
   return {
     garages: [g], services, news, hours, customers, vehicles, clientVehicles, requests,
-    messages: [], appointments: [], repairs, tasks,
+    messages: [], appointments: [], repairs, tasks, quotes: [], quoteLines: [],
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
-    reqSeq: 1,
+    reqSeq: 1, quoteSeq: 0,
   }
 }
 
@@ -200,6 +205,7 @@ export const demo = {
   garages: () => clone(load().garages),
   garageById: (id: string) => clone(load().garages.find((g) => g.id === id) ?? null),
   services: () => clone(load().services.filter((s) => s.is_active).sort((a, b) => a.sort_order - b.sort_order)),
+  allServices: () => clone([...load().services].sort((a, b) => a.sort_order - b.sort_order)),
   news: () => clone(load().news),
   hours: () => clone(load().hours),
   garageRequests: () => clone([...load().requests].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))),
@@ -212,7 +218,9 @@ export const demo = {
   repairs: () => clone(load().repairs),
   tasks: () => clone(load().tasks),
   appointments: () => clone([...load().appointments].sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at))),
-  quotes: () => [] as never[],
+  quotes: () => clone([...load().quotes].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))),
+  quote: (id: string) => clone(load().quotes.find((q) => q.id === id) ?? null),
+  quoteLines: (quoteId: string) => clone(load().quoteLines.filter((l) => l.quote_id === quoteId).sort((a, b) => a.sort_order - b.sort_order)),
   team: (): TeamMember[] => [
     { id: 't1', garage_id: DEMO_GARAGE_ID, user_id: DEMO_STAFF_ID, role: 'owner', status: 'active', invited_at: null, created_at: today().toISOString(), profile: demoProfile('garage') as never },
     { id: 't2', garage_id: DEMO_GARAGE_ID, user_id: 'demo-mecano', role: 'mechanic', status: 'active', invited_at: null, created_at: today().toISOString(), profile: { ...demoProfile('garage'), id: 'demo-mecano', full_name: 'Karim Benali' } as never },
@@ -384,5 +392,78 @@ export const demo = {
     s.appointments.push(row)
     save()
     return row
+  },
+  createService: (input: Partial<GarageService>): GarageService => {
+    const s = load()
+    const row = {
+      id: uid(), garage_id: DEMO_GARAGE_ID, name: input.name ?? '', description: input.description ?? null,
+      category: input.category ?? null, duration_minutes: input.duration_minutes ?? 60,
+      price_from: input.price_from ?? null, is_active: input.is_active ?? true,
+      sort_order: input.sort_order ?? (s.services.length + 1), created_at: new Date().toISOString(),
+      tax_rate: input.tax_rate ?? 20, labor_hours: input.labor_hours ?? null,
+      price_type: input.price_type ?? 'from', default_lines: input.default_lines ?? [],
+    } as GarageService
+    s.services.push(row)
+    save()
+    return row
+  },
+  updateService: (id: string, patch: Partial<GarageService>) => {
+    const s = load()
+    const row = s.services.find((x) => x.id === id)
+    if (row) Object.assign(row, patch)
+    save()
+  },
+  deleteService: (id: string) => {
+    const s = load()
+    s.services = s.services.filter((x) => x.id !== id)
+    save()
+  },
+  updateGarage: (patch: Partial<Garage>) => {
+    const s = load()
+    Object.assign(s.garages[0], patch)
+    save()
+  },
+  createQuote: (quote: Partial<Quote>, lines: Partial<QuoteLine>[]): Quote => {
+    const s = load()
+    s.quoteSeq += 1
+    const id = uid()
+    const row: Quote = {
+      id, garage_id: DEMO_GARAGE_ID, customer_id: quote.customer_id ?? null, vehicle_id: quote.vehicle_id ?? null,
+      repair_id: null, number: quote.number ?? 'DV-' + String(s.quoteSeq).padStart(4, '0'),
+      status: quote.status ?? 'draft', title: quote.title ?? 'Devis',
+      subtotal: quote.subtotal ?? 0, tax_total: quote.tax_total ?? 0, discount_total: 0,
+      total: quote.total ?? 0, notes: quote.notes ?? null, created_at: new Date().toISOString(),
+      client_name: quote.client_name ?? null, vehicle_label: quote.vehicle_label ?? null,
+      conditions: quote.conditions ?? null, valid_until: quote.valid_until ?? null,
+      service_request_id: quote.service_request_id ?? null,
+    }
+    s.quotes.unshift(row)
+    lines.forEach((l, i) =>
+      s.quoteLines.push({
+        id: uid(), quote_id: id, label: l.label ?? '', quantity: l.quantity ?? 1,
+        unit_price: l.unit_price ?? 0, tax_rate: l.tax_rate ?? 20, line_total: l.line_total ?? 0, sort_order: i,
+      }),
+    )
+    save()
+    return row
+  },
+  updateQuoteStatus: (id: string, status: string) => {
+    const s = load()
+    const q = s.quotes.find((x) => x.id === id)
+    if (q) q.status = status
+    save()
+  },
+  updateQuoteFull: (id: string, patch: Partial<Quote>, lines: Partial<QuoteLine>[]) => {
+    const s = load()
+    const q = s.quotes.find((x) => x.id === id)
+    if (q) Object.assign(q, patch)
+    s.quoteLines = s.quoteLines.filter((l) => l.quote_id !== id)
+    lines.forEach((l, i) =>
+      s.quoteLines.push({
+        id: uid(), quote_id: id, label: l.label ?? '', quantity: l.quantity ?? 1,
+        unit_price: l.unit_price ?? 0, tax_rate: l.tax_rate ?? 20, line_total: l.line_total ?? 0, sort_order: i,
+      }),
+    )
+    save()
   },
 }
