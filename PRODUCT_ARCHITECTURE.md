@@ -1,0 +1,80 @@
+# GarageFlow — Architecture produit
+
+## 1. Vision
+
+Permettre à un garage indépendant — même peu à l’aise avec l’informatique — de **recevoir et gérer ses rendez-vous** sans téléphone permanent ni post-it, et d’offrir à ses clients une **expérience de réservation mobile moderne**.
+
+## 2. Les trois surfaces
+
+### Site marketing (public)
+- `#/` accueil : problèmes → solution → modules → parcours → CTA.
+- `#/pilote` : offre pilote (inclus, déroulé 4 semaines, prix).
+
+### GarageFlow Pro (membres du garage, authentifiés, par rôle)
+- **Dashboard** : KPI (demandes en attente, RDV du jour, réparations, tâches, véhicules, clients) + priorités du jour.
+- **Réservations reçues** (inbox) : accepter / refuser / proposer un autre créneau / confirmer / messages.
+- **Agenda** : rendez-vous planifiés (issus des réservations confirmées ou créés manuellement).
+- **Véhicules** : parc clients suivi par le garage.
+- **Clients** : carnet d’adresses (CRM).
+- **Atelier** : kanban des réparations (à diagnostiquer → restitué).
+- **Devis** : devis simples avec TVA et statut.
+- **Équipe** : membres et rôles.
+- **Paramètres** : infos garage, prestations, horaires, **état du backend**, compte.
+
+### GarageFlow Client (automobilistes, mobile-first)
+- **Accueil** : choisir / retrouver son garage, prestations, actualités.
+- **Réserver** : parcours guidé prestation → véhicule → créneau → coordonnées → confirmation.
+- **Demandes** : suivi des réservations + acceptation d’un créneau proposé + annulation + messages.
+- **Profil** : coordonnées, garage favori, consentement, déconnexion.
+- **Véhicules** : véhicules personnels du client.
+- **Actualités** : publications du garage.
+
+## 3. Rôles
+
+| Rôle | Accès |
+|---|---|
+| `owner` (Gérant) | Tout, gestion garage + équipe |
+| `admin` | Tout, gestion garage + équipe |
+| `advisor` (Conseiller) | Réservations, clients, véhicules, devis, prestations |
+| `mechanic` (Mécanicien) | Atelier, véhicules |
+| `front_desk` (Réception) | Réservations, agenda, clients, prestations, horaires |
+| Client final | Uniquement ses propres données |
+
+Les rôles sont appliqués **côté base** par les policies RLS (pas seulement côté UI).
+
+## 4. Le workflow central (réservation → rendez-vous)
+
+```
+Client                          Garage
+──────                          ──────
+Choisit garage + prestation
+Choisit / ajoute véhicule
+Choisit un créneau
+Envoie la demande  ───────────▶  Demande "en attente" dans l'inbox
+                                 Accepter ──▶ "acceptée"
+                                 ou Proposer un créneau ──▶ "autre créneau proposé"
+Accepte le créneau  ◀──────────  (le client confirme)
+                                 Confirmer ──▶ Edge Function:
+                                   crée client CRM + véhicule + rendez-vous (agenda)
+                                   statut "confirmée"
+Suit le statut      ◀──────────  (terminée à la fin de la prestation)
+```
+
+Transitions de statut : `pending → accepted | declined | reschedule_proposed → confirmed → completed | cancelled`.
+Chaque transition est **validée côté base** par un trigger (qui autorise au garage et au client uniquement leurs transitions légitimes).
+
+## 5. États & qualité d’expérience
+
+- États **vides** explicites (inbox vide, aucun véhicule, aucune actualité…).
+- États **de chargement** (skeletons, spinners).
+- États **d’erreur** propres (toasts, messages, bouton réessayer).
+- **Motion** discret (entrées de listes, transitions d’étapes, confirmation animée), désactivé si `prefers-reduced-motion`.
+- **Mobile-first** côté client (bottom navigation, sheets), **dense et lisible** côté Pro (sidebar, topbar avec statut backend).
+
+## 6. Évolutions prévues
+
+- Invitation d’équipe par email (Edge Function admin).
+- Notifications email/SMS sur changement de statut.
+- Devis détaillés (lignes), signature, documents/stockage signé.
+- Disponibilité atelier réelle (capacité par créneau).
+- Boutons IA branchés sur les Edge Functions (annonce véhicule, résumé réparation).

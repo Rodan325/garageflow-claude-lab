@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 91%;
+    --input: 214 32% 88%;
+    --ring: 174 72% 36%;
+
+    --primary: 175 72% 30%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 174 60% 94%;
+    --accent-foreground: 175 72% 24%;
+
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+    --success: 142 66% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 28 80% 16%;
+    --danger: 0 72% 51%;
+    --danger-foreground: 0 0% 100%;
+
+    --radius: 0.7rem;
+  }
+
+  .dark {
+    --background: 222 47% 10%;
+    --foreground: 210 40% 98%;
+    --card: 222 38% 13%;
+    --card-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --border: 217 30% 22%;
+    --input: 217 30% 26%;
+    --ring: 174 65% 44%;
+
+    --primary: 173 65% 42%;
+    --primary-foreground: 222 47% 10%;
+    --accent: 217 33% 19%;
+    --accent-foreground: 174 60% 80%;
+
+    --info: 217 91% 64%;
+    --info-foreground: 222 47% 10%;
+    --success: 142 60% 45%;
+    --success-foreground: 222 47% 10%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 28 80% 12%;
+    --danger: 0 72% 58%;
+    --danger-foreground: 222 47% 10%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    /* respect iOS safe areas for the mobile client */
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Tidy scrollbars in the Pro back-office */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+}
+
+@layer components {
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-muted;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.06),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .focus-card {
+    @apply transition-shadow duration-200 hover:shadow-pop;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

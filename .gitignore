@@ -1,0 +1,38 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# build
+dist
+dev-dist
+*.local
+
+# tsc composite emit (generated from *.config.ts)
+/vite.config.js
+/vite.config.d.ts
+/tailwind.config.js
+/tailwind.config.d.ts
+
+# local editor/agent settings
+.claude/settings.local.json
+
+# env / secrets — NEVER commit real keys
+.env
+.env.*
+!.env.example
+
+# editor / os
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+npm-debug.log*
+
+# test
+coverage
+
+# supabase local
+supabase/.temp
+supabase/.branches
