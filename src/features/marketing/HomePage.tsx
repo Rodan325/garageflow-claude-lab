@@ -5,6 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { fadeSlideUp, listItem, listStagger } from '@/lib/motion'
 
+const problems = [
+  'Les rendez-vous se prennent au téléphone, entre deux réparations.',
+  'Les demandes se perdent entre SMS, appels et post-it.',
+  'Aucune vue claire sur l’atelier, les véhicules et les relances.',
+]
+
 const benefits = [
   { icon: PhoneOff, title: 'Moins d’appels', text: 'Vos clients réservent en ligne. Vous reprenez la main sur le téléphone.' },
   { icon: Inbox, title: 'Demandes centralisées', text: 'Toutes les demandes arrivent au même endroit, prêtes à traiter.' },
@@ -67,8 +73,18 @@ export function HomePage() {
         </motion.div>
       </section>
 
+      {/* Problèmes */}
+      <section id="problemes" className="container scroll-mt-20 py-14">
+        <h2 className="text-center text-2xl font-bold sm:text-3xl">Ce qui ralentit un garage aujourd’hui</h2>
+        <div className="mx-auto mt-8 grid max-w-4xl gap-4 sm:grid-cols-3">
+          {problems.map((p) => (
+            <Card key={p} className="p-5 text-sm text-muted-foreground">{p}</Card>
+          ))}
+        </div>
+      </section>
+
       {/* Benefits */}
-      <section id="solution" className="border-t border-border bg-muted/20">
+      <section id="solution" className="scroll-mt-20 border-t border-border bg-muted/20">
         <div className="container py-16">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-bold sm:text-3xl">Ce que ça change au quotidien</h2>
@@ -97,7 +113,7 @@ export function HomePage() {
       </section>
 
       {/* Parcours */}
-      <section id="parcours" className="container py-16">
+      <section id="parcours" className="container scroll-mt-20 py-16">
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-7">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Côté client</p>

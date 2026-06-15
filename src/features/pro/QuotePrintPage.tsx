@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, Download, Printer } from 'lucide-react'
 import { LoadingState, EmptyState } from '@/components/ui/feedback'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useQuote, useQuoteLines } from '@/data/quotes'
+import { useCustomers } from '@/data/proData'
 import { euro, shortDate } from '@/lib/format'
 
 /**
@@ -15,9 +18,26 @@ export function QuotePrintPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { garage } = useAuth()
+  const toast = useToast()
   const { data: quote, isLoading } = useQuote(id)
   const { data: lines } = useQuoteLines(id)
+  const { data: customers } = useCustomers(garage?.id)
+  const [downloading, setDownloading] = useState(false)
   const accent = garage?.accent_color || '#0f766e'
+
+  async function download() {
+    if (!quote) return
+    setDownloading(true)
+    try {
+      const customer = customers?.find((c) => c.id === quote.customer_id)
+      const { downloadQuotePdf } = await import('./quotePdf')
+      await downloadQuotePdf({ quote, lines: lines ?? [], garage, customer })
+    } catch (e) {
+      toast.error('Génération PDF impossible', (e as Error).message)
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   if (isLoading) return <LoadingState />
   if (!quote) return <div className="p-8"><EmptyState title="Devis introuvable" /></div>
@@ -29,7 +49,10 @@ export function QuotePrintPage() {
         <button onClick={() => navigate('/pro/quotes')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
           <ArrowLeft className="h-4 w-4" /> Devis
         </button>
-        <Button onClick={() => window.print()}><Printer className="h-4 w-4" /> Imprimer / PDF</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> Imprimer</Button>
+          <Button onClick={download} loading={downloading}><Download className="h-4 w-4" /> Télécharger le PDF</Button>
+        </div>
       </div>
 
       {/* Document */}
