@@ -36,6 +36,7 @@ function build(accent: string) {
     footer: { marginTop: 28, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
     legal: { fontSize: 7, color: '#94a3b8', maxWidth: 280 },
     signBox: { width: 180, borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 4, padding: 10, textAlign: 'center' },
+    genFooter: { position: 'absolute', bottom: 18, left: 40, right: 40, textAlign: 'center', fontSize: 7, color: '#cbd5e1' },
   })
 }
 
@@ -45,6 +46,9 @@ function QuoteDoc({ quote, lines, garage, customer }: QuotePdfData) {
   const legal =
     garage?.legal_info ||
     [garage?.legal_name, garage?.siret ? `SIRET ${garage.siret}` : null, garage?.vat_number].filter(Boolean).join(' · ')
+  const [vehicleName, plate] = (quote.vehicle_label ?? '').split(' · ')
+  const clientPhone = quote.client_phone || customer?.phone
+  const clientEmail = quote.client_email || customer?.email
 
   return (
     <Document title={`Devis ${quote.number}`}>
@@ -72,12 +76,13 @@ function QuoteDoc({ quote, lines, garage, customer }: QuotePdfData) {
           <View style={{ width: '48%' }}>
             <Text style={s.label}>Client</Text>
             <Text style={s.strong}>{quote.client_name || '—'}</Text>
-            {customer?.phone ? <Text style={s.muted}>{customer.phone}</Text> : null}
-            {customer?.email ? <Text style={s.muted}>{customer.email}</Text> : null}
+            {clientPhone ? <Text style={s.muted}>{clientPhone}</Text> : null}
+            {clientEmail ? <Text style={s.muted}>{clientEmail}</Text> : null}
           </View>
           <View style={{ width: '48%' }}>
             <Text style={s.label}>Véhicule</Text>
-            <Text style={s.strong}>{quote.vehicle_label || '—'}</Text>
+            <Text style={s.strong}>{vehicleName || quote.vehicle_label || '—'}</Text>
+            {plate ? <Text style={[s.strong, { marginTop: 2 }]}>Immatriculation : {plate}</Text> : null}
           </View>
         </View>
 
@@ -122,6 +127,7 @@ function QuoteDoc({ quote, lines, garage, customer }: QuotePdfData) {
             <Text style={[s.muted, { marginTop: 24 }]}>Date et signature</Text>
           </View>
         </View>
+        <Text fixed style={s.genFooter}>Document généré par GarageFlow</Text>
       </Page>
     </Document>
   )

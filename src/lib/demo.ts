@@ -423,19 +423,26 @@ export const demo = {
     Object.assign(s.garages[0], patch)
     save()
   },
-  createQuote: (quote: Partial<Quote>, lines: Partial<QuoteLine>[]): Quote => {
+  nextQuoteNumber: () => {
     const s = load()
     s.quoteSeq += 1
+    save()
+    return 'DV-' + new Date().getFullYear() + '-' + String(s.quoteSeq).padStart(4, '0')
+  },
+  createQuote: (quote: Partial<Quote>, lines: Partial<QuoteLine>[]): Quote => {
+    const s = load()
     const id = uid()
+    const number = quote.number ?? 'DV-' + new Date().getFullYear() + '-' + String((s.quoteSeq += 1)).padStart(4, '0')
     const row: Quote = {
       id, garage_id: DEMO_GARAGE_ID, customer_id: quote.customer_id ?? null, vehicle_id: quote.vehicle_id ?? null,
-      repair_id: null, number: quote.number ?? 'DV-' + String(s.quoteSeq).padStart(4, '0'),
+      repair_id: null, number,
       status: quote.status ?? 'draft', title: quote.title ?? 'Devis',
       subtotal: quote.subtotal ?? 0, tax_total: quote.tax_total ?? 0, discount_total: 0,
       total: quote.total ?? 0, notes: quote.notes ?? null, created_at: new Date().toISOString(),
       client_name: quote.client_name ?? null, vehicle_label: quote.vehicle_label ?? null,
       conditions: quote.conditions ?? null, valid_until: quote.valid_until ?? null,
       service_request_id: quote.service_request_id ?? null,
+      client_phone: quote.client_phone ?? null, client_email: quote.client_email ?? null,
     }
     s.quotes.unshift(row)
     lines.forEach((l, i) =>

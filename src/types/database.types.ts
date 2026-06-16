@@ -556,6 +556,8 @@ export type Database = {
           conditions: string | null
           valid_until: string | null
           service_request_id: string | null
+          client_phone: string | null
+          client_email: string | null
           garage_id: string
           id: string
           notes: string | null
@@ -577,6 +579,8 @@ export type Database = {
           conditions?: string | null
           valid_until?: string | null
           service_request_id?: string | null
+          client_phone?: string | null
+          client_email?: string | null
           garage_id: string
           id?: string
           notes?: string | null
@@ -598,6 +602,8 @@ export type Database = {
           conditions?: string | null
           valid_until?: string | null
           service_request_id?: string | null
+          client_phone?: string | null
+          client_email?: string | null
           garage_id?: string
           id?: string
           notes?: string | null
@@ -869,6 +875,7 @@ export type Database = {
         Returns: boolean
       }
       is_garage_member: { Args: { p_garage_id: string }; Returns: boolean }
+      next_quote_number: { Args: { p_garage_id: string }; Returns: string }
     }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }

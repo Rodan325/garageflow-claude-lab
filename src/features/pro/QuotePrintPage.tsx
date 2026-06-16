@@ -88,10 +88,15 @@ export function QuotePrintPage() {
           <div>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Client</p>
             <p className="font-medium text-slate-900">{quote.client_name || '—'}</p>
+            {quote.client_phone && <p className="text-slate-500">{quote.client_phone}</p>}
+            {quote.client_email && <p className="text-slate-500">{quote.client_email}</p>}
           </div>
           <div>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Véhicule</p>
-            <p className="font-medium text-slate-900">{quote.vehicle_label || '—'}</p>
+            <p className="font-medium text-slate-900">{(quote.vehicle_label || '—').split(' · ')[0]}</p>
+            {quote.vehicle_label?.includes(' · ') && (
+              <p className="font-semibold text-slate-900">Immatriculation : {quote.vehicle_label.split(' · ')[1]}</p>
+            )}
           </div>
         </div>
 

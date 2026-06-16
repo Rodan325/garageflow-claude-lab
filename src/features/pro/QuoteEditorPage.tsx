@@ -15,6 +15,7 @@ import { useCreateQuote, useQuote, useQuoteLines, useUpdateQuote } from '@/data/
 import { useCustomers, useCreateCustomer, useVehicles, useCreateVehicle } from '@/data/proData'
 import { euro } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { normEmail, normPhone, normPlate } from '@/lib/normalize'
 import type { Customer, DefaultLine, Vehicle } from '@/types/domain'
 
 interface Line { label: string; quantity: number; unit_price: number; tax_rate: number }
@@ -92,14 +93,16 @@ export function QuoteEditorPage() {
       const svc = req ? services.find((s) => s.id === req.service_id) : null
       setTitle(req?.service_name ?? svc?.name ?? 'Devis')
 
-      // suggest client: linked_user_id, then phone, then email
+      // suggest client in order: customer_id → linked_user_id → phone → email (normalised)
       let matchedClient: Customer | undefined
       if (req) {
+        const reqPhone = normPhone(req.contact_phone)
+        const reqEmail = normEmail(req.contact_email)
         matchedClient =
+          (req.customer_id ? customers.find((c) => c.id === req.customer_id) : undefined) ||
           customers.find((c) => c.linked_user_id && c.linked_user_id === req.client_id) ||
-          (req.contact_phone ? customers.find((c) => c.phone && c.phone === req.contact_phone) : undefined) ||
-          (req.contact_email ? customers.find((c) => c.email && c.email === req.contact_email) : undefined) ||
-          (req.customer_id ? customers.find((c) => c.id === req.customer_id) : undefined)
+          (reqPhone ? customers.find((c) => normPhone(c.phone) === reqPhone) : undefined) ||
+          (reqEmail ? customers.find((c) => normEmail(c.email) === reqEmail) : undefined)
       }
       if (matchedClient) {
         setClientMode('existing'); setCustomerId(matchedClient.id); setSuggested((s) => ({ ...s, client: true }))
@@ -108,9 +111,13 @@ export function QuoteEditorPage() {
         setClientMode('new'); setNewClient({ first: first ?? '', last: rest.join(' '), phone: req.contact_phone ?? '', email: req.contact_email ?? '' })
       }
 
-      // suggest vehicle by registration
+      // suggest vehicle by normalised plate — ONLY if it belongs to the matched client
       const parsed = parseVehicleLabel(req?.vehicle_label)
-      const matchedVehicle = parsed.registration ? vehicles.find((v) => v.registration && v.registration.replace(/\s/g, '') === parsed.registration.replace(/\s/g, '')) : undefined
+      const plate = normPlate(parsed.registration)
+      const matchedVehicle =
+        plate && matchedClient
+          ? vehicles.find((v) => normPlate(v.registration) === plate && v.customer_id === matchedClient!.id)
+          : undefined
       if (matchedVehicle) {
         setVehicleMode('existing'); setVehicleId(matchedVehicle.id); setSuggested((s) => ({ ...s, vehicle: true }))
       } else if (req) {
@@ -126,12 +133,17 @@ export function QuoteEditorPage() {
     }
   }, [editing, existingQuote, existingLines, requests, services, customers, vehicles, requestId])
 
-  // Auto-select the only vehicle of a chosen existing client
+  // When the client changes: drop a vehicle that isn't theirs, then auto-pick a single one.
   useEffect(() => {
     if (clientMode !== 'existing' || !customerId) return
     const own = (vehicles ?? []).filter((v) => v.customer_id === customerId)
-    if (vehicleMode === 'existing' && vehicleId && own.some((v) => v.id === vehicleId)) return
-    if (own.length === 1) { setVehicleMode('existing'); setVehicleId(own[0].id) }
+    if (vehicleMode === 'existing' && vehicleId && !own.some((v) => v.id === vehicleId)) {
+      setVehicleId('')
+      setVehicleMode('new')
+    } else if (own.length === 1 && !vehicleId) {
+      setVehicleMode('existing')
+      setVehicleId(own[0].id)
+    }
   }, [customerId, clientMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const totals = useMemo(() => {
@@ -164,35 +176,43 @@ export function QuoteEditorPage() {
     return list.filter((c) => `${fullName(c)} ${c.phone ?? ''} ${c.email ?? ''}`.toLowerCase().includes(q)).slice(0, 6)
   }, [customers, clientSearch])
 
+  // Plate dedup hint while typing a new vehicle.
+  const plateMatch = useMemo(() => {
+    const p = normPlate(newVehicle.registration)
+    if (!p || vehicleMode !== 'new') return undefined
+    return (vehicles ?? []).find((v) => normPlate(v.registration) === p)
+  }, [newVehicle.registration, vehicleMode, vehicles])
+
   async function save(thenPrint: boolean) {
     if (!gid) return
     if (!title.trim() || lines.length === 0) { toast.error('Ajoutez un intitulé et au moins une ligne'); return }
 
     try {
-      // Resolve client (avoid duplicates)
+      // Resolve client — normalised dedup, never create a duplicate.
       let resolvedCustomerId: string | null = null
       let clientName = ''
+      let clientPhone: string | null = null
+      let clientEmail: string | null = null
       if (clientMode === 'existing') {
         const c = (customers ?? []).find((x) => x.id === customerId)
         if (!c) { toast.error('Choisissez un client'); return }
-        resolvedCustomerId = c.id
-        clientName = fullName(c)
+        resolvedCustomerId = c.id; clientName = fullName(c); clientPhone = c.phone; clientEmail = c.email
       } else {
         if (!newClient.first && !newClient.last) { toast.error('Renseignez le client'); return }
+        const nEmail = normEmail(newClient.email)
+        const nPhone = normPhone(newClient.phone)
         const dup = (customers ?? []).find(
-          (c) => (newClient.email && c.email === newClient.email) || (newClient.phone && c.phone === newClient.phone),
+          (c) => (nEmail && normEmail(c.email) === nEmail) || (nPhone && normPhone(c.phone) === nPhone),
         )
         if (dup) {
-          resolvedCustomerId = dup.id
-          clientName = fullName(dup)
+          resolvedCustomerId = dup.id; clientName = fullName(dup); clientPhone = dup.phone; clientEmail = dup.email
         } else {
           const c = await createCustomer.mutateAsync({ garage_id: gid, first_name: newClient.first || null, last_name: newClient.last || null, phone: newClient.phone || null, email: newClient.email || null })
-          resolvedCustomerId = c.id
-          clientName = fullName(c)
+          resolvedCustomerId = c.id; clientName = fullName(c); clientPhone = c.phone; clientEmail = c.email
         }
       }
 
-      // Resolve vehicle
+      // Resolve vehicle — plate-normalised; reuse only within the SAME client (never cross-link).
       let resolvedVehicleId: string | null = null
       let vehicleLabel = ''
       if (vehicleMode === 'existing' && vehicleId) {
@@ -200,10 +220,11 @@ export function QuoteEditorPage() {
         resolvedVehicleId = v?.id ?? null
         vehicleLabel = vehLabel(v)
       } else if (newVehicle.brand) {
-        const dupV = newVehicle.registration ? (vehicles ?? []).find((v) => v.registration && v.registration.replace(/\s/g, '') === newVehicle.registration.replace(/\s/g, '')) : undefined
-        if (dupV) {
-          resolvedVehicleId = dupV.id
-          vehicleLabel = vehLabel(dupV)
+        const plate = normPlate(newVehicle.registration)
+        const sameClientDup = plate ? (vehicles ?? []).find((v) => v.customer_id === resolvedCustomerId && normPlate(v.registration) === plate) : undefined
+        if (sameClientDup) {
+          resolvedVehicleId = sameClientDup.id
+          vehicleLabel = vehLabel(sameClientDup)
         } else {
           const v = await createVehicle.mutateAsync({ garage_id: gid, customer_id: resolvedCustomerId, brand: newVehicle.brand, model: newVehicle.model || '—', registration: newVehicle.registration || null })
           resolvedVehicleId = v.id
@@ -219,7 +240,8 @@ export function QuoteEditorPage() {
         garage_id: gid, title, status: 'draft',
         subtotal: totals.subtotal, tax_total: totals.tax, total: totals.total,
         notes: notes || null, conditions: conditions || null, valid_until: validUntil || null,
-        client_name: clientName || null, vehicle_label: vehicleLabel || null,
+        client_name: clientName || null, client_phone: clientPhone, client_email: clientEmail,
+        vehicle_label: vehicleLabel || null,
         customer_id: resolvedCustomerId, vehicle_id: resolvedVehicleId, service_request_id: requestId,
       }
 
@@ -228,8 +250,8 @@ export function QuoteEditorPage() {
         toast.success('Devis mis à jour')
         navigate(thenPrint ? `/print/quote/${id}` : '/pro/quotes')
       } else {
-        const number = `DV-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 900 + 100)}`
-        const row = await createQuote.mutateAsync({ quote: { ...quoteFields, number }, lines: lineRows })
+        // Number is assigned server-side (per-garage sequence) inside useCreateQuote.
+        const row = await createQuote.mutateAsync({ quote: quoteFields, lines: lineRows })
         toast.success('Devis créé')
         navigate(thenPrint ? `/print/quote/${row.id}` : '/pro/quotes')
       }
@@ -362,6 +384,18 @@ export function QuoteEditorPage() {
                 </div>
               ) : (
                 <button className="text-xs font-medium text-primary hover:underline" onClick={() => { setVehicleMode('new'); setVehicleId('') }}>Nouveau véhicule</button>
+              )}
+              {plateMatch && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-2 text-xs">
+                  <p className="font-medium">Véhicule déjà existant suggéré</p>
+                  <p className="text-muted-foreground">
+                    {plateMatch.brand} {plateMatch.model} · {plateMatch.registration}
+                    {plateMatch.customer_id && plateMatch.customer_id !== customerId ? ' (rattaché à un autre client)' : ''}
+                  </p>
+                  <button className="mt-1 font-medium text-primary hover:underline" onClick={() => { setVehicleMode('existing'); setVehicleId(plateMatch.id) }}>
+                    Utiliser ce véhicule
+                  </button>
+                </div>
               )}
             </CardContent>
           </Card>

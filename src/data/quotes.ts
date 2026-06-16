@@ -35,7 +35,8 @@ export function useQuoteLines(quoteId?: string) {
 }
 
 export interface NewQuoteInput {
-  quote: TablesInsert<'quotes'>
+  /** Number is assigned server-side (RPC) / by the demo sequence — not by the caller. */
+  quote: Omit<TablesInsert<'quotes'>, 'number'>
   lines: Omit<TablesInsert<'quote_lines'>, 'quote_id'>[]
 }
 
@@ -43,8 +44,14 @@ export function useCreateQuote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ quote, lines }: NewQuoteInput): Promise<Quote> => {
-      if (isDemo()) return demo.createQuote(quote as Partial<Quote>, lines as Partial<QuoteLine>[])
-      const { data: q, error } = await supabase.from('quotes').insert(quote).select('*').single()
+      if (isDemo()) {
+        const number = demo.nextQuoteNumber()
+        return demo.createQuote({ ...quote, number } as Partial<Quote>, lines as Partial<QuoteLine>[])
+      }
+      // Concurrency-safe per-garage sequence (DV-YYYY-NNNN).
+      const { data: number, error: ne } = await supabase.rpc('next_quote_number', { p_garage_id: quote.garage_id })
+      if (ne) throw ne
+      const { data: q, error } = await supabase.from('quotes').insert({ ...quote, number: number as string }).select('*').single()
       if (error) throw error
       if (lines.length) {
         const { error: le } = await supabase
