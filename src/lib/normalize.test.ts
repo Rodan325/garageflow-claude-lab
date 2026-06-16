@@ -3,11 +3,22 @@ import { normEmail, normPhone, normPlate } from './normalize'
 
 describe('normalize helpers', () => {
   it('normalizes phones regardless of formatting', () => {
-    expect(normPhone('+33 6 12 34 56 78')).toBe('+33612345678')
     expect(normPhone('06.12.34.56.78')).toBe('0612345678')
     expect(normPhone('06-12-34-56-78')).toBe('0612345678')
     expect(normPhone('(06) 12 34 56 78')).toBe('0612345678')
     expect(normPhone('06 12 34 56 78')).toBe(normPhone('0612345678'))
+  })
+
+  it('folds French international prefixes to the national 0 form', () => {
+    expect(normPhone('+33 6 12 34 56 78')).toBe('0612345678')
+    expect(normPhone('+33 6 12 34 56 78')).toBe(normPhone('06 12 34 56 78'))
+    expect(normPhone('0033 6 12 34 56 78')).toBe('0612345678')
+    expect(normPhone('0033 6 12 34 56 78')).toBe(normPhone('06 12 34 56 78'))
+    expect(normPhone('+33 7 12 34 56 78')).toBe(normPhone('07 12 34 56 78'))
+  })
+
+  it('leaves non-French international numbers intact', () => {
+    expect(normPhone('+49 30 1234567')).toBe('+49301234567')
   })
 
   it('normalizes emails (trim + lowercase)', () => {

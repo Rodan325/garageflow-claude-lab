@@ -73,3 +73,18 @@ npm run build      # produit dist/
 Déployer `dist/` sur Vercel, Netlify ou GitHub Pages. HashRouter ⇒ pas de configuration de rewrite. Variables d’environnement de build : `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 
 **Backend** : projet Supabase déjà provisionné (`garageflow-c`, région `eu-west-3`). Migrations dans `supabase/migrations`, fonctions dans `supabase/functions`. Voir [SUPABASE_SETUP.md](./SUPABASE_SETUP.md).
+
+## 7. Mise à jour — détails d'implémentation
+
+- **Mode démo local** : `src/lib/demo.ts` — store `localStorage` qui reflète chaque hook (auth, catalogue, devis…) ; `isDemo()` aiguille toutes les requêtes. Aucune dépendance Supabase pour la démo.
+- **Réservation invité** : `/app/book` public ; brouillon en `sessionStorage`, restauré après l'aller-retour de connexion.
+- **Routing marketing** : HashRouter → la nav utilise `scrollToSection()` (jamais `href="#…"` qui créerait une 404).
+- **Catalogue / devis** : hooks `data/catalog.ts` & `data/quotes.ts`. Normalisation (`src/lib/normalize.ts`) téléphone (FR-friendly), email, plaque pour le matching/dédoublonnage.
+- **Numérotation** : RPC `next_quote_number(garage)` → `DV-YYYY-NNNN` (table `quote_counters`, upsert atomique).
+- **Écritures devis transactionnelles** : RPC `create_quote_with_lines` / `update_quote_with_lines` (SECURITY DEFINER, `is_garage_member` + appartenance client/véhicule vérifiées). Le frontend ne fait plus insert/delete séparés.
+- **PDF** : `@react-pdf/renderer` (`src/features/pro/quotePdf.tsx`), import **dynamique** (code-split) ; `downloadQuotePdf()` produit un vrai `application/pdf`. Aperçu écran séparé (`/print/quote/:id`).
+- **Storage** : bucket public `garage-logos` (écriture membre, pas de listing). PDF non stockés (générés à la volée).
+
+## 8. Migrations
+
+`0001` schéma · `0002` fonctions/triggers · `0003` RLS · `0004` seed · `0005`/`0006` durcissement · `0007` verrou maj client · `0008` catalogue+branding+storage · `0009` snapshot devis · `0010` logos sans listing · `0011` numérotation+contacts devis · `0012` RPC transactionnelles.

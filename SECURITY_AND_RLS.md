@@ -1,73 +1,63 @@
 # GarageFlow — Sécurité & RLS
 
 ## 1. Principes
-
-- **Minimisation** : seules les données nécessaires à la prise de rendez-vous sont collectées.
+- **Minimisation** : seules les données nécessaires au rendez-vous / devis.
 - **Isolation** : chaque donnée métier porte `garage_id` ; RLS en dernier rempart.
-- **Séparation des identités** : *garage member* (avec rôle) vs *administrateur* (`owner`/`admin`) vs *client final* — strictement cloisonnés.
-- **Aucun secret côté frontend** : seule la clé anon (publique) est exposée ; `service_role` jamais utilisée par le client. `.env` est gitignoré.
-- **Défense en profondeur** : RLS + triggers de validation + Edge Functions sous JWT de l’appelant.
+- **Séparation des identités** : *garage member* (rôle) / *administrateur* (owner/admin) / *client final* — cloisonnés.
+- **Aucun secret côté frontend** : clé anon publique uniquement ; `service_role` jamais utilisée ; `.env` gitignoré.
+- **Défense en profondeur** : RLS + triggers + RPC `SECURITY DEFINER` member-checked.
 
-## 2. Fonctions d’aide (SECURITY DEFINER)
+## 2. Fonctions d'aide (SECURITY DEFINER, search_path épinglé)
+`is_garage_member(garage_id)` / `has_garage_role(garage_id, roles[])` — utilisées dans les policies (évitent la récursion). Ne révèlent que l'appartenance de l'appelant.
 
-```sql
-is_garage_member(garage_id)         -- l'appelant est-il membre actif de ce garage ?
-has_garage_role(garage_id, roles[]) -- ... avec l'un de ces rôles ?
-```
-`SECURITY DEFINER` pour lire `garage_members` sans déclencher la RLS (évite la récursion dans les policies). Elles ne révèlent que **l’appartenance de l’appelant lui-même** (booléen) — aucune donnée d’un autre garage.
-
-## 3. Politiques RLS (résumé)
+## 3. Policies RLS (résumé)
 
 | Table(s) | Lecture | Écriture |
 |---|---|---|
-| `garages` | publique si `is_public` ; sinon membres | `owner`/`admin` du garage |
+| `garages` | publique si `is_public` ; sinon membres | `owner`/`admin` |
 | `garage_services`, `garage_news` | actives/publiées = publiques ; sinon membres | rôles garage |
 | `garage_hours` | publique | `owner`/`admin`/`front_desk` |
-| `customers`, `vehicles`, `appointments`, `repairs`, `quotes`, `quote_lines`, `documents`, `tasks` | membres du garage | membres du garage |
-| `profiles` | soi-même + collègues du même garage | soi-même |
-| `client_profiles`, `client_vehicles`, `consents` | **soi-même uniquement** | soi-même |
-| `service_requests` | le client propriétaire **ou** les membres du garage | insert par le client ; update par le client OU le garage (transitions filtrées par trigger) |
-| `service_request_messages` | participants (client propriétaire ou membres) | client/garage selon `sender` + `author_id = auth.uid()` |
+| `customers`, `vehicles`, `appointments`, `repairs`, `quotes`, `quote_lines`, `documents`, `tasks`, `quote_counters` | **membres du garage** | membres du garage |
+| `profiles` | soi + collègues du même garage | soi |
+| `client_profiles`, `client_vehicles`, `consents` | **soi uniquement** | soi |
+| `service_requests` | client propriétaire **ou** membres du garage | insert par le client ; update client **status-only** (trigger) ou membres |
+| `service_request_messages` | participants | client/garage selon `sender` + `author_id = auth.uid()` |
 | `audit_logs` | `owner`/`admin` | membres |
 
-**Frontière sensible** = `service_requests` : seule table lisible/écrite des deux côtés. Le trigger `guard_request_transition` n’autorise que :
-- **Garage** : `pending → accepted|declined|reschedule_proposed|cancelled`, `reschedule_proposed → accepted|declined|cancelled`, `accepted|confirmed → confirmed|completed|cancelled`.
-- **Client** : `accepted|reschedule_proposed → confirmed|cancelled`, `* → cancelled`.
+## 4. Garde-fous métier (triggers + RPC)
+- **`guard_request_transition`** : transitions de statut autorisées par acteur ; un **client ne peut modifier que le statut** de sa demande (aucun champ détail).
+- **`create_quote_with_lines` / `update_quote_with_lines`** : transactionnelles, vérifient `is_garage_member(garage)` et que `customer_id`/`vehicle_id` appartiennent au garage. La mise à jour remplace les lignes dans la même transaction → un devis ne perd jamais ses lignes.
+- **`next_quote_number`** : séquence atomique par garage/année → pas de numéro en doublon.
+- **Promotion demande→RDV** (`request-to-appointment`) : Edge Function sous **JWT de l'appelant** (RLS appliquée), pas de `service_role`.
 
-## 4. Promotion contrôlée (Edge Function)
+## 5. Devis : robustesse client/véhicule
+- Comparaisons sur valeurs **normalisées** : téléphone (FR-friendly : `+33`/`0033` → `0`), email (trim+lowercase), plaque (uppercase, sans espaces/tirets).
+- **Dédoublonnage** : réutilise un client (tél/email) ou un véhicule (plaque, **même client**) existant plutôt que d'en créer un doublon.
+- **Jamais** de lien silencieux vers le véhicule d'un autre client : confirmation explicite obligatoire.
 
-`request-to-appointment` s’exécute **avec le JWT de l’appelant** (un membre du garage). Toutes ses écritures (customer, vehicle, appointment, update de la demande) sont donc soumises à la RLS : un non-membre ne peut rien promouvoir. Aucune clé `service_role`.
+## 6. Stockage
+- Bucket public `garage-logos` : lecture par URL, écriture **membre du garage** uniquement, pas de listing.
+- **PDF de devis non stockés** (générés à la volée) → aucune exposition publique.
 
-## 5. Validation des entrées
+## 7. Validation des entrées
+- Frontend : Zod (login/inscription) + validations sur les formulaires.
+- Edge Functions : Zod sur chaque payload.
 
-- Frontend : Zod + React Hook Form (login, inscription) ; validations explicites sur les formulaires de création.
-- Edge Functions : Zod sur chaque payload (rejet 400 si invalide).
+## 8. Consentement & données personnelles
+- Consentement explicite à l'inscription client ; consentement marketing séparé.
+- Données client limitées (nom, contact, véhicule).
 
-## 6. Consentement & données personnelles
+## 9. Preuve d'isolation
+`npm run test:rls` — **16 assertions** (anon, client, garage A vs B) via clé anon + sign-in réel. Vérifie qu'un garage ne lit/écrit jamais les données d'un autre.
 
-- Inscription client : **consentement explicite** obligatoire (case à cocher) pour le traitement des données de rendez-vous.
-- Consentement marketing **séparé**, modifiable dans le profil.
-- Données client limitées au nécessaire (nom, téléphone/email de contact, véhicule).
+## 10. Advisors Supabase
+- Réglés : search_path des fonctions ; listing du bucket logos retiré.
+- Acceptés (par conception) : fonctions SECURITY DEFINER appelables par `authenticated` — elles vérifient l'appartenance et n'exposent pas de données d'un autre garage.
+- À activer côté projet : *Leaked Password Protection* (Auth).
 
-## 7. Preuve d’isolation (test automatisé)
-
-`npm run test:rls` — **16 assertions** vérifiées sur le projet live :
-- anonyme : aucune lecture des tables privées ; lecture du seul catalogue public ; garage privé invisible.
-- client : aucune lecture du CRM garage ; lecture de ses seules demandes/véhicules.
-- garage A ↔ garage B : A ne lit ni n’écrit aucune ligne de B (et inversement).
-
-## 8. Résultats des advisors Supabase
-
-- **Réglés** : `function_search_path_mutable` (search_path épinglé) ; EXECUTE retiré sur les fonctions trigger.
-- **Acceptés (par conception)** : `is_garage_member` / `has_garage_role` restent appelables (SECURITY DEFINER) car **référencées par les policies RLS** ; elles ne renvoient qu’un booléen sur l’appartenance de l’appelant.
-- **À activer côté projet (pilote)** : *Leaked Password Protection* (HaveIBeenPwned) dans Auth → Settings.
-
-## 9. Risques résiduels (à traiter avant production)
-
-1. **Invitations d’équipe** non encore implémentées (création de membres via fonction admin) — aujourd’hui via seed/SQL contrôlé.
-2. **Rate limiting** applicatif à ajouter (Edge Functions / gateway) contre l’abus de création de demandes.
-3. **Notifications** (email/SMS) non branchées : pas de fuite, mais à sécuriser lors de l’ajout (templates, opt-out).
-4. **Storage documents** non activé : à faire avec buckets par garage + URLs signées + journalisation d’accès.
-5. **Audit log** : table présente, à alimenter systématiquement sur les actions critiques.
-6. **MFA administrateur** : recommandé avant production (Supabase Auth MFA).
-7. **Validation serveur renforcée** : ajouter des contraintes/triggers vérifiant que `service_id` appartient bien au `garage_id` de la demande.
+## 11. Risques résiduels / limites (avant production)
+- **PDF devis** généré à la volée — non stocké en **bucket privé**, pas d'**URL signée**, pas de version figée à l'envoi.
+- **Facturation** et **signature client en ligne** non incluses.
+- **MFA administrateur**, **rate limiting** (Edge Functions/gateway), **invitations équipe** par email, **notifications** email/SMS : à brancher.
+- **Audit log** : table présente, à alimenter systématiquement.
+- Pack légal RGPD (politique de confidentialité, CGU, DPA, conservation, sous-traitants) à finaliser.

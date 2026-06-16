@@ -1,64 +1,53 @@
 # GarageFlow — Configuration Supabase
 
 ## 1. Projet
+- **Nom** : `garageflow-c` · **Région** : `eu-west-3` (Paris) · `https://tftmfhwmzkhzlvgwcnje.supabase.co`
+- Frontend = clé publique (anon / publishable) uniquement. **Jamais** la clé `service_role`.
 
-- **Nom** : `garageflow-c`
-- **Région** : `eu-west-3` (Paris) — UE-first
-- **URL** : `https://tftmfhwmzkhzlvgwcnje.supabase.co`
-- Le frontend utilise **uniquement** la clé publique (anon / publishable). La clé `service_role` n’est **jamais** utilisée côté client.
-
-## 2. Migrations (`supabase/migrations/`)
-
-À appliquer dans l’ordre (déjà appliquées sur le projet) :
+## 2. Migrations (`supabase/migrations/`, dans l'ordre)
 
 | Fichier | Contenu |
 |---|---|
-| `0001_init_schema.sql` | 20 tables + index. Chaque table métier porte `garage_id`. |
-| `0002_functions_triggers.sql` | `set_updated_at`, `is_garage_member`, `has_garage_role`, `handle_new_user` (profil auto à l’inscription), `guard_request_transition` (validation des transitions de statut). |
-| `0003_rls.sql` | RLS activée partout + policies (default-deny). |
-| `0004_seed.sql` | Démo : 1 garage, 3 comptes, prestations, horaires, CRM, 1 réservation en attente. |
-| `0005_harden_functions.sql` / `0006_revoke_function_grants.sql` | Durcissement (search_path, retrait des EXECUTE inutiles, suite advisors). |
+| `0001_init_schema` | 20 tables (tenancy, identité, CRM, client-owned, catalogue, pipeline réservation, ops, audit) + index. |
+| `0002_functions_triggers` | `is_garage_member`, `has_garage_role`, `handle_new_user`, `set_updated_at`, `guard_request_transition`. |
+| `0003_rls` | RLS activée partout + policies (default-deny). |
+| `0004_seed` | Démo : garage, 3 comptes, prestations, horaires, CRM, 1 réservation en attente. |
+| `0005`/`0006` | Durcissement fonctions (search_path, retrait EXECUTE inutiles). |
+| `0007_lock_client_request_updates` | Un client ne peut changer **que** le statut de sa demande. |
+| `0008_catalog_branding_storage` | `garage_services` (tax_rate, labor_hours, price_type, default_lines) ; `garages` (accent_color, legal_info, maps_url) ; bucket **`garage-logos`** + policies. |
+| `0009_quote_snapshot_fields` | `quotes` : client_name, vehicle_label, conditions, valid_until, service_request_id. |
+| `0010_logos_no_listing` | Bucket logos : suppression du listing public (accès par URL seulement). |
+| `0011_quote_numbering_snapshot` | `quote_counters` + RPC `next_quote_number()` (DV-YYYY-NNNN) ; `quotes` : client_phone, client_email. |
+| `0012_quote_transactions` | RPC **`create_quote_with_lines`** / **`update_quote_with_lines`** (transactionnelles, member-checked). |
 
-Avec le CLI Supabase : `supabase db push`. Via le SQL Editor : coller chaque fichier dans l’ordre.
+CLI : `supabase db push`. Sinon coller chaque fichier dans le SQL Editor, dans l'ordre.
 
-### Tables
+## 3. Fonctions RPC (SECURITY DEFINER, `search_path` épinglé)
+- `is_garage_member(uuid)`, `has_garage_role(uuid, text[])` — utilisées par les policies RLS.
+- `next_quote_number(garage)` → `DV-YYYY-NNNN`, séquence atomique par garage/année (`quote_counters`).
+- `create_quote_with_lines(p_quote jsonb, p_lines jsonb)` → crée numéro + devis + lignes en **une transaction**, vérifie l'appartenance au garage et que client/véhicule appartiennent au garage. Retourne la ligne `quotes`.
+- `update_quote_with_lines(p_id uuid, p_quote jsonb, p_lines jsonb)` → met à jour le devis et **remplace** ses lignes dans une transaction (jamais de devis sans lignes).
+- Toutes : `revoke from public, anon` + `grant execute to authenticated`.
 
-`garages`, `profiles`, `garage_members`, `client_profiles`, `customers`, `vehicles`, `client_vehicles`, `garage_services`, `garage_news`, `garage_hours`, `service_requests`, `service_request_messages`, `appointments`, `repairs`, `quotes`, `quote_lines`, `documents`, `tasks`, `consents`, `audit_logs`.
+## 4. Identité & auth
+- `profiles` (1/compte, `account_type` staff|client) créé par trigger à l'inscription ; `garage_members` (rôle) ; `client_profiles` (extras client).
+- Comptes démo (mdp `Demo1234!`) : `owner@demo-garage.fr`, `mecano@demo-garage.fr`, `client@demo.fr`.
+- Réservation client possible **sans compte** jusqu'à l'étape finale (puis login/inscription).
 
-## 3. Identité & auth
+## 5. Storage
+- Bucket public **`garage-logos`** : lecture par URL publique (logo affiché page client + devis), **écriture réservée aux membres** du garage (`{garage_id}/…`), pas de listing.
+- Les **PDF de devis ne sont pas stockés** (générés à la volée côté client). Cible production : bucket **privé** `garage-quotes` + URL signée + version figée.
 
-- **profiles** : 1 ligne par compte (`account_type` = `staff` | `client`), créée par le trigger `handle_new_user` à l’inscription.
-- **garage_members** : rattache un profil staff à un garage avec un `role`.
-- **client_profiles** : extras du client final (garage favori, consentement marketing).
+## 6. Edge Functions (`supabase/functions/`)
+- `request-to-appointment` (sous JWT appelant, RLS respectée) ; `generate-vehicle-ad`, `repair-summary` (clé OpenAI côté fonction seulement). `verify_jwt = true`.
 
-Comptes de démo (mot de passe `Demo1234!`) : `owner@demo-garage.fr`, `mecano@demo-garage.fr`, `client@demo.fr`.
-
-## 4. Edge Functions (`supabase/functions/`)
-
-| Fonction | Rôle | Auth |
-|---|---|---|
-| `request-to-appointment` | Promeut une réservation → `customer + vehicle + appointment`, sous le **JWT de l’appelant** (RLS appliquée). | `verify_jwt = true` |
-| `generate-vehicle-ad` | Génère une annonce véhicule (OpenAI si `OPENAI_API_KEY` présent, sinon gabarit). | `verify_jwt = true` |
-| `repair-summary` | Résumé réparation client/interne (idem). | `verify_jwt = true` |
-
-Déploiement : `supabase functions deploy <nom>`. Secret IA (optionnel) : `supabase secrets set OPENAI_API_KEY=...` — **jamais** côté frontend.
-
-## 5. Configuration frontend
-
-```bash
-cp .env.example .env
-```
+## 7. Frontend
 ```dotenv
-VITE_SUPABASE_URL="https://tftmfhwmzkhzlvgwcnje.supabase.co"
-VITE_SUPABASE_ANON_KEY="sb_publishable_..."   # clé publique uniquement
+VITE_SUPABASE_URL=https://tftmfhwmzkhzlvgwcnje.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_...
 ```
-`.env` est ignoré par git. Sans configuration, l’app affiche un bandeau d’aide.
+`.env` gitignoré. Sans config → mode démo local.
 
-## 6. Vérifications
-
-- Conseils sécurité Supabase : voir les *Advisors* (Security/Performance) après toute modification DDL.
-- Test d’isolation : `npm run test:rls` (nécessite les fixtures `scripts/rls-fixtures.sql` pour le 2ᵉ garage de test).
-
-## 7. Storage (futur)
-
-Bucket recommandé `garage-documents`, chemins `{garage_id}/...`, URLs signées courtes, accès journalisés. Non activé dans cette version (pas de document sensible stocké).
+## 8. Vérifications
+- Advisors Security/Performance après tout DDL.
+- `npm run test:rls` (isolation inter-garages) — nécessite les fixtures `scripts/rls-fixtures.sql` (2ᵉ garage de test).

@@ -75,6 +75,20 @@ Chaque transition est **validée côté base** par un trigger (qui autorise au g
 
 - Invitation d’équipe par email (Edge Function admin).
 - Notifications email/SMS sur changement de statut.
-- Devis détaillés (lignes), signature, documents/stockage signé.
 - Disponibilité atelier réelle (capacité par créneau).
 - Boutons IA branchés sur les Edge Functions (annonce véhicule, résumé réparation).
+
+## 6. Mise à jour — état réel (pilote)
+
+Au-delà du socle ci-dessus, le produit livré inclut :
+
+- **Réservation client sans login** : `/app/book` est public ; le client va jusqu'au récapitulatif et **s'identifie seulement à la dernière étape** (connexion ou création de compte), brouillon conservé.
+- **Mode démo local** (sans Supabase) : « Démo garage » / « Démo client » sur `/login`, données fictives `localStorage` partagées entre onglets.
+- **UX progressive Pro** : mode *Essentiel* (réservations, agenda, clients, véhicules) par défaut ; *Atelier avancé* (atelier, **prestations**, **devis**, équipe).
+- **Catalogue de prestations** par garage (durée, prix « dès / fixe », TVA, main-d'œuvre, **lignes de devis par défaut**, visibilité client) — visible côté client et utilisé pour préremplir les devis.
+- **Identité garage** (logo via Supabase Storage, adresse, contacts, couleur d'accent, mentions légales) réutilisée page client + devis.
+- **Devis** : depuis une demande (prérempli) ou manuel avec **recherche client + véhicule**, **suggestion** (client par téléphone/email normalisés, véhicule par plaque normalisée), **dédoublonnage**, **confirmation explicite** avant d'utiliser le véhicule d'un autre client.
+- **Numérotation** `DV-YYYY-NNNN` par garage ; **PDF réel** (`@react-pdf/renderer`).
+- Workflow étendu : **demande → confirmation (RDV + client + véhicule) → devis PDF**.
+
+Limites pilote : PDF généré à la volée (pas encore en bucket privé / URL signée), pas de facturation ni de signature client en ligne.

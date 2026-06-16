@@ -1,48 +1,46 @@
-# GarageFlow — Script de démo (≈ 5 minutes)
+# GarageFlow — Script de démo (≈ 6 minutes)
 
-> Objectif : montrer en 5 minutes la valeur pour un garage pilote — **les clients réservent, le garage garde la main, l’atelier suit**.
+> Fil rouge : **« Le client réserve. Le garage confirme. Le devis est prêt. »**
 
-## Préparation (30 s)
-- Lancer `npm run dev` → ouvrir `http://127.0.0.1:4174`.
-- Avoir deux fenêtres prêtes : une « desktop » (garage) et une étroite / mobile (client).
-- Données de démo déjà en place : **Garage Central Lyon**, prestations, 2 clients, 2 véhicules, **1 réservation en attente** (Julie Durand — plaquettes de frein).
+## Préparation
+- `npm run dev` → `http://127.0.0.1:4174`.
+- Deux fenêtres : une large (garage), une étroite/mobile (client).
+- Aucun Supabase requis pour la démo : utiliser le **mode démo local** (boutons sur `/login`). Sinon comptes réels (`owner@demo-garage.fr` / `client@demo.fr`, mot de passe `Demo1234!`).
 
-## 1. Le pitch sur la landing (30 s)
-- Page d’accueil : « Le garage prend ses rendez-vous, vous gardez la main. »
-- Faire défiler : problèmes → modules → parcours client/garage → offre pilote.
+## 1. Landing (30 s)
+- Page d'accueil sobre : titre « Recevez vos demandes de rendez-vous en ligne… ».
+- Cliquer **Problèmes / Solution / Parcours** → la page **scrolle** (pas de 404, même avec HashRouter).
 
-## 2. Côté client — réserver (90 s)  *(fenêtre mobile)*
-1. **Espace client** → choisir **Garage Central Lyon**.
-2. Montrer la home premium : prestations, actualités, CTA **Réserver**.
-3. **Réserver** → se connecter avec `client@demo.fr` / `Demo1234!` (ou bouton « Démo client »).
-4. Parcours guidé : **prestation** (ex. Révision) → **véhicule** (en choisir un / en ajouter) → **créneau** (date + heure) → **coordonnées + message**.
-5. **Envoyer la demande** → écran de confirmation animé avec **référence de suivi**.
-6. Onglet **Demandes** : la demande apparaît « En attente ».
+## 2. Côté client — réserver sans login (90 s) *(fenêtre étroite)*
+1. « Espace client » → choisir **Garage Central Lyon** (logo affiché).
+2. Liste des **prestations** (durée, prix, prochains créneaux) → **Réserver** sur une prestation.
+3. Parcours : **créneau** (jours en ligne, horaires) → **véhicule + coordonnées**.
+4. À la dernière étape : *« Identifiez-vous pour confirmer »* → **Démo client** (ou login). Le brouillon est conservé.
+5. **Confirmation** : référence `GF-…`, prestation, garage, date, statut. → « Voir ma demande ».
 
-## 3. Côté garage — traiter la demande (120 s)  *(fenêtre desktop)*
-1. Se connecter avec `owner@demo-garage.fr` / `Demo1234!` (bouton « Démo garage »).
-2. **Dashboard** : KPI + « Demandes à traiter » + badge **Supabase connecté**.
-3. **Réservations** : ouvrir la demande.
-   - Montrer **Proposer un autre créneau** (option), puis **Accepter**.
-   - Onglet **En cours** → **Confirmer le rendez-vous**.
-   - 👉 La demande passe **Confirmée** ; en coulisse, l’Edge Function crée le **client**, le **véhicule** et le **rendez-vous**.
-4. **Agenda** : le rendez-vous confirmé apparaît, daté.
-5. **Clients / Véhicules** : la fiche a été créée automatiquement (zéro double saisie).
+## 3. Côté garage — traiter + devis (180 s) *(fenêtre large)*
+1. **Démo garage** (ou login owner). Dashboard sobre : 3 KPI + « À traiter » + « À faire aujourd'hui ».
+2. **Réservations** : ouvrir la demande.
+   - Montrer **Proposer un autre créneau**, **Appeler**, puis **Confirmer le RDV** (1 clic → RDV créé dans l'agenda + client/véhicule reliés, sans double saisie ; en cas d'échec agenda, message clair + Réessayer, jamais de faux succès).
+3. **Créer un devis** (depuis la demande) :
+   - Client et véhicule **suggérés** (par téléphone/email normalisés et plaque) ; modifiables.
+   - Lignes préremplies depuis la prestation ; ajout/édition ; **Total HT / TVA / TTC** en direct.
+   - **Enregistrer & aperçu** → document à l'écran → **Télécharger le PDF** (vrai fichier `.pdf` : logo, garage, client tél/email, immatriculation, lignes, totaux, conditions, **Bon pour accord**).
+   - Numéro **DV-AAAA-NNNN** (séquence par garage).
+4. *(Atelier avancé)* Montrer **Prestations** (créer « Vidange 5W30 » : durée, prix, TVA, lignes par défaut, visible client) et **Atelier** (kanban).
 
-## 4. Côté client — suivi (30 s)  *(fenêtre mobile)*
-- Onglet **Demandes** → la réservation est passée **Confirmée**.
-- Ouvrir le détail → échanger un **message** avec le garage.
+## 4. Côté client — suivi (30 s) *(étroit)*
+- Onglet **Demandes** : la réservation est passée **Confirmée**. Ouvrir le détail, échanger un message.
 
-## 5. Atelier & robustesse (45 s)  *(desktop)*
-- **Atelier** : kanban des réparations (déplacer une carte d’une colonne à l’autre).
-- **Paramètres** : prestations, horaires, **état du backend** (clé publique uniquement).
-- Argument sécurité : *« chaque garage est isolé par RLS — un garage ne voit jamais les données d’un autre. »* (test `npm run test:rls` : 16/16).
+## 5. Robustesse & sécurité (45 s)
+- **Mode Essentiel / Atelier avancé** : simple par défaut, complet sur demande.
+- Argument sécurité : isolation par garage (RLS), `npm run test:rls` = 16/16 ; aucune clé `service_role` côté navigateur ; un client ne modifie que le statut de sa demande ; pas de doublon client/véhicule ; devis numérotés sans collision.
 
-## Points de vente à marteler
-- **Moins d’appels** : les demandes arrivent au même endroit.
-- **Zéro double saisie** : la confirmation crée client + véhicule + rendez-vous.
-- **Le garage garde la main** : accepter / refuser / proposer un autre créneau.
-- **Crédible et sécurisé** : base UE, isolation par garage, données client minimales + consentement.
+## Réinitialiser
+- Mode démo : « Quitter la démo » puis vider `localStorage` (ou bouton de relance).
+- Réel : ré-exécuter le seed `supabase/migrations/0004_seed.sql` sur un projet de test.
 
-## Réinitialiser la démo
-Si une réservation a été confirmée pendant la démo, la remettre « en attente » (et nettoyer le RDV/CRM créés) via le SQL de remise à zéro documenté, ou ré-exécuter le seed `0004_seed.sql` sur un projet de test.
+## Points de vente
+- Moins d'appels, demandes centralisées, agenda propre.
+- De la demande au **devis propre** en moins de 2 minutes.
+- Simple pour un garage classique, assez complet pour un garage technique.

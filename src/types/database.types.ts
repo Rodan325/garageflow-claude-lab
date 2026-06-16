@@ -876,6 +876,8 @@ export type Database = {
       }
       is_garage_member: { Args: { p_garage_id: string }; Returns: boolean }
       next_quote_number: { Args: { p_garage_id: string }; Returns: string }
+      create_quote_with_lines: { Args: { p_quote: Json; p_lines: Json }; Returns: Json }
+      update_quote_with_lines: { Args: { p_id: string; p_quote: Json; p_lines: Json }; Returns: Json }
     }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }

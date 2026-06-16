@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Check, Plus, Search, Trash2, UserPlus } from 'lucide-react'
+import { ArrowLeft, Plus, Search, Trash2, UserPlus } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -66,6 +66,7 @@ export function QuoteEditorPage() {
   const [vehicleId, setVehicleId] = useState('')
   const [newVehicle, setNewVehicle] = useState({ brand: '', model: '', registration: '' })
   const [suggested, setSuggested] = useState<{ client?: boolean; vehicle?: boolean }>({})
+  const [crossConfirm, setCrossConfirm] = useState<string | null>(null)
 
   const init = useRef(false)
 
@@ -366,36 +367,60 @@ export function QuoteEditorPage() {
               {suggested.vehicle && vehicleMode === 'existing' && <Badge tone="primary">Suggéré</Badge>}
             </CardHeader>
             <CardContent className="space-y-2">
-              {clientMode === 'existing' && customerId && clientVehicles.length > 0 && (
-                <div className="space-y-1">
-                  {clientVehicles.map((v) => (
-                    <button key={v.id} onClick={() => { setVehicleMode('existing'); setVehicleId(v.id) }} className={cn('flex w-full items-center justify-between rounded-lg border p-2 text-left text-sm', vehicleMode === 'existing' && vehicleId === v.id ? 'border-primary' : 'border-border hover:bg-muted/60')}>
-                      <span>{v.brand} {v.model} <span className="text-muted-foreground">· {v.registration ?? 'sans plaque'}</span></span>
-                      {vehicleMode === 'existing' && vehicleId === v.id && <Check className="h-4 w-4 text-primary" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {vehicleMode === 'new' || !(clientMode === 'existing' && customerId && clientVehicles.length > 0) ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Marque" htmlFor="vb"><Input id="vb" value={newVehicle.brand} onChange={(e) => setNewVehicle({ ...newVehicle, brand: e.target.value })} /></Field>
-                  <Field label="Modèle" htmlFor="vm"><Input id="vm" value={newVehicle.model} onChange={(e) => setNewVehicle({ ...newVehicle, model: e.target.value })} /></Field>
-                  <div className="col-span-2"><Field label="Immatriculation" htmlFor="vr"><Input id="vr" value={newVehicle.registration} onChange={(e) => setNewVehicle({ ...newVehicle, registration: e.target.value })} /></Field></div>
-                </div>
+              {vehicleMode === 'existing' && vehicleId ? (
+                (() => {
+                  const v = (vehicles ?? []).find((x) => x.id === vehicleId)
+                  const other = !!v?.customer_id && v.customer_id !== customerId
+                  return (
+                    <div className={cn('flex items-center justify-between rounded-lg border p-2 text-sm', other ? 'border-warning/50 bg-warning/10' : 'border-primary bg-primary/5')}>
+                      <span>
+                        {v ? `${v.brand} ${v.model}${v.registration ? ` · ${v.registration}` : ''}` : 'Véhicule sélectionné'}
+                        {other && <span className="ml-1 text-xs text-warning-foreground">· autre client</span>}
+                      </span>
+                      <button className="text-xs font-medium text-primary hover:underline" onClick={() => { setVehicleId(''); setVehicleMode('new'); setSuggested((s) => ({ ...s, vehicle: false })) }}>Changer</button>
+                    </div>
+                  )
+                })()
               ) : (
-                <button className="text-xs font-medium text-primary hover:underline" onClick={() => { setVehicleMode('new'); setVehicleId('') }}>Nouveau véhicule</button>
-              )}
-              {plateMatch && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-2 text-xs">
-                  <p className="font-medium">Véhicule déjà existant suggéré</p>
-                  <p className="text-muted-foreground">
-                    {plateMatch.brand} {plateMatch.model} · {plateMatch.registration}
-                    {plateMatch.customer_id && plateMatch.customer_id !== customerId ? ' (rattaché à un autre client)' : ''}
-                  </p>
-                  <button className="mt-1 font-medium text-primary hover:underline" onClick={() => { setVehicleMode('existing'); setVehicleId(plateMatch.id) }}>
-                    Utiliser ce véhicule
-                  </button>
-                </div>
+                <>
+                  {clientMode === 'existing' && customerId && clientVehicles.length > 0 && (
+                    <div className="space-y-1">
+                      {clientVehicles.map((v) => (
+                        <button key={v.id} onClick={() => { setVehicleMode('existing'); setVehicleId(v.id) }} className="flex w-full items-center justify-between rounded-lg border border-border p-2 text-left text-sm hover:bg-muted/60">
+                          <span>{v.brand} {v.model} <span className="text-muted-foreground">· {v.registration ?? 'sans plaque'}</span></span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Marque" htmlFor="vb"><Input id="vb" value={newVehicle.brand} onChange={(e) => setNewVehicle({ ...newVehicle, brand: e.target.value })} /></Field>
+                    <Field label="Modèle" htmlFor="vm"><Input id="vm" value={newVehicle.model} onChange={(e) => setNewVehicle({ ...newVehicle, model: e.target.value })} /></Field>
+                    <div className="col-span-2"><Field label="Immatriculation" htmlFor="vr"><Input id="vr" value={newVehicle.registration} onChange={(e) => setNewVehicle({ ...newVehicle, registration: e.target.value })} /></Field></div>
+                  </div>
+                  {plateMatch && (() => {
+                    const other = !!plateMatch.customer_id && plateMatch.customer_id !== customerId
+                    const use = () => { setVehicleMode('existing'); setVehicleId(plateMatch.id); setCrossConfirm(null) }
+                    return (
+                      <div className={cn('rounded-lg border p-2 text-xs', other ? 'border-warning/50 bg-warning/10' : 'border-primary/30 bg-primary/5')}>
+                        <p className="font-medium">{other ? 'Véhicule rattaché à un autre client' : 'Véhicule déjà existant suggéré'}</p>
+                        <p className="text-muted-foreground">{plateMatch.brand} {plateMatch.model} · {plateMatch.registration}</p>
+                        {!other ? (
+                          <button className="mt-1 font-medium text-primary hover:underline" onClick={use}>Utiliser ce véhicule</button>
+                        ) : crossConfirm === plateMatch.id ? (
+                          <div className="mt-1 space-y-1">
+                            <p>Ce véhicule est déjà rattaché à un autre client. Voulez-vous vraiment l’utiliser pour ce devis ?</p>
+                            <div className="flex gap-4">
+                              <button className="font-medium text-danger hover:underline" onClick={use}>Oui, utiliser</button>
+                              <button className="font-medium text-muted-foreground hover:underline" onClick={() => setCrossConfirm(null)}>Annuler</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button className="mt-1 font-medium text-warning-foreground hover:underline" onClick={() => setCrossConfirm(plateMatch.id)}>Utiliser quand même…</button>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </>
               )}
             </CardContent>
           </Card>

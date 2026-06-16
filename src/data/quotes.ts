@@ -48,18 +48,13 @@ export function useCreateQuote() {
         const number = demo.nextQuoteNumber()
         return demo.createQuote({ ...quote, number } as Partial<Quote>, lines as Partial<QuoteLine>[])
       }
-      // Concurrency-safe per-garage sequence (DV-YYYY-NNNN).
-      const { data: number, error: ne } = await supabase.rpc('next_quote_number', { p_garage_id: quote.garage_id })
-      if (ne) throw ne
-      const { data: q, error } = await supabase.from('quotes').insert({ ...quote, number: number as string }).select('*').single()
+      // Atomic: number + quote + lines in one transaction (DV-YYYY-NNNN).
+      const { data, error } = await supabase.rpc('create_quote_with_lines', {
+        p_quote: quote as unknown as never,
+        p_lines: lines as unknown as never,
+      })
       if (error) throw error
-      if (lines.length) {
-        const { error: le } = await supabase
-          .from('quote_lines')
-          .insert(lines.map((l, i) => ({ ...l, quote_id: q.id, sort_order: l.sort_order ?? i })))
-        if (le) throw le
-      }
-      return q
+      return data as unknown as Quote
     },
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: ['quotes', row.garage_id] })
@@ -72,16 +67,13 @@ export function useUpdateQuote() {
   return useMutation({
     mutationFn: async ({ id, quote, lines }: { id: string; garageId: string; quote: Partial<TablesInsert<'quotes'>>; lines: Omit<TablesInsert<'quote_lines'>, 'quote_id'>[] }) => {
       if (isDemo()) return demo.updateQuoteFull(id, quote as Partial<Quote>, lines as Partial<QuoteLine>[])
-      const { error } = await supabase.from('quotes').update(quote).eq('id', id)
+      // Atomic: update quote + replace lines in one transaction (never lose lines).
+      const { error } = await supabase.rpc('update_quote_with_lines', {
+        p_id: id,
+        p_quote: quote as unknown as never,
+        p_lines: lines as unknown as never,
+      })
       if (error) throw error
-      const { error: de } = await supabase.from('quote_lines').delete().eq('quote_id', id)
-      if (de) throw de
-      if (lines.length) {
-        const { error: le } = await supabase
-          .from('quote_lines')
-          .insert(lines.map((l, i) => ({ ...l, quote_id: id, sort_order: l.sort_order ?? i })))
-        if (le) throw le
-      }
     },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ['quotes', v.garageId] })

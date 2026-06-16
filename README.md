@@ -2,12 +2,12 @@
 
 Plateforme **SaaS / PWA** pour garages automobiles indépendants, en deux espaces :
 
-- **GarageFlow Pro** — back-office du garage (dashboard, réservations reçues, agenda, véhicules, clients, atelier, devis, équipe, paramètres).
-- **GarageFlow Client** — application **mobile-first** pour les automobilistes (choisir un garage, réserver, suivre, profil, véhicules, actualités).
+- **GarageFlow Pro** — back-office du garage : dashboard, **réservations reçues**, agenda, clients, véhicules, et — en mode *Atelier avancé* — atelier (kanban), **prestations (catalogue)**, **devis**, équipe, paramètres.
+- **GarageFlow Client** — application **mobile-first** : choisir un garage, réserver une prestation, suivre ses demandes, gérer profil et véhicules, lire les actualités.
 
-Le cœur du produit : un client envoie une **demande de réservation** → elle arrive dans l’**inbox du garage** → le garage **accepte / refuse / propose un autre créneau** → le client **suit le statut** → la demande confirmée devient un **rendez-vous** dans l’agenda (création automatique du client + véhicule côté CRM).
+Promesse : **« Le client réserve. Le garage confirme. Le devis est prêt. »**
 
-Construit de zéro à partir des documents produit, avec une base **Supabase dédiée**, **RLS** stricte par garage, et des **Edge Functions**.
+Le cœur : un client envoie une **demande** → elle arrive dans l'**inbox du garage** → le garage **confirme / refuse / propose un autre créneau** en 1 clic (création auto du rendez-vous + client + véhicule) → puis génère un **devis PDF** prérempli.
 
 ---
 
@@ -16,16 +16,13 @@ Construit de zéro à partir des documents produit, avec une base **Supabase dé
 | Couche | Technologie |
 |---|---|
 | Frontend | Vite + React 18 + TypeScript |
-| UI / design system | Tailwind CSS + tokens CSS (clair/sombre) + composants maison |
-| Routing | React Router 6 (HashRouter) |
-| Données serveur | TanStack Query + `@supabase/supabase-js` (typé) |
+| UI / design | Tailwind CSS + tokens (clair/sombre), design sobre « outil métier » |
+| Routing | React Router 6 (**HashRouter**) |
+| Données | TanStack Query + `@supabase/supabase-js` (typé) |
 | Formulaires | React Hook Form + Zod |
-| Animations | Framer Motion (respecte `prefers-reduced-motion`) |
-| Backend | Supabase : PostgreSQL + Auth + RLS + Edge Functions |
-| PWA | `vite-plugin-pwa` (manifest + service worker versionné) |
-| Tests | Vitest + Testing Library + script RLS anti-fuite |
-
-Voir [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) pour les justifications.
+| PDF | `@react-pdf/renderer` (vrai fichier `.pdf`, code-split) |
+| Backend | Supabase : PostgreSQL + Auth + RLS + Edge Functions + Storage |
+| Tests | Vitest + script RLS anti-fuite |
 
 ---
 
@@ -33,19 +30,33 @@ Voir [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) pour les justifica
 
 ```bash
 npm install
-cp .env.example .env     # renseigner l'URL Supabase + la clé anon (publique)
-npm run dev              # http://127.0.0.1:4174
+cp .env.example .env      # renseigner l'URL Supabase + clé anon (PUBLIQUE uniquement)
+npm run dev               # http://127.0.0.1:4174   (npm.cmd run dev … si PowerShell bloque)
 ```
 
-> `.env` est **ignoré par git**. Seules des clés **publiques** (anon / publishable) y figurent ; la clé `service_role` n’est jamais utilisée côté frontend.
+> `.env` est **gitignoré**. N'y mettre **que** des clés publiques (anon/publishable) ; la clé `service_role` n'est jamais utilisée côté frontend. Sans `.env`, l'app reste utilisable en **mode démo local**.
 
-### Comptes de démonstration
+### Trois façons d'entrer
+1. **Mode démo local** (sans Supabase) — sur `/login` : **« Démo garage »** ou **« Démo client »**. Données fictives en `localStorage`, partagées entre onglets, bandeau « Mode démo local ».
+2. **Compte garage** (Supabase) : `owner@demo-garage.fr` / `Demo1234!` (gérant) ou `mecano@demo-garage.fr`.
+3. **Compte client** (Supabase) : `client@demo.fr` / `Demo1234!`.
 
-| Rôle | Email | Mot de passe |
-|---|---|---|
-| Garage — Gérant | `owner@demo-garage.fr` | `Demo1234!` |
-| Garage — Mécanicien | `mecano@demo-garage.fr` | `Demo1234!` |
-| Client final | `client@demo.fr` | `Demo1234!` |
+### Réservation sans login
+Le parcours client `/app/book` est **public** : prestation → créneau → véhicule + coordonnées → **identification seulement à la dernière étape** (connexion / création de compte), brouillon conservé.
+
+---
+
+## Fonctionnalités
+
+- **Réservation client** Doctolib-like (prestations, créneaux, véhicule, confirmation + référence).
+- **Inbox garage** : Confirmer le RDV (1 clic), Proposer un autre créneau, Refuser, Appeler, Créer un devis. Pas de faux succès si l'agenda échoue (« Erreur agenda » + Réessayer).
+- **Catalogue de prestations** par garage : nom, durée, prix (« à partir de » / fixe), TVA, main-d'œuvre, **lignes de devis par défaut**, visibilité client.
+- **Identité garage** : logo (Supabase Storage), adresse, contacts, couleur d'accent, mentions légales — réutilisés sur la page client et les devis.
+- **Devis** : depuis une demande (prérempli) ou manuel avec **recherche client + véhicule**, **suggestion** (client par tél/email normalisés, véhicule par plaque), **dédoublonnage**, jamais de lien silencieux vers le véhicule d'un autre client.
+- **Numérotation** `DV-YYYY-NNNN` par garage (séquence atomique, RPC).
+- **PDF de devis** réel via `@react-pdf/renderer` (logo, garage, client, véhicule, lignes, HT/TVA/TTC, conditions, bon pour accord).
+- **UX progressive** : mode *Essentiel* par défaut, *Atelier avancé* pour les garages techniques.
+- États vides / chargement / erreur soignés, motion discret, `prefers-reduced-motion` respecté.
 
 ---
 
@@ -55,11 +66,11 @@ npm run dev              # http://127.0.0.1:4174
 |---|---|
 | `npm run dev` | Serveur de développement |
 | `npm run build` | Typecheck (`tsc -b`) + build de production |
-| `npm run preview` | Sert le build de production |
+| `npm run preview` | Sert le build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Vérification TypeScript |
-| `npm run test` | Tests unitaires / composants (Vitest) |
-| `npm run test:rls` | **Test anti-fuite RLS** (isolation entre garages, exécuté sur le projet live) |
+| `npm run test` | Tests unitaires (Vitest) |
+| `npm run test:rls` | Test anti-fuite RLS (isolation entre garages, projet live) |
 
 ---
 
@@ -67,34 +78,25 @@ npm run dev              # http://127.0.0.1:4174
 
 ```
 src/
-  components/ui/        # design system (button, card, badge, modal, toast, …)
-  components/shells/    # MarketingShell, ProShell, ClientShell
-  components/common/    # Logo, ThemeToggle, SupabaseStatus, PageHeader, ConfigBanner
-  features/
-    auth/               # AuthProvider, guards, Login, Signup
-    marketing/          # HomePage, PilotPage, NotFound
-    pro/                # Dashboard, Bookings, Calendar, Vehicles, Clients, Workshop, Quotes, Team, Settings
-    client/             # Home, News, Bookings, BookingDetail, Vehicles, Profile, booking/BookingFlow
-  data/                 # hooks React Query (garagePublic, requests, clientData, proData)
-  lib/                  # supabase, env, theme, motion, format, utils, queryClient
-  types/                # database.types.ts (généré) + domain.ts
+  components/ui · shells (Marketing/Pro/Client) · common
+  features/auth · marketing · pro · client (+ client/booking)
+  data/        hooks React Query (garagePublic, requests, clientData, proData, catalog, quotes)
+  lib/         supabase, env, theme, motion, format, normalize, slots, demo, utils
+  types/       database.types.ts (généré) + domain.ts
 supabase/
-  migrations/           # 0001 schema · 0002 fonctions/triggers · 0003 RLS · 0004 seed · 0005/0006 hardening
-  functions/            # request-to-appointment, generate-vehicle-ad, repair-summary
-scripts/                # rls-antileak.mjs + rls-fixtures.sql
+  migrations/  0001 → 0012 (schéma, RLS, fonctions, seed, catalogue/branding, devis, RPC transactionnelles)
+  functions/   request-to-appointment, generate-vehicle-ad, repair-summary
+scripts/       rls-antileak.mjs + fixtures
 ```
 
----
-
-## Déploiement
-
-Voir [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) (backend) et la section Déploiement de [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) (frontend statique — Vercel, Netlify ou GitHub Pages ; HashRouter = aucun rewrite serveur requis).
+## Limites actuelles (pilote)
+- Le **PDF est généré à la volée** côté client — **pas encore stocké** dans un bucket privé, **pas d'URL signée**, pas de version figée à l'envoi.
+- **Facturation** non incluse (devis uniquement).
+- **Signature client en ligne** non incluse (mention « Bon pour accord » sur le PDF).
+- Invitations d'équipe par email et notifications email/SMS non branchées.
 
 ## Documentation
+[PRODUCT_ARCHITECTURE](./PRODUCT_ARCHITECTURE.md) · [TECHNICAL_ARCHITECTURE](./TECHNICAL_ARCHITECTURE.md) · [SUPABASE_SETUP](./SUPABASE_SETUP.md) · [SECURITY_AND_RLS](./SECURITY_AND_RLS.md) · [PILOT_READINESS_CHECKLIST](./PILOT_READINESS_CHECKLIST.md) · [DEMO_SCRIPT](./DEMO_SCRIPT.md)
 
-- [PRODUCT_ARCHITECTURE.md](./PRODUCT_ARCHITECTURE.md) — produit, espaces, parcours, rôles
-- [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md) — stack, frontend, backend, choix
-- [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) — schéma, migrations, Edge Functions, config
-- [SECURITY_AND_RLS.md](./SECURITY_AND_RLS.md) — modèle de sécurité, RLS, risques résiduels
-- [PILOT_READINESS_CHECKLIST.md](./PILOT_READINESS_CHECKLIST.md) — prêt pour pilote / reste à faire
-- [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) — script de démo commerciale (≈ 5 min)
+## Déploiement
+Frontend statique (`npm run build` → `dist/`) sur Vercel / Netlify / GitHub Pages — HashRouter, aucun rewrite serveur requis. Variables de build : `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Backend : projet Supabase `garageflow-c` (eu-west-3), migrations dans `supabase/migrations`.
