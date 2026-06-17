@@ -33,3 +33,12 @@ on conflict (garage_id, user_id) do nothing;
 insert into public.customers (id, garage_id, first_name, last_name, city)
 values ('d2222222-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222','Secret','Clientb','Paris')
 on conflict (id) do nothing;
+
+-- A vehicle + a service_request in garage B, to test cross-garage quote links.
+insert into public.vehicles (id, garage_id, customer_id, brand, model, registration)
+values ('e2222222-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222','d2222222-0000-4000-8000-000000000001','BMW','Serie 1','ZZ-999-ZZ')
+on conflict (id) do nothing;
+
+insert into public.service_requests (id, garage_id, client_id, service_name, vehicle_label, status, contact_name)
+values ('f2222222-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222','c0000000-0000-4000-8000-000000000001','Test B','BMW Serie 1','pending','Secret Clientb')
+on conflict (id) do nothing;

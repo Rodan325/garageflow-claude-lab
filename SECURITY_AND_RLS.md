@@ -26,7 +26,13 @@
 
 ## 4. Garde-fous métier (triggers + RPC)
 - **`guard_request_transition`** : transitions de statut autorisées par acteur ; un **client ne peut modifier que le statut** de sa demande (aucun champ détail).
-- **`create_quote_with_lines` / `update_quote_with_lines`** : transactionnelles, vérifient `is_garage_member(garage)` et que `customer_id`/`vehicle_id` appartiennent au garage. La mise à jour remplace les lignes dans la même transaction → un devis ne perd jamais ses lignes.
+- **`create_quote_with_lines` / `update_quote_with_lines`** : transactionnelles (une fonction plpgsql = une transaction), `SECURITY DEFINER` avec `search_path` épinglé. Garde-fous :
+  - **Montants recalculés côté serveur** : la base **ne fait jamais confiance** aux `line_total`/`subtotal`/`tax_total`/`total` envoyés par le frontend. En SQL : `line_total = quantité × prix`, `subtotal = Σ line_total`, `tax_total = Σ (line_total × TVA/100)`, `total = subtotal + tax_total`, arrondis à 2 décimales. Le frontend ne sert que d'aperçu.
+  - **Validation des lignes** : ≥ 1 ligne ; libellé non vide ; quantité > 0 ; prix ≥ 0 ; 0 ≤ TVA ≤ 100 (messages `Ligne de devis invalide`, `Quantité invalide`, `Prix invalide`, `TVA invalide`).
+  - **Appartenance au garage** vérifiée pour `customer_id`, `vehicle_id` **et** `service_request_id` (devis manuel sans demande autorisé).
+  - **Véhicule d'un autre client** : refusé sauf `cross_customer_vehicle_confirmed = true` (`Confirmation requise pour véhicule d'un autre client`) — jamais silencieux, même pour un membre.
+  - **Garde-fous d'update** : `number`/`garage_id`/`created_at` jamais modifiés ; un devis `accepted` n'est plus modifiable (`Devis accepté non modifiable`).
+  - La mise à jour remplace les lignes dans la même transaction → un devis ne perd jamais ses lignes.
 - **`next_quote_number`** : séquence atomique par garage/année → pas de numéro en doublon.
 - **Promotion demande→RDV** (`request-to-appointment`) : Edge Function sous **JWT de l'appelant** (RLS appliquée), pas de `service_role`.
 
@@ -48,7 +54,9 @@
 - Données client limitées (nom, contact, véhicule).
 
 ## 9. Preuve d'isolation
-`npm run test:rls` — **16 assertions** (anon, client, garage A vs B) via clé anon + sign-in réel. Vérifie qu'un garage ne lit/écrit jamais les données d'un autre.
+`npm run test:rls` — **32 assertions** via clé anon + sign-in réel :
+- **16** d'isolation pure (anon, client final, garage A vs B) — un garage ne lit/écrit jamais les données d'un autre.
+- **16** sur les RPC devis : recalcul serveur (montants bidons ignorés, totaux recalculés), refus quantité/TVA invalides et devis sans ligne, refus de lier un devis à un **client / véhicule / demande d'un autre garage**, refus du **véhicule d'un autre client sans confirmation** (accepté avec), refus d'un **non-membre**, et recalcul à l'**update**.
 
 ## 10. Advisors Supabase
 - Réglés : search_path des fonctions ; listing du bucket logos retiré.

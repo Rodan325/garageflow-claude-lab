@@ -34,9 +34,12 @@ export function useQuoteLines(quoteId?: string) {
   })
 }
 
+/** Extra (non-column) flag read by the RPC to authorise a cross-client vehicle. */
+type QuoteInput = Omit<TablesInsert<'quotes'>, 'number'> & { cross_customer_vehicle_confirmed?: boolean }
+
 export interface NewQuoteInput {
-  /** Number is assigned server-side (RPC) / by the demo sequence — not by the caller. */
-  quote: Omit<TablesInsert<'quotes'>, 'number'>
+  /** Number + totals are assigned/recomputed server-side — not trusted from the caller. */
+  quote: QuoteInput
   lines: Omit<TablesInsert<'quote_lines'>, 'quote_id'>[]
 }
 
@@ -65,7 +68,7 @@ export function useCreateQuote() {
 export function useUpdateQuote() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, quote, lines }: { id: string; garageId: string; quote: Partial<TablesInsert<'quotes'>>; lines: Omit<TablesInsert<'quote_lines'>, 'quote_id'>[] }) => {
+    mutationFn: async ({ id, quote, lines }: { id: string; garageId: string; quote: QuoteInput; lines: Omit<TablesInsert<'quote_lines'>, 'quote_id'>[] }) => {
       if (isDemo()) return demo.updateQuoteFull(id, quote as Partial<Quote>, lines as Partial<QuoteLine>[])
       // Atomic: update quote + replace lines in one transaction (never lose lines).
       const { error } = await supabase.rpc('update_quote_with_lines', {

@@ -94,6 +94,65 @@ async function main() {
     check('B ne voit AUCUN client du garage A', !(cust ?? []).some((c) => c.garage_id === GARAGE_A))
   }
 
+  // 5) QUOTE RPCs — server-authoritative totals + guards
+  console.log('\nDevis — RPC serveur (recalcul + garde-fous)')
+  {
+    const g = await clientFor('owner@demo-garage.fr', 'Demo1234!')
+    const MARC = 'd1111111-0000-4000-8000-000000000001'
+    const INES = 'd1111111-0000-4000-8000-000000000002'
+    const B_CUSTOMER = 'd2222222-0000-4000-8000-000000000001'
+    const B_VEHICLE = 'e2222222-0000-4000-8000-000000000001'
+    const B_REQUEST = 'f2222222-0000-4000-8000-000000000001'
+    const created = []
+    // bogus totals on purpose — the DB must ignore and recompute them.
+    const baseQuote = (extra = {}) => ({ garage_id: GARAGE_A, title: 'Test', client_name: 'Test', subtotal: 1, tax_total: 1, total: 1, ...extra })
+    const goodLines = [{ label: 'Pièce', quantity: 2, unit_price: 50, tax_rate: 20, line_total: 999 }]
+
+    const c0 = await g.rpc('create_quote_with_lines', { p_quote: baseQuote(), p_lines: goodLines })
+    check('création RPC OK', !c0.error && !!c0.data, c0.error?.message)
+    if (c0.data) {
+      created.push(c0.data.id)
+      check('subtotal recalculé serveur (100)', Number(c0.data.subtotal) === 100, `= ${c0.data?.subtotal}`)
+      check('TVA recalculée serveur (20)', Number(c0.data.tax_total) === 20, `= ${c0.data?.tax_total}`)
+      check('total recalculé serveur (120)', Number(c0.data.total) === 120, `= ${c0.data?.total}`)
+    }
+
+    check('quantité invalide refusée', !!(await g.rpc('create_quote_with_lines', { p_quote: baseQuote(), p_lines: [{ label: 'X', quantity: 0, unit_price: 10, tax_rate: 20 }] })).error)
+    check('TVA invalide refusée', !!(await g.rpc('create_quote_with_lines', { p_quote: baseQuote(), p_lines: [{ label: 'X', quantity: 1, unit_price: 10, tax_rate: 150 }] })).error)
+    check('devis sans ligne refusé', !!(await g.rpc('create_quote_with_lines', { p_quote: baseQuote(), p_lines: [] })).error)
+    check('client d’un autre garage refusé', !!(await g.rpc('create_quote_with_lines', { p_quote: baseQuote({ customer_id: B_CUSTOMER }), p_lines: goodLines })).error)
+    check('véhicule d’un autre garage refusé', !!(await g.rpc('create_quote_with_lines', { p_quote: baseQuote({ vehicle_id: B_VEHICLE }), p_lines: goodLines })).error)
+    check('demande d’un autre garage refusée', !!(await g.rpc('create_quote_with_lines', { p_quote: baseQuote({ service_request_id: B_REQUEST }), p_lines: goodLines })).error)
+    check('non-membre refusé (garage B)', !!(await g.rpc('create_quote_with_lines', { p_quote: baseQuote({ garage_id: GARAGE_B }), p_lines: goodLines })).error)
+
+    // cross-client vehicle: Marc as client + Inès's vehicle
+    const { data: veh } = await g.from('vehicles').select('id,customer_id').eq('garage_id', GARAGE_A)
+    const inesVeh = (veh ?? []).find((v) => v.customer_id === INES)
+    if (inesVeh) {
+      check('véhicule autre client refusé sans confirmation', !!(await g.rpc('create_quote_with_lines', { p_quote: baseQuote({ customer_id: MARC, vehicle_id: inesVeh.id }), p_lines: goodLines })).error)
+      const ok = await g.rpc('create_quote_with_lines', { p_quote: baseQuote({ customer_id: MARC, vehicle_id: inesVeh.id, cross_customer_vehicle_confirmed: true }), p_lines: goodLines })
+      check('véhicule autre client accepté avec confirmation', !ok.error && !!ok.data, ok.error?.message)
+      if (ok.data) created.push(ok.data.id)
+    } else {
+      check('véhicule Inès trouvé (test cross-client)', false, '(introuvable)')
+    }
+
+    // update recompute
+    const cu = await g.rpc('create_quote_with_lines', { p_quote: baseQuote(), p_lines: goodLines })
+    if (cu.data) {
+      created.push(cu.data.id)
+      const u = await g.rpc('update_quote_with_lines', { p_id: cu.data.id, p_quote: baseQuote(), p_lines: [{ label: 'Maj', quantity: 3, unit_price: 100, tax_rate: 10 }] })
+      check('update RPC OK', !u.error && !!u.data, u.error?.message)
+      if (u.data) {
+        check('update: subtotal recalculé (300)', Number(u.data.subtotal) === 300, `= ${u.data?.subtotal}`)
+        check('update: total recalculé (330)', Number(u.data.total) === 330, `= ${u.data?.total}`)
+      }
+    }
+
+    for (const id of created) await g.from('quotes').delete().eq('id', id)
+    console.log(`  (${created.length} devis de test nettoyés)`)
+  }
+
   console.log(`\nRésultat : ${pass} réussis, ${fail} échoués\n`)
   process.exit(fail === 0 ? 0 : 1)
 }

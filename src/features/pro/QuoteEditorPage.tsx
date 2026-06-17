@@ -16,6 +16,7 @@ import { useCustomers, useCreateCustomer, useVehicles, useCreateVehicle } from '
 import { euro } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { normEmail, normPhone, normPlate } from '@/lib/normalize'
+import { computeQuoteTotals } from '@/lib/quoteTotals'
 import type { Customer, DefaultLine, Vehicle } from '@/types/domain'
 
 interface Line { label: string; quantity: number; unit_price: number; tax_rate: number }
@@ -147,15 +148,8 @@ export function QuoteEditorPage() {
     }
   }, [customerId, clientMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const totals = useMemo(() => {
-    let subtotal = 0, tax = 0
-    for (const l of lines) {
-      const lt = (Number(l.quantity) || 0) * (Number(l.unit_price) || 0)
-      subtotal += lt
-      tax += lt * ((Number(l.tax_rate) || 0) / 100)
-    }
-    return { subtotal: +subtotal.toFixed(2), tax: +tax.toFixed(2), total: +(subtotal + tax).toFixed(2) }
-  }, [lines])
+  // Preview only — the database recomputes and stores the official totals.
+  const totals = useMemo(() => computeQuoteTotals(lines), [lines])
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((c) => c.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
   const addLine = () => setLines((c) => [...c, { label: '', quantity: 1, unit_price: 0, tax_rate: 20 }])
@@ -237,13 +231,18 @@ export function QuoteEditorPage() {
         label: l.label, quantity: l.quantity, unit_price: l.unit_price, tax_rate: l.tax_rate,
         line_total: +((Number(l.quantity) || 0) * (Number(l.unit_price) || 0)).toFixed(2), sort_order: i,
       }))
+      // Cross-client vehicle is only ever selected after explicit UI confirmation.
+      const selVeh = (vehicles ?? []).find((v) => v.id === resolvedVehicleId)
+      const crossConfirmed = !!(selVeh?.customer_id && resolvedCustomerId && selVeh.customer_id !== resolvedCustomerId)
       const quoteFields = {
         garage_id: gid, title, status: 'draft',
-        subtotal: totals.subtotal, tax_total: totals.tax, total: totals.total,
+        // Preview totals only — the RPC recomputes and stores the official values.
+        subtotal: totals.subtotal, tax_total: totals.tax_total, total: totals.total,
         notes: notes || null, conditions: conditions || null, valid_until: validUntil || null,
         client_name: clientName || null, client_phone: clientPhone, client_email: clientEmail,
         vehicle_label: vehicleLabel || null,
         customer_id: resolvedCustomerId, vehicle_id: resolvedVehicleId, service_request_id: requestId,
+        cross_customer_vehicle_confirmed: crossConfirmed,
       }
 
       if (editing && id) {
@@ -307,7 +306,7 @@ export function QuoteEditorPage() {
             <CardHeader><CardTitle>Récapitulatif</CardTitle></CardHeader>
             <CardContent className="space-y-1.5 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Total HT</span><span className="font-medium">{euro(totals.subtotal)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span className="font-medium">{euro(totals.tax)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span className="font-medium">{euro(totals.tax_total)}</span></div>
               <div className="flex justify-between border-t border-border pt-1.5 text-base"><span className="font-semibold">Total TTC</span><span className="font-bold text-primary">{euro(totals.total)}</span></div>
             </CardContent>
           </Card>

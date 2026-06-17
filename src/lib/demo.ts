@@ -9,6 +9,10 @@ import type {
   GarageNews, GarageService, Quote, QuoteLine, Repair, ServiceRequest, ServiceRequestMessage, Task,
 } from '@/types/domain'
 import type { DashboardStats, TeamMember } from '@/data/proData'
+import { computeQuoteTotals, lineTotal } from '@/lib/quoteTotals'
+
+const totalsFrom = (lines: Partial<QuoteLine>[]) =>
+  computeQuoteTotals(lines.map((l) => ({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 })))
 
 export const DEMO_GARAGE_ID = 'demo-garage'
 export const DEMO_STAFF_ID = 'demo-staff'
@@ -433,12 +437,13 @@ export const demo = {
     const s = load()
     const id = uid()
     const number = quote.number ?? 'DV-' + new Date().getFullYear() + '-' + String((s.quoteSeq += 1)).padStart(4, '0')
+    const t = totalsFrom(lines) // recompute (mirror the server)
     const row: Quote = {
       id, garage_id: DEMO_GARAGE_ID, customer_id: quote.customer_id ?? null, vehicle_id: quote.vehicle_id ?? null,
       repair_id: null, number,
       status: quote.status ?? 'draft', title: quote.title ?? 'Devis',
-      subtotal: quote.subtotal ?? 0, tax_total: quote.tax_total ?? 0, discount_total: 0,
-      total: quote.total ?? 0, notes: quote.notes ?? null, created_at: new Date().toISOString(),
+      subtotal: t.subtotal, tax_total: t.tax_total, discount_total: 0,
+      total: t.total, notes: quote.notes ?? null, created_at: new Date().toISOString(),
       client_name: quote.client_name ?? null, vehicle_label: quote.vehicle_label ?? null,
       conditions: quote.conditions ?? null, valid_until: quote.valid_until ?? null,
       service_request_id: quote.service_request_id ?? null,
@@ -448,7 +453,9 @@ export const demo = {
     lines.forEach((l, i) =>
       s.quoteLines.push({
         id: uid(), quote_id: id, label: l.label ?? '', quantity: l.quantity ?? 1,
-        unit_price: l.unit_price ?? 0, tax_rate: l.tax_rate ?? 20, line_total: l.line_total ?? 0, sort_order: i,
+        unit_price: l.unit_price ?? 0, tax_rate: l.tax_rate ?? 20,
+        line_total: lineTotal({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 }),
+        sort_order: i,
       }),
     )
     save()
@@ -463,12 +470,15 @@ export const demo = {
   updateQuoteFull: (id: string, patch: Partial<Quote>, lines: Partial<QuoteLine>[]) => {
     const s = load()
     const q = s.quotes.find((x) => x.id === id)
-    if (q) Object.assign(q, patch)
+    const t = totalsFrom(lines)
+    if (q) Object.assign(q, patch, { subtotal: t.subtotal, tax_total: t.tax_total, total: t.total })
     s.quoteLines = s.quoteLines.filter((l) => l.quote_id !== id)
     lines.forEach((l, i) =>
       s.quoteLines.push({
         id: uid(), quote_id: id, label: l.label ?? '', quantity: l.quantity ?? 1,
-        unit_price: l.unit_price ?? 0, tax_rate: l.tax_rate ?? 20, line_total: l.line_total ?? 0, sort_order: i,
+        unit_price: l.unit_price ?? 0, tax_rate: l.tax_rate ?? 20,
+        line_total: lineTotal({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 }),
+        sort_order: i,
       }),
     )
     save()
