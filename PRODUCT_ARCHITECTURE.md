@@ -17,7 +17,7 @@ Permettre à un garage indépendant — même peu à l’aise avec l’informati
 - **Véhicules** : parc clients suivi par le garage.
 - **Clients** : carnet d’adresses (CRM).
 - **Atelier** : kanban des réparations (à diagnostiquer → restitué).
-- **Devis** : devis simples avec TVA et statut.
+- **Devis** : TVA, totaux serveur, cycle brouillon → envoyé → accepté/refusé, consultation client par lien.
 - **Équipe** : membres et rôles.
 - **Paramètres** : infos garage, prestations, horaires, **état du backend**, compte.
 
@@ -88,7 +88,8 @@ Au-delà du socle ci-dessus, le produit livré inclut :
 - **Catalogue de prestations** par garage (durée, prix « dès / fixe », TVA, main-d'œuvre, **lignes de devis par défaut**, visibilité client) — visible côté client et utilisé pour préremplir les devis.
 - **Identité garage** (logo via Supabase Storage, adresse, contacts, couleur d'accent, mentions légales) réutilisée page client + devis.
 - **Devis** : depuis une demande (prérempli) ou manuel avec **recherche client + véhicule**, **suggestion** (client par téléphone/email normalisés, véhicule par plaque normalisée), **dédoublonnage**, **confirmation explicite** avant d'utiliser le véhicule d'un autre client.
-- **Numérotation** `DV-YYYY-NNNN` par garage ; **PDF réel** (`@react-pdf/renderer`).
-- Workflow étendu : **demande → confirmation (RDV + client + véhicule) → devis PDF**.
+- **Numérotation** `DV-YYYY-NNNN` par garage ; **PDF réel** (`@react-pdf/renderer`) ; totaux **recalculés côté serveur**.
+- **Cycle de vie du devis** : `draft` (modifiable) → `sent` (envoyé, figé) → `accepted` / `declined` / `expired`. Le garage **envoie** le devis (un lien client tokenisé est généré) ; le client le **consulte sans login** sur `/devis/:token`, **télécharge le PDF**, puis **accepte** ou **refuse avec motif**. Un devis envoyé n'est plus modifiable : le garage crée une **révision** (nouveau brouillon, lien `revised_from`). Seul le client accepte/refuse (jamais le garage).
+- Workflow complet : **demande → confirmation (RDV + client + véhicule) → devis brouillon → envoyé → accepté/refusé** (visible des deux côtés).
 
-Limites pilote : PDF généré à la volée (pas encore en bucket privé / URL signée), pas de facturation ni de signature client en ligne.
+Limites pilote : PDF généré à la volée (pas encore en bucket privé / URL signée, pas de version figée à l'envoi) ; envoi du lien **manuel** (email/SMS réels à brancher) ; pas de facturation ni de signature électronique avancée.

@@ -15,20 +15,26 @@
 - [x] **Devis** depuis une demande ou manuel, avec recherche/suggestion/dédoublonnage client + véhicule
 - [x] **Numérotation** `DV-YYYY-NNNN` par garage (séquence atomique)
 - [x] **Devis PDF réel** (`@react-pdf/renderer`) : logo, garage, client (tél/email), véhicule/immatriculation, lignes, HT/TVA/TTC, conditions, bon pour accord
-- [x] Création de devis/MAJ **transactionnelle** (RPC) — un devis ne perd jamais ses lignes
+- [x] Création de devis/MAJ **transactionnelle** (RPC) — un devis ne perd jamais ses lignes ; totaux **recalculés côté serveur**
+- [x] **Cycle de vie du devis** : `draft` → `sent` → `accepted` / `declined` / `expired` ; seul un brouillon est modifiable, l'accepté est définitif
+- [x] **Envoi au client** : action « Envoyer », `sent_at`, **lien de consultation tokenisé** copié (email/SMS à brancher plus tard)
+- [x] **Page client de consultation** `/devis/:token` (sans login) : document complet, **télécharger le PDF**, **accepter** ou **refuser avec motif**
+- [x] **Révision** : « Réviser » crée une nouvelle version en brouillon (lien `revised_from`), sans écraser l'envoyé/accepté
 - [x] UX progressive (Essentiel / Atelier avancé), agenda, atelier kanban, clients, véhicules
 - [x] États vides / chargement / erreur ; motion discret ; responsive sans scroll horizontal
 
 ### Sécurité
-- [x] RLS sur toutes les tables (default-deny) ; **isolation prouvée 16/16**
+- [x] RLS sur toutes les tables (default-deny) ; **isolation + cycle devis prouvés 42/42**
 - [x] Séparation garage member / admin / client ; client = statut-only sur sa demande
 - [x] Aucune clé `service_role` côté frontend ; `.env` gitignoré
-- [x] RPC devis member-checked ; jamais de lien silencieux vers le véhicule d'un autre client
+- [x] RPC devis member-checked ; totaux recalculés serveur ; jamais de lien silencieux vers le véhicule d'un autre client
+- [x] **Consultation devis par jeton non devinable** (RPC `SECURITY DEFINER`) — jamais énumérable, jamais cross-tenant
+- [x] **Accepter/refuser réservés au client** (trigger `guard_quote_transition`) ; le garage ne peut pas accepter à sa place ; accepté = définitif
 - [x] Logos publics par URL (écriture membre, pas de listing) ; PDF non publics (non stockés)
 - [x] Validation Zod (frontend + Edge Functions) ; consentement client explicite
 
 ### Qualité technique
-- [x] `tsc -b` 0 erreur · `eslint` 0 erreur · `vitest` 15 tests · `vite build` OK · `test:rls` 16/16
+- [x] `tsc -b` 0 erreur · `eslint` 0 erreur · `vitest` 28 tests · `vite build` OK · `test:rls` 42/42
 
 ## 🔜 Avant production
 - [ ] PDF devis **stocké en bucket privé** + **URL signée** + version figée à l'envoi/acceptation

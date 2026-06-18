@@ -53,7 +53,8 @@ Le parcours client `/app/book` est **public** : prestation → créneau → véh
 - **Catalogue de prestations** par garage : nom, durée, prix (« à partir de » / fixe), TVA, main-d'œuvre, **lignes de devis par défaut**, visibilité client.
 - **Identité garage** : logo (Supabase Storage), adresse, contacts, couleur d'accent, mentions légales — réutilisés sur la page client et les devis.
 - **Devis** : depuis une demande (prérempli) ou manuel avec **recherche client + véhicule**, **suggestion** (client par tél/email normalisés, véhicule par plaque), **dédoublonnage**, jamais de lien silencieux vers le véhicule d'un autre client.
-- **Numérotation** `DV-YYYY-NNNN` par garage (séquence atomique, RPC).
+- **Numérotation** `DV-YYYY-NNNN` par garage (séquence atomique, RPC) ; **totaux recalculés côté serveur**.
+- **Cycle de vie du devis** : `draft` → `sent` → `accepted` / `declined` / `expired`. Le garage **envoie** le devis (lien client tokenisé) ; le client le consulte **sans login** sur `/devis/:token`, télécharge le PDF, puis **accepte** ou **refuse avec motif** ; le garage peut **réviser** (nouveau brouillon). Seul le client accepte/refuse.
 - **PDF de devis** réel via `@react-pdf/renderer` (logo, garage, client, véhicule, lignes, HT/TVA/TTC, conditions, bon pour accord).
 - **UX progressive** : mode *Essentiel* par défaut, *Atelier avancé* pour les garages techniques.
 - États vides / chargement / erreur soignés, motion discret, `prefers-reduced-motion` respecté.
@@ -84,15 +85,16 @@ src/
   lib/         supabase, env, theme, motion, format, normalize, slots, demo, utils
   types/       database.types.ts (généré) + domain.ts
 supabase/
-  migrations/  0001 → 0012 (schéma, RLS, fonctions, seed, catalogue/branding, devis, RPC transactionnelles)
+  migrations/  0001 → 0015 (schéma, RLS, fonctions, seed, catalogue/branding, devis, RPC transactionnelles, totaux serveur, cycle de vie devis)
   functions/   request-to-appointment, generate-vehicle-ad, repair-summary
 scripts/       rls-antileak.mjs + fixtures
 ```
 
 ## Limites actuelles (pilote)
-- Le **PDF est généré à la volée** côté client — **pas encore stocké** dans un bucket privé, **pas d'URL signée**, pas de version figée à l'envoi.
+- Le **PDF est généré à la volée** côté client — **pas encore stocké** dans un bucket privé, **pas d'URL signée**, pas de version figée à l'envoi/acceptation.
+- **Envoi du devis** : le lien client tokenisé est copié dans le presse-papier — **email/SMS réels non branchés** (le jeton n'expire pas encore).
 - **Facturation** non incluse (devis uniquement).
-- **Signature client en ligne** non incluse (mention « Bon pour accord » sur le PDF).
+- **Signature électronique avancée** non incluse (acceptation en ligne + mention « Bon pour accord » sur le PDF).
 - Invitations d'équipe par email et notifications email/SMS non branchées.
 
 ## Documentation

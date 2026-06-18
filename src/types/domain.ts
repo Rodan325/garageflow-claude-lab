@@ -27,12 +27,13 @@ export interface DefaultLine {
   tax_rate: number
 }
 
-export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'refused'
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired'
 export const QUOTE_STATUS_META: Record<QuoteStatus, { label: string; tone: Tone }> = {
   draft: { label: 'Brouillon', tone: 'neutral' },
   sent: { label: 'Envoyé', tone: 'info' },
   accepted: { label: 'Accepté', tone: 'success' },
-  refused: { label: 'Refusé', tone: 'danger' },
+  declined: { label: 'Refusé', tone: 'danger' },
+  expired: { label: 'Expiré', tone: 'warning' },
 }
 
 export type GarageRole = 'owner' | 'admin' | 'advisor' | 'mechanic' | 'front_desk'

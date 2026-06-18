@@ -204,6 +204,30 @@ export function demoProfile(kind: DemoKind) {
   }
 }
 
+/** Build the tokenised public-quote payload (mirror of get_quote_public). */
+function buildPublicQuote(s: Store, token: string) {
+  const q = s.quotes.find((x) => x.client_token === token)
+  if (!q) return null
+  const g = s.garages[0]
+  return clone({
+    quote: {
+      id: q.id, number: q.number, title: q.title, status: q.status,
+      subtotal: q.subtotal, tax_total: q.tax_total, total: q.total,
+      notes: q.notes, conditions: q.conditions, valid_until: q.valid_until,
+      client_name: q.client_name, client_phone: q.client_phone, client_email: q.client_email,
+      vehicle_label: q.vehicle_label, created_at: q.created_at,
+      sent_at: q.sent_at, accepted_at: q.accepted_at, declined_at: q.declined_at, decline_reason: q.decline_reason,
+    },
+    lines: s.quoteLines.filter((l) => l.quote_id === q.id).sort((a, b) => a.sort_order - b.sort_order)
+      .map((l) => ({ id: l.id, label: l.label, quantity: l.quantity, unit_price: l.unit_price, tax_rate: l.tax_rate, line_total: l.line_total, sort_order: l.sort_order })),
+    garage: {
+      name: g.name, logo_url: g.logo_url, accent_color: g.accent_color,
+      address: g.address, city: g.city, phone: g.phone, email: g.email,
+      legal_name: g.legal_name, siret: g.siret, vat_number: g.vat_number, legal_info: g.legal_info,
+    },
+  })
+}
+
 // ---------- query helpers (mirror the real hooks) ----------
 export const demo = {
   garages: () => clone(load().garages),
@@ -448,6 +472,8 @@ export const demo = {
       conditions: quote.conditions ?? null, valid_until: quote.valid_until ?? null,
       service_request_id: quote.service_request_id ?? null,
       client_phone: quote.client_phone ?? null, client_email: quote.client_email ?? null,
+      client_token: null, sent_at: null, accepted_at: null, declined_at: null,
+      decline_reason: null, revised_from: null,
     }
     s.quotes.unshift(row)
     lines.forEach((l, i) =>
@@ -482,5 +508,54 @@ export const demo = {
       }),
     )
     save()
+  },
+  // ---- Quote life-cycle (mirror of the server RPCs) ----
+  sendQuote: (id: string): Quote => {
+    const s = load()
+    const q = s.quotes.find((x) => x.id === id)
+    if (!q) throw new Error('Devis introuvable')
+    if (q.status !== 'draft') throw new Error('Seul un brouillon peut être envoyé')
+    if (s.quoteLines.filter((l) => l.quote_id === id).length === 0) throw new Error('Devis vide : ajoutez au moins une ligne')
+    q.status = 'sent'
+    q.sent_at = new Date().toISOString()
+    q.client_token = q.client_token ?? ('demo' + uid().replace(/-/g, '') + uid().replace(/-/g, ''))
+    save()
+    return clone(q)
+  },
+  reviseQuote: (id: string): Quote => {
+    const s = load()
+    const src = s.quotes.find((x) => x.id === id)
+    if (!src) throw new Error('Devis introuvable')
+    const newId = uid()
+    const number = 'DV-' + new Date().getFullYear() + '-' + String((s.quoteSeq += 1)).padStart(4, '0')
+    const row: Quote = {
+      ...src, id: newId, number, status: 'draft', created_at: new Date().toISOString(),
+      client_token: null, sent_at: null, accepted_at: null, declined_at: null, decline_reason: null, revised_from: src.id,
+    }
+    s.quotes.unshift(row)
+    s.quoteLines.filter((l) => l.quote_id === id).forEach((l, i) =>
+      s.quoteLines.push({ ...l, id: uid(), quote_id: newId, sort_order: i }))
+    save()
+    return clone(row)
+  },
+  getPublicQuote: (token: string) => buildPublicQuote(load(), token),
+  acceptPublicQuote: (token: string) => {
+    const s = load()
+    const q = s.quotes.find((x) => x.client_token === token)
+    if (!q) throw new Error('Devis introuvable')
+    if (q.status === 'sent') {
+      if (q.valid_until && q.valid_until < new Date().toISOString().slice(0, 10)) throw new Error('Devis expiré')
+      q.status = 'accepted'; q.accepted_at = new Date().toISOString(); save()
+    } else if (q.status !== 'accepted') throw new Error('Devis non disponible')
+    return buildPublicQuote(load(), token)!
+  },
+  declinePublicQuote: (token: string, reason: string | null) => {
+    const s = load()
+    const q = s.quotes.find((x) => x.client_token === token)
+    if (!q) throw new Error('Devis introuvable')
+    if (q.status === 'sent') {
+      q.status = 'declined'; q.declined_at = new Date().toISOString(); q.decline_reason = reason?.trim() || null; save()
+    } else if (q.status !== 'declined') throw new Error('Devis non disponible')
+    return buildPublicQuote(load(), token)!
   },
 }

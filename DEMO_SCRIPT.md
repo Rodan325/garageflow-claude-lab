@@ -25,16 +25,20 @@
 3. **Créer un devis** (depuis la demande) :
    - Client et véhicule **suggérés** (par téléphone/email normalisés et plaque) ; modifiables.
    - Lignes préremplies depuis la prestation ; ajout/édition ; **Total HT / TVA / TTC** en direct.
-   - **Enregistrer & aperçu** → document à l'écran → **Télécharger le PDF** (vrai fichier `.pdf` : logo, garage, client tél/email, immatriculation, lignes, totaux, conditions, **Bon pour accord**).
    - Numéro **DV-AAAA-NNNN** (séquence par garage).
-4. *(Atelier avancé)* Montrer **Prestations** (créer « Vidange 5W30 » : durée, prix, TVA, lignes par défaut, visible client) et **Atelier** (kanban).
+   - **Enregistrer & envoyer** → le devis passe en **Envoyé**, un **lien client** sécurisé est copié dans le presse-papier.
+4. **Cycle de vie** sur la liste des devis : statut (Brouillon → Envoyé → Accepté/Refusé/Expiré), dates (créé / envoyé / décision), actions selon statut (Modifier, Envoyer, Lien client, PDF, Réviser).
+5. *(Atelier avancé)* Montrer **Prestations** (créer « Vidange 5W30 » : durée, prix, TVA, lignes par défaut, visible client) et **Atelier** (kanban).
 
-## 4. Côté client — suivi (30 s) *(étroit)*
+## 4. Côté client — devis + suivi (60 s) *(étroit)*
+- Ouvrir le **lien du devis** (`/devis/:token`) : document propre — garage, logo, n°, dates, véhicule, lignes, **HT/TVA/TTC**, conditions. **Télécharger le PDF**.
+- **Accepter** (confirmation claire ; le garage peut planifier l'intervention) **ou Refuser** avec un motif optionnel.
+- Côté garage, le devis apparaît **Accepté** / **Refusé** (avec le motif) ; il n'est plus modifiable — bouton **Réviser** pour repartir d'un brouillon.
 - Onglet **Demandes** : la réservation est passée **Confirmée**. Ouvrir le détail, échanger un message.
 
 ## 5. Robustesse & sécurité (45 s)
 - **Mode Essentiel / Atelier avancé** : simple par défaut, complet sur demande.
-- Argument sécurité : isolation par garage (RLS), `npm run test:rls` = 16/16 ; aucune clé `service_role` côté navigateur ; un client ne modifie que le statut de sa demande ; pas de doublon client/véhicule ; devis numérotés sans collision.
+- Argument sécurité : isolation par garage (RLS), `npm run test:rls` = **42/42** ; aucune clé `service_role` côté navigateur ; un client ne modifie que le statut de sa demande ; **devis consultable seulement via un lien tokenisé non devinable**, accepter/refuser réservés au client (un garage ne peut pas accepter à sa place) ; pas de doublon client/véhicule ; devis numérotés sans collision et totaux recalculés côté serveur.
 
 ## Réinitialiser
 - Mode démo : « Quitter la démo » puis vider `localStorage` (ou bouton de relance).

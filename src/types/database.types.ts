@@ -7,8 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.5'
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -55,7 +57,43 @@ export type Database = {
           title?: string
           vehicle_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "appointments_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -88,7 +126,15 @@ export type Database = {
           id?: string
           metadata?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_profiles: {
         Row: {
@@ -109,7 +155,15 @@ export type Database = {
           id?: string
           marketing_consent?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "client_profiles_default_garage_id_fkey"
+            columns: ["default_garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_vehicles: {
         Row: {
@@ -178,7 +232,15 @@ export type Database = {
           source?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "consents_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {
@@ -232,7 +294,15 @@ export type Database = {
           postal_code?: string | null
           source?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documents: {
         Row: {
@@ -268,7 +338,29 @@ export type Database = {
           title?: string
           vehicle_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       garage_hours: {
         Row: {
@@ -295,7 +387,15 @@ export type Database = {
           open_time?: string | null
           weekday?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "garage_hours_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       garage_members: {
         Row: {
@@ -325,7 +425,22 @@ export type Database = {
           status?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "garage_members_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "garage_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       garage_news: {
         Row: {
@@ -358,61 +473,78 @@ export type Database = {
           published_at?: string
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "garage_news_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       garage_services: {
         Row: {
           category: string | null
           created_at: string
+          default_lines: Json
           description: string | null
           duration_minutes: number
           garage_id: string
           id: string
           is_active: boolean
+          labor_hours: number | null
           name: string
           price_from: number | null
+          price_type: string
           sort_order: number
           tax_rate: number
-          labor_hours: number | null
-          price_type: string
-          default_lines: Json
         }
         Insert: {
           category?: string | null
           created_at?: string
+          default_lines?: Json
           description?: string | null
           duration_minutes?: number
           garage_id: string
           id?: string
           is_active?: boolean
+          labor_hours?: number | null
           name: string
           price_from?: number | null
+          price_type?: string
           sort_order?: number
           tax_rate?: number
-          labor_hours?: number | null
-          price_type?: string
-          default_lines?: Json
         }
         Update: {
           category?: string | null
           created_at?: string
+          default_lines?: Json
           description?: string | null
           duration_minutes?: number
           garage_id?: string
           id?: string
           is_active?: boolean
+          labor_hours?: number | null
           name?: string
           price_from?: number | null
+          price_type?: string
           sort_order?: number
           tax_rate?: number
-          labor_hours?: number | null
-          price_type?: string
-          default_lines?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "garage_services_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       garages: {
         Row: {
+          accent_color: string | null
           address: string | null
           city: string | null
           country: string
@@ -421,10 +553,9 @@ export type Database = {
           email: string | null
           id: string
           is_public: boolean
+          legal_info: string | null
           legal_name: string | null
           logo_url: string | null
-          accent_color: string | null
-          legal_info: string | null
           maps_url: string | null
           name: string
           phone: string | null
@@ -437,6 +568,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          accent_color?: string | null
           address?: string | null
           city?: string | null
           country?: string
@@ -445,10 +577,9 @@ export type Database = {
           email?: string | null
           id?: string
           is_public?: boolean
+          legal_info?: string | null
           legal_name?: string | null
           logo_url?: string | null
-          accent_color?: string | null
-          legal_info?: string | null
           maps_url?: string | null
           name: string
           phone?: string | null
@@ -461,6 +592,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          accent_color?: string | null
           address?: string | null
           city?: string | null
           country?: string
@@ -469,10 +601,9 @@ export type Database = {
           email?: string | null
           id?: string
           is_public?: boolean
+          legal_info?: string | null
           legal_name?: string | null
           logo_url?: string | null
-          accent_color?: string | null
-          legal_info?: string | null
           maps_url?: string | null
           name?: string
           phone?: string | null
@@ -513,6 +644,32 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_counters: {
+        Row: {
+          garage_id: string
+          last_number: number
+          year: number
+        }
+        Insert: {
+          garage_id: string
+          last_number?: number
+          year: number
+        }
+        Update: {
+          garage_id?: string
+          last_number?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_counters_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_lines: {
         Row: {
           id: string
@@ -544,79 +701,148 @@ export type Database = {
           tax_rate?: number
           unit_price?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "quote_lines_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quotes: {
         Row: {
+          accepted_at: string | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          client_token: string | null
+          conditions: string | null
           created_at: string
           customer_id: string | null
+          decline_reason: string | null
+          declined_at: string | null
           discount_total: number
-          client_name: string | null
-          vehicle_label: string | null
-          conditions: string | null
-          valid_until: string | null
-          service_request_id: string | null
-          client_phone: string | null
-          client_email: string | null
           garage_id: string
           id: string
           notes: string | null
           number: string
           repair_id: string | null
+          revised_from: string | null
+          sent_at: string | null
+          service_request_id: string | null
           status: string
           subtotal: number
           tax_total: number
           title: string
           total: number
+          valid_until: string | null
           vehicle_id: string | null
+          vehicle_label: string | null
         }
         Insert: {
+          accepted_at?: string | null
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          client_token?: string | null
+          conditions?: string | null
           created_at?: string
           customer_id?: string | null
+          decline_reason?: string | null
+          declined_at?: string | null
           discount_total?: number
-          client_name?: string | null
-          vehicle_label?: string | null
-          conditions?: string | null
-          valid_until?: string | null
-          service_request_id?: string | null
-          client_phone?: string | null
-          client_email?: string | null
           garage_id: string
           id?: string
           notes?: string | null
           number: string
           repair_id?: string | null
+          revised_from?: string | null
+          sent_at?: string | null
+          service_request_id?: string | null
           status?: string
           subtotal?: number
           tax_total?: number
           title: string
           total?: number
+          valid_until?: string | null
           vehicle_id?: string | null
+          vehicle_label?: string | null
         }
         Update: {
+          accepted_at?: string | null
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          client_token?: string | null
+          conditions?: string | null
           created_at?: string
           customer_id?: string | null
+          decline_reason?: string | null
+          declined_at?: string | null
           discount_total?: number
-          client_name?: string | null
-          vehicle_label?: string | null
-          conditions?: string | null
-          valid_until?: string | null
-          service_request_id?: string | null
-          client_phone?: string | null
-          client_email?: string | null
           garage_id?: string
           id?: string
           notes?: string | null
           number?: string
           repair_id?: string | null
+          revised_from?: string | null
+          sent_at?: string | null
+          service_request_id?: string | null
           status?: string
           subtotal?: number
           tax_total?: number
           title?: string
           total?: number
+          valid_until?: string | null
           vehicle_id?: string | null
+          vehicle_label?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "quotes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_repair_id_fkey"
+            columns: ["repair_id"]
+            isOneToOne: false
+            referencedRelation: "repairs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_revised_from_fkey"
+            columns: ["revised_from"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       repairs: {
         Row: {
@@ -664,7 +890,43 @@ export type Database = {
           updated_at?: string
           vehicle_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "repairs_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repairs_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repairs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repairs_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repairs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_request_messages: {
         Row: {
@@ -694,7 +956,22 @@ export type Database = {
           request_id?: string
           sender?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_request_messages_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_request_messages_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_requests: {
         Row: {
@@ -766,7 +1043,43 @@ export type Database = {
           updated_at?: string
           vehicle_label?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "service_requests_appointment_fk"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_client_vehicle_id_fkey"
+            columns: ["client_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "client_vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "garage_services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
@@ -805,7 +1118,29 @@ export type Database = {
           status?: string
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_related_vehicle_id_fkey"
+            columns: ["related_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vehicles: {
         Row: {
@@ -865,30 +1200,322 @@ export type Database = {
           vin?: string | null
           year?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
-    Views: { [_ in never]: never }
+    Views: {
+      [_ in never]: never
+    }
     Functions: {
+      accept_quote_public: { Args: { p_token: string }; Returns: Json }
+      create_quote_with_lines: {
+        Args: { p_lines: Json; p_quote: Json }
+        Returns: {
+          accepted_at: string | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          client_token: string | null
+          conditions: string | null
+          created_at: string
+          customer_id: string | null
+          decline_reason: string | null
+          declined_at: string | null
+          discount_total: number
+          garage_id: string
+          id: string
+          notes: string | null
+          number: string
+          repair_id: string | null
+          revised_from: string | null
+          sent_at: string | null
+          service_request_id: string | null
+          status: string
+          subtotal: number
+          tax_total: number
+          title: string
+          total: number
+          valid_until: string | null
+          vehicle_id: string | null
+          vehicle_label: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      decline_quote_public: {
+        Args: { p_reason?: string; p_token: string }
+        Returns: Json
+      }
+      expire_quotes: { Args: never; Returns: number }
+      get_quote_public: { Args: { p_token: string }; Returns: Json }
       has_garage_role: {
         Args: { p_garage_id: string; p_roles: string[] }
         Returns: boolean
       }
       is_garage_member: { Args: { p_garage_id: string }; Returns: boolean }
       next_quote_number: { Args: { p_garage_id: string }; Returns: string }
-      create_quote_with_lines: { Args: { p_quote: Json; p_lines: Json }; Returns: Json }
-      update_quote_with_lines: { Args: { p_id: string; p_quote: Json; p_lines: Json }; Returns: Json }
+      revise_quote: {
+        Args: { p_id: string }
+        Returns: {
+          accepted_at: string | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          client_token: string | null
+          conditions: string | null
+          created_at: string
+          customer_id: string | null
+          decline_reason: string | null
+          declined_at: string | null
+          discount_total: number
+          garage_id: string
+          id: string
+          notes: string | null
+          number: string
+          repair_id: string | null
+          revised_from: string | null
+          sent_at: string | null
+          service_request_id: string | null
+          status: string
+          subtotal: number
+          tax_total: number
+          title: string
+          total: number
+          valid_until: string | null
+          vehicle_id: string | null
+          vehicle_label: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      send_quote: {
+        Args: { p_id: string }
+        Returns: {
+          accepted_at: string | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          client_token: string | null
+          conditions: string | null
+          created_at: string
+          customer_id: string | null
+          decline_reason: string | null
+          declined_at: string | null
+          discount_total: number
+          garage_id: string
+          id: string
+          notes: string | null
+          number: string
+          repair_id: string | null
+          revised_from: string | null
+          sent_at: string | null
+          service_request_id: string | null
+          status: string
+          subtotal: number
+          tax_total: number
+          title: string
+          total: number
+          valid_until: string | null
+          vehicle_id: string | null
+          vehicle_label: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_quote_with_lines: {
+        Args: { p_id: string; p_lines: Json; p_quote: Json }
+        Returns: {
+          accepted_at: string | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          client_token: string | null
+          conditions: string | null
+          created_at: string
+          customer_id: string | null
+          decline_reason: string | null
+          declined_at: string | null
+          discount_total: number
+          garage_id: string
+          id: string
+          notes: string | null
+          number: string
+          repair_id: string | null
+          revised_from: string | null
+          sent_at: string | null
+          service_request_id: string | null
+          status: string
+          subtotal: number
+          tax_total: number
+          title: string
+          total: number
+          valid_until: string | null
+          vehicle_id: string | null
+          vehicle_label: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
-    Enums: { [_ in never]: never }
-    CompositeTypes: { [_ in never]: never }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
 }
 
-type PublicSchema = Database['public']
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-export type Tables<T extends keyof PublicSchema['Tables']> =
-  PublicSchema['Tables'][T]['Row']
-export type TablesInsert<T extends keyof PublicSchema['Tables']> =
-  PublicSchema['Tables'][T]['Insert']
-export type TablesUpdate<T extends keyof PublicSchema['Tables']> =
-  PublicSchema['Tables'][T]['Update']
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

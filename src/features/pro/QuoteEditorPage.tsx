@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Plus, Search, Trash2, UserPlus } from 'lucide-react'
+import { ArrowLeft, Eye, Plus, RotateCcw, Search, Send, Trash2, UserPlus } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,12 +11,14 @@ import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useGarageRequests } from '@/data/requests'
 import { useManageServices } from '@/data/catalog'
-import { useCreateQuote, useQuote, useQuoteLines, useUpdateQuote } from '@/data/quotes'
+import { useCreateQuote, useQuote, useQuoteLines, useUpdateQuote, useSendQuote, useReviseQuote } from '@/data/quotes'
 import { useCustomers, useCreateCustomer, useVehicles, useCreateVehicle } from '@/data/proData'
 import { euro } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { normEmail, normPhone, normPlate } from '@/lib/normalize'
 import { computeQuoteTotals } from '@/lib/quoteTotals'
+import { clientQuoteLink, effectiveQuoteStatus } from '@/lib/quoteStatus'
+import { QUOTE_STATUS_META } from '@/types/domain'
 import type { Customer, DefaultLine, Vehicle } from '@/types/domain'
 
 interface Line { label: string; quantity: number; unit_price: number; tax_rate: number }
@@ -49,6 +51,8 @@ export function QuoteEditorPage() {
   const { data: existingLines } = useQuoteLines(editing ? id : undefined)
   const createQuote = useCreateQuote()
   const updateQuote = useUpdateQuote()
+  const sendQuote = useSendQuote()
+  const reviseQuote = useReviseQuote()
   const createCustomer = useCreateCustomer()
   const createVehicle = useCreateVehicle()
 
@@ -178,9 +182,10 @@ export function QuoteEditorPage() {
     return (vehicles ?? []).find((v) => normPlate(v.registration) === p)
   }, [newVehicle.registration, vehicleMode, vehicles])
 
-  async function save(thenPrint: boolean) {
-    if (!gid) return
-    if (!title.trim() || lines.length === 0) { toast.error('Ajoutez un intitulé et au moins une ligne'); return }
+  // Persist (create or update a DRAFT) and return the quote id, or null on failure.
+  async function persist(): Promise<string | null> {
+    if (!gid) return null
+    if (!title.trim() || lines.length === 0) { toast.error('Ajoutez un intitulé et au moins une ligne'); return null }
 
     try {
       // Resolve client — normalised dedup, never create a duplicate.
@@ -190,10 +195,10 @@ export function QuoteEditorPage() {
       let clientEmail: string | null = null
       if (clientMode === 'existing') {
         const c = (customers ?? []).find((x) => x.id === customerId)
-        if (!c) { toast.error('Choisissez un client'); return }
+        if (!c) { toast.error('Choisissez un client'); return null }
         resolvedCustomerId = c.id; clientName = fullName(c); clientPhone = c.phone; clientEmail = c.email
       } else {
-        if (!newClient.first && !newClient.last) { toast.error('Renseignez le client'); return }
+        if (!newClient.first && !newClient.last) { toast.error('Renseignez le client'); return null }
         const nEmail = normEmail(newClient.email)
         const nPhone = normPhone(newClient.phone)
         const dup = (customers ?? []).find(
@@ -247,21 +252,88 @@ export function QuoteEditorPage() {
 
       if (editing && id) {
         await updateQuote.mutateAsync({ id, garageId: gid, quote: quoteFields, lines: lineRows })
-        toast.success('Devis mis à jour')
-        navigate(thenPrint ? `/print/quote/${id}` : '/pro/quotes')
-      } else {
-        // Number is assigned server-side (per-garage sequence) inside useCreateQuote.
-        const row = await createQuote.mutateAsync({ quote: quoteFields, lines: lineRows })
-        toast.success('Devis créé')
-        navigate(thenPrint ? `/print/quote/${row.id}` : '/pro/quotes')
+        return id
       }
+      // Number is assigned server-side (per-garage sequence) inside useCreateQuote.
+      const row = await createQuote.mutateAsync({ quote: quoteFields, lines: lineRows })
+      return row.id
     } catch (e) {
       toast.error('Enregistrement impossible', (e as Error).message)
+      return null
+    }
+  }
+
+  async function save(thenPrint: boolean) {
+    const savedId = await persist()
+    if (!savedId) return
+    toast.success(editing ? 'Devis mis à jour' : 'Devis créé')
+    navigate(thenPrint ? `/print/quote/${savedId}` : '/pro/quotes')
+  }
+
+  // Save the draft, then send it to the client (mints the share link).
+  async function saveAndSend() {
+    const savedId = await persist()
+    if (!savedId || !gid) return
+    try {
+      const row = await sendQuote.mutateAsync({ id: savedId, garageId: gid })
+      const link = clientQuoteLink(row.client_token)
+      if (link) await navigator.clipboard.writeText(link).catch(() => {})
+      toast.success('Devis envoyé au client', 'Lien de consultation copié dans le presse-papier')
+      navigate('/pro/quotes')
+    } catch (e) {
+      toast.error('Envoi impossible', (e as Error).message)
     }
   }
 
   if (editing && quoteLoading) return <LoadingState />
+
+  // A non-draft quote is not directly editable — offer preview + revision instead.
+  if (editing && existingQuote && existingQuote.status !== 'draft') {
+    const status = effectiveQuoteStatus(existingQuote)
+    const meta = QUOTE_STATUS_META[status] ?? { label: existingQuote.status, tone: 'neutral' as const }
+    async function revise() {
+      if (!existingQuote || !gid) return
+      try {
+        const row = await reviseQuote.mutateAsync({ id: existingQuote.id, garageId: gid })
+        toast.success('Révision créée', 'Nouveau brouillon prêt à modifier')
+        navigate(`/pro/quotes/${row.id}`)
+      } catch (e) { toast.error('Révision impossible', (e as Error).message) }
+    }
+    return (
+      <div>
+        <button onClick={() => navigate('/pro/quotes')} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Devis
+        </button>
+        <PageHeader title={existingQuote.title} subtitle={`${existingQuote.number} · ${meta.label}`} />
+        <Card>
+          <CardContent className="space-y-4 py-6 text-sm">
+            <div className="flex items-center gap-2">
+              <Badge tone={meta.tone}>{meta.label}</Badge>
+            </div>
+            <p className="text-muted-foreground">
+              Ce devis a été envoyé au client : il n’est plus modifiable directement (les montants sont figés côté client).
+              Pour le faire évoluer, créez une <strong>nouvelle version</strong> qui repart en brouillon.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => navigate(`/print/quote/${existingQuote.id}`)}><Eye className="h-4 w-4" /> Aperçu</Button>
+              {existingQuote.client_token && (
+                <Button variant="outline" onClick={async () => {
+                  const link = clientQuoteLink(existingQuote.client_token)
+                  if (link) { await navigator.clipboard.writeText(link).catch(() => {}); toast.success('Lien client copié') }
+                }}><Send className="h-4 w-4" /> Copier le lien client</Button>
+              )}
+              {status !== 'accepted' && (
+                <Button onClick={revise} loading={reviseQuote.isPending}><RotateCcw className="h-4 w-4" /> Créer une révision</Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   const saving = createQuote.isPending || updateQuote.isPending || createCustomer.isPending || createVehicle.isPending
+  const sending = saving || sendQuote.isPending
 
   return (
     <div>
@@ -444,7 +516,8 @@ export function QuoteEditorPage() {
 
       <div className="mt-5 flex flex-wrap justify-end gap-2">
         <Button variant="outline" onClick={() => save(false)} loading={saving}>Enregistrer</Button>
-        <Button onClick={() => save(true)} loading={saving}>Enregistrer & aperçu</Button>
+        <Button variant="outline" onClick={() => save(true)} loading={saving}><Eye className="h-4 w-4" /> Enregistrer & aperçu</Button>
+        <Button onClick={saveAndSend} loading={sending}><Send className="h-4 w-4" /> Enregistrer & envoyer</Button>
       </div>
     </div>
   )

@@ -153,6 +153,78 @@ async function main() {
     console.log(`  (${created.length} devis de test nettoyés)`)
   }
 
+  // 6) QUOTE LIFE-CYCLE — send → public consult → accept / decline
+  console.log('\nDevis — cycle de vie (envoi, consultation, acceptation/refus)')
+  {
+    const g = await clientFor('owner@demo-garage.fr', 'Demo1234!')
+    const pub = createClient(url, anon, { auth: { persistSession: false } })
+    const baseQuote = { garage_id: GARAGE_A, title: 'Cycle', client_name: 'Client Cycle', subtotal: 1, tax_total: 1, total: 1 }
+    const goodLines = [{ label: 'Forfait', quantity: 1, unit_price: 200, tax_rate: 20 }]
+    const created = []
+
+    // draft → send (mints token)
+    const c1 = await g.rpc('create_quote_with_lines', { p_quote: baseQuote, p_lines: goodLines })
+    let token = null, q1 = null
+    if (c1.data) {
+      created.push(c1.data.id); q1 = c1.data.id
+      const sent = await g.rpc('send_quote', { p_id: c1.data.id })
+      check('send_quote : brouillon → envoyé', !sent.error && sent.data?.status === 'sent', sent.error?.message)
+      token = sent.data?.client_token
+      check('send_quote : jeton client généré', typeof token === 'string' && token.length >= 32)
+    } else {
+      check('création brouillon pour cycle', false, c1.error?.message)
+    }
+
+    // a SENT quote is no longer directly editable
+    if (q1) {
+      const upd = await g.rpc('update_quote_with_lines', { p_id: q1, p_quote: baseQuote, p_lines: goodLines })
+      check('devis envoyé non modifiable directement', !!upd.error)
+    }
+
+    // garage cannot raw-set accepted (trigger: client-only)
+    if (q1) {
+      const raw = await g.from('quotes').update({ status: 'accepted' }).eq('id', q1).select()
+      check('garage ne peut PAS accepter à la place du client', !!raw.error || (raw.data ?? []).length === 0)
+    }
+
+    // anon consults by token only — never by enumeration
+    if (token) {
+      const view = await pub.rpc('get_quote_public', { p_token: token })
+      check('consultation publique par jeton (anon)', !view.error && !!view.data, view.error?.message)
+      const bad = await pub.rpc('get_quote_public', { p_token: 'x'.repeat(64) })
+      check('jeton invalide → aucun devis', !bad.error && bad.data === null)
+      const direct = await pub.from('quotes').select('*')
+      check('anon ne lit toujours pas la table devis', (direct.data ?? []).length === 0)
+    }
+
+    // anon accepts via token
+    if (token) {
+      const acc = await pub.rpc('accept_quote_public', { p_token: token })
+      check('acceptation client (anon) → accepté', !acc.error && acc.data?.quote?.status === 'accepted', acc.error?.message)
+    }
+
+    // a second quote: decline with a reason
+    const c2 = await g.rpc('create_quote_with_lines', { p_quote: baseQuote, p_lines: goodLines })
+    if (c2.data) {
+      created.push(c2.data.id)
+      const sent2 = await g.rpc('send_quote', { p_id: c2.data.id })
+      const dec = await pub.rpc('decline_quote_public', { p_token: sent2.data?.client_token, p_reason: 'Trop cher' })
+      check('refus client (anon) → refusé + motif',
+        !dec.error && dec.data?.quote?.status === 'declined' && dec.data?.quote?.decline_reason === 'Trop cher', dec.error?.message)
+    }
+
+    // revise → fresh draft linked to the original
+    if (q1) {
+      const rev = await g.rpc('revise_quote', { p_id: q1 })
+      check('revise_quote : nouvelle version en brouillon',
+        !rev.error && rev.data?.status === 'draft' && rev.data?.revised_from === q1, rev.error?.message)
+      if (rev.data) created.push(rev.data.id)
+    }
+
+    for (const id of created) await g.from('quotes').delete().eq('id', id)
+    console.log(`  (${created.length} devis de test nettoyés)`)
+  }
+
   console.log(`\nRésultat : ${pass} réussis, ${fail} échoués\n`)
   process.exit(fail === 0 ? 0 : 1)
 }

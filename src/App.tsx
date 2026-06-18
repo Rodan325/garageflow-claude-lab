@@ -33,6 +33,7 @@ import { ClientBookingsPage } from '@/features/client/ClientBookingsPage'
 import { ClientBookingDetailPage } from '@/features/client/ClientBookingDetailPage'
 import { ClientVehiclesPage } from '@/features/client/ClientVehiclesPage'
 import { ClientProfilePage } from '@/features/client/ClientProfilePage'
+import { ClientQuotePage } from '@/features/client/ClientQuotePage'
 import { NotFoundPage } from '@/features/marketing/NotFoundPage'
 
 export function App() {
@@ -63,6 +64,9 @@ export function App() {
         </Route>
 
         <Route path="/print/quote/:id" element={<RequireStaff><QuotePrintPage /></RequireStaff>} />
+
+        {/* Public, tokenised quote consultation (no login required) */}
+        <Route path="/devis/:token" element={<ClientQuotePage />} />
 
         <Route path="/app" element={<ClientShell />}>
           <Route index element={<ClientHomePage />} />

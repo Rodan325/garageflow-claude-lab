@@ -86,17 +86,94 @@ export function useUpdateQuote() {
   })
 }
 
-export function useUpdateQuoteStatus() {
+/** Garage action: send a draft to the client (server mints the share token). */
+export function useSendQuote() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string; garageId: string }) => {
-      if (isDemo()) return demo.updateQuoteStatus(id, status)
-      const { error } = await supabase.from('quotes').update({ status }).eq('id', id)
+    mutationFn: async ({ id }: { id: string; garageId: string }): Promise<Quote> => {
+      if (isDemo()) return demo.sendQuote(id)
+      const { data, error } = await supabase.rpc('send_quote', { p_id: id })
       if (error) throw error
+      return data as unknown as Quote
     },
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: ['quotes', v.garageId] })
       qc.invalidateQueries({ queryKey: ['quote', v.id] })
     },
+  })
+}
+
+/** Garage action: create a fresh DRAFT revision from any quote. */
+export function useReviseQuote() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; garageId: string }): Promise<Quote> => {
+      if (isDemo()) return demo.reviseQuote(id)
+      const { data, error } = await supabase.rpc('revise_quote', { p_id: id })
+      if (error) throw error
+      return data as unknown as Quote
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['quotes', v.garageId] }),
+  })
+}
+
+// ---- Public (tokenised) consultation + accept / decline -------------------
+
+export interface PublicQuoteLine {
+  id: string; label: string; quantity: number; unit_price: number; tax_rate: number; line_total: number; sort_order: number
+}
+export interface PublicQuoteView {
+  quote: {
+    id: string; number: string; title: string; status: string
+    subtotal: number; tax_total: number; total: number
+    notes: string | null; conditions: string | null; valid_until: string | null
+    client_name: string | null; client_phone: string | null; client_email: string | null
+    vehicle_label: string | null; created_at: string
+    sent_at: string | null; accepted_at: string | null; declined_at: string | null; decline_reason: string | null
+  }
+  lines: PublicQuoteLine[]
+  garage: {
+    name: string; logo_url: string | null; accent_color: string | null
+    address: string | null; city: string | null; phone: string | null; email: string | null
+    legal_name: string | null; siret: string | null; vat_number: string | null; legal_info: string | null
+  }
+}
+
+export function usePublicQuote(token?: string) {
+  return useQuery({
+    queryKey: ['public-quote', token],
+    enabled: !!token,
+    queryFn: async (): Promise<PublicQuoteView | null> => {
+      if (isDemo()) return demo.getPublicQuote(token!)
+      const { data, error } = await supabase.rpc('get_quote_public', { p_token: token! })
+      if (error) throw error
+      return (data as unknown as PublicQuoteView | null) ?? null
+    },
+  })
+}
+
+export function useAcceptPublicQuote() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ token }: { token: string }): Promise<PublicQuoteView> => {
+      if (isDemo()) return demo.acceptPublicQuote(token)
+      const { data, error } = await supabase.rpc('accept_quote_public', { p_token: token })
+      if (error) throw error
+      return data as unknown as PublicQuoteView
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['public-quote', v.token] }),
+  })
+}
+
+export function useDeclinePublicQuote() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ token, reason }: { token: string; reason?: string | null }): Promise<PublicQuoteView> => {
+      if (isDemo()) return demo.declinePublicQuote(token, reason ?? null)
+      const { data, error } = await supabase.rpc('decline_quote_public', { p_token: token, p_reason: reason ?? undefined })
+      if (error) throw error
+      return data as unknown as PublicQuoteView
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['public-quote', v.token] }),
   })
 }
