@@ -160,12 +160,64 @@ function seed(): Store {
   }
 }
 
+/** New quote fields added over time — backfilled onto legacy stored quotes. */
+const QUOTE_LIFECYCLE_DEFAULTS = {
+  client_token: null, sent_at: null, accepted_at: null, declined_at: null,
+  decline_reason: null, revised_from: null,
+} as const
+
+/**
+ * Defensive hydration: an older `gf-demo-store-v3` saved before recent features
+ * may miss keys (e.g. `quotes`, `quoteSeq`) or newer quote columns. Merge it
+ * with a fresh seed so arrays/sequences always exist and never crash the UI.
+ * A corrupt / non-object payload falls back to a full reseed.
+ */
+export function ensureStoreShape(raw: unknown): Store {
+  if (!raw || typeof raw !== 'object') return seed()
+  const base = seed()
+  const r = raw as Record<string, unknown>
+  const arr = <K extends keyof Store>(k: K): Store[K] =>
+    (Array.isArray(r[k as string]) ? (r[k as string] as Store[K]) : base[k])
+  const num = (k: keyof Store): number =>
+    (typeof r[k as string] === 'number' ? (r[k as string] as number) : (base[k] as number))
+
+  const store: Store = {
+    garages: arr('garages'),
+    services: arr('services'),
+    news: arr('news'),
+    hours: arr('hours'),
+    customers: arr('customers'),
+    vehicles: arr('vehicles'),
+    clientVehicles: arr('clientVehicles'),
+    requests: arr('requests'),
+    messages: arr('messages'),
+    appointments: arr('appointments'),
+    repairs: arr('repairs'),
+    tasks: arr('tasks'),
+    quotes: arr('quotes'),
+    quoteLines: arr('quoteLines'),
+    clientProfile: (r.clientProfile && typeof r.clientProfile === 'object'
+      ? (r.clientProfile as ClientProfile) : base.clientProfile),
+    reqSeq: num('reqSeq'),
+    quoteSeq: num('quoteSeq'),
+  }
+  // Backfill quote columns introduced after the store was first saved.
+  store.quotes = store.quotes.map((q) => ({ ...QUOTE_LIFECYCLE_DEFAULTS, ...q }) as Quote)
+  return store
+}
+
 let cache: Store | null = null
 function load(): Store {
   if (cache) return cache
   try {
     const raw = localStorage.getItem(STORE_KEY)
-    cache = raw ? (JSON.parse(raw) as Store) : seed()
+    if (raw) {
+      cache = ensureStoreShape(JSON.parse(raw))
+      // Persist the upgraded shape so the on-disk store is migrated once.
+      localStorage.setItem(STORE_KEY, JSON.stringify(cache))
+    } else {
+      cache = seed()
+    }
   } catch {
     cache = seed()
   }
