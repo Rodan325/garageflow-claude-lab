@@ -31,9 +31,23 @@ export const isQuoteEditable = (status: string) => status === 'draft'
 /** A draft with lines can be sent to the client. */
 export const canSendQuote = (status: string) => status === 'draft'
 
-/** A sent / declined / expired quote can spawn a fresh draft revision. */
-export const canReviseQuote = (effective: QuoteStatus) =>
-  effective === 'sent' || effective === 'declined' || effective === 'expired'
+/**
+ * Why a draft can't be sent yet (validity date is mandatory before sending),
+ * or `null` if it's good to go. Used by the editor and the list, mirrored by
+ * the `send_quote` RPC server-side.
+ */
+export function quoteSendBlockReason(validUntil: string | null | undefined, now: Date = new Date()): string | null {
+  if (!validUntil) return 'Renseignez une date de validité avant d’envoyer le devis.'
+  if (validUntil < todayISO(now)) return 'La date de validité doit être aujourd’hui ou une date future.'
+  return null
+}
+
+/**
+ * Any quote that is no longer a draft (sent / accepted / declined / expired)
+ * can spawn a fresh draft revision — including an accepted one, which is left
+ * untouched (a new version is created instead).
+ */
+export const canReviseQuote = (effective: QuoteStatus) => effective !== 'draft'
 
 /** The client can accept/decline only while the quote is live (sent, not expired). */
 export const clientCanRespond = (effective: QuoteStatus) => effective === 'sent'

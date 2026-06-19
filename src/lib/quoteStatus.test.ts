@@ -5,6 +5,7 @@ import {
   canSendQuote,
   canReviseQuote,
   clientCanRespond,
+  quoteSendBlockReason,
 } from './quoteStatus'
 
 const NOW = new Date('2026-06-17T10:00:00Z')
@@ -42,17 +43,34 @@ describe('lifecycle predicates', () => {
     expect(canSendQuote('accepted')).toBe(false)
   })
 
-  it('revision is allowed for sent/declined/expired only', () => {
+  it('revision is allowed for any non-draft quote (incl. accepted)', () => {
     expect(canReviseQuote('sent')).toBe(true)
     expect(canReviseQuote('declined')).toBe(true)
     expect(canReviseQuote('expired')).toBe(true)
+    expect(canReviseQuote('accepted')).toBe(true)
     expect(canReviseQuote('draft')).toBe(false)
-    expect(canReviseQuote('accepted')).toBe(false)
   })
 
   it('client can respond only while live (sent)', () => {
     expect(clientCanRespond('sent')).toBe(true)
     expect(clientCanRespond('expired')).toBe(false)
     expect(clientCanRespond('accepted')).toBe(false)
+  })
+})
+
+describe('quoteSendBlockReason', () => {
+  it('blocks a missing validity date', () => {
+    expect(quoteSendBlockReason(null, NOW)).toMatch(/Renseignez une date de validité/)
+    expect(quoteSendBlockReason(undefined, NOW)).toMatch(/Renseignez une date de validité/)
+    expect(quoteSendBlockReason('', NOW)).toMatch(/Renseignez une date de validité/)
+  })
+
+  it('blocks a past validity date', () => {
+    expect(quoteSendBlockReason('2026-06-10', NOW)).toMatch(/aujourd’hui ou une date future/)
+  })
+
+  it('allows today or a future validity date', () => {
+    expect(quoteSendBlockReason('2026-06-17', NOW)).toBeNull() // today
+    expect(quoteSendBlockReason('2026-07-01', NOW)).toBeNull()
   })
 })

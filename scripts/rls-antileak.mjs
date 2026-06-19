@@ -158,11 +158,26 @@ async function main() {
   {
     const g = await clientFor('owner@demo-garage.fr', 'Demo1234!')
     const pub = createClient(url, anon, { auth: { persistSession: false } })
-    const baseQuote = { garage_id: GARAGE_A, title: 'Cycle', client_name: 'Client Cycle', subtotal: 1, tax_total: 1, total: 1 }
+    const future = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10)
+    const past = new Date(Date.now() - 864e5).toISOString().slice(0, 10)
+    const baseQuote = { garage_id: GARAGE_A, title: 'Cycle', client_name: 'Client Cycle', valid_until: future, subtotal: 1, tax_total: 1, total: 1 }
     const goodLines = [{ label: 'Forfait', quantity: 1, unit_price: 200, tax_rate: 20 }]
     const created = []
 
-    // draft → send (mints token)
+    // send requires a validity date: missing or past is refused
+    {
+      const nv = await g.rpc('create_quote_with_lines', { p_quote: { ...baseQuote, valid_until: null }, p_lines: goodLines })
+      if (nv.data) {
+        created.push(nv.data.id)
+        check('send refusé sans date de validité', !!(await g.rpc('send_quote', { p_id: nv.data.id })).error)
+        await g.rpc('update_quote_with_lines', { p_id: nv.data.id, p_quote: { ...baseQuote, valid_until: past }, p_lines: goodLines })
+        check('send refusé avec date de validité passée', !!(await g.rpc('send_quote', { p_id: nv.data.id })).error)
+      } else {
+        check('création brouillon (test validité)', false, nv.error?.message)
+      }
+    }
+
+    // draft with a FUTURE validity date → send (mints token)
     const c1 = await g.rpc('create_quote_with_lines', { p_quote: baseQuote, p_lines: goodLines })
     let token = null, q1 = null
     if (c1.data) {
@@ -213,12 +228,14 @@ async function main() {
         !dec.error && dec.data?.quote?.status === 'declined' && dec.data?.quote?.decline_reason === 'Trop cher', dec.error?.message)
     }
 
-    // revise → fresh draft linked to the original
+    // revise an ACCEPTED quote → fresh draft linked to the (untouched) original
     if (q1) {
       const rev = await g.rpc('revise_quote', { p_id: q1 })
       check('revise_quote : nouvelle version en brouillon',
         !rev.error && rev.data?.status === 'draft' && rev.data?.revised_from === q1, rev.error?.message)
       if (rev.data) created.push(rev.data.id)
+      const orig = await g.from('quotes').select('status').eq('id', q1).single()
+      check('devis accepté inchangé après révision', orig.data?.status === 'accepted', orig.error?.message)
     }
 
     for (const id of created) await g.from('quotes').delete().eq('id', id)

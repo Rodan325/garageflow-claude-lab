@@ -10,6 +10,7 @@ import type {
 } from '@/types/domain'
 import type { DashboardStats, TeamMember } from '@/data/proData'
 import { computeQuoteTotals, lineTotal } from '@/lib/quoteTotals'
+import { quoteSendBlockReason } from '@/lib/quoteStatus'
 
 const totalsFrom = (lines: Partial<QuoteLine>[]) =>
   computeQuoteTotals(lines.map((l) => ({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 })))
@@ -568,6 +569,8 @@ export const demo = {
     if (!q) throw new Error('Devis introuvable')
     if (q.status !== 'draft') throw new Error('Seul un brouillon peut être envoyé')
     if (s.quoteLines.filter((l) => l.quote_id === id).length === 0) throw new Error('Devis vide : ajoutez au moins une ligne')
+    const blocked = quoteSendBlockReason(q.valid_until)
+    if (blocked) throw new Error(blocked)
     q.status = 'sent'
     q.sent_at = new Date().toISOString()
     q.client_token = q.client_token ?? ('demo' + uid().replace(/-/g, '') + uid().replace(/-/g, ''))

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Download, Eye, FileText, Link2, Pencil, Plus, RotateCcw, Send } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { StatusPill } from '@/components/ui/badge'
+import { Badge, StatusPill } from '@/components/ui/badge'
 import { EmptyState, LoadingState } from '@/components/ui/feedback'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/ui/toast'
@@ -13,7 +13,7 @@ import { useSendQuote, useReviseQuote } from '@/data/quotes'
 import { supabase } from '@/lib/supabase'
 import { isDemo, demo } from '@/lib/demo'
 import { QUOTE_STATUS_META } from '@/types/domain'
-import { effectiveQuoteStatus, canSendQuote, canReviseQuote, clientQuoteLink } from '@/lib/quoteStatus'
+import { effectiveQuoteStatus, canSendQuote, canReviseQuote, clientQuoteLink, quoteSendBlockReason } from '@/lib/quoteStatus'
 import { euro, shortDate } from '@/lib/format'
 import type { Quote, QuoteLine } from '@/types/domain'
 
@@ -35,6 +35,13 @@ export function QuotesPage() {
 
   async function onSend(q: Quote) {
     if (!garage) return
+    // Validity date is mandatory before sending — send the garage to the editor to fix it.
+    const blocked = quoteSendBlockReason(q.valid_until)
+    if (blocked) {
+      toast.error(blocked, 'Complétez la date de validité du devis.')
+      navigate(`/pro/quotes/${q.id}`)
+      return
+    }
     setBusyId(q.id)
     try {
       const row = await sendQuote.mutateAsync({ id: q.id, garageId: garage.id })
@@ -98,7 +105,10 @@ export function QuotesPage() {
             return (
               <div key={q.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{q.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-medium">{q.title}</p>
+                    {q.revised_from && <Badge tone="neutral">Révision</Badge>}
+                  </div>
                   <p className="truncate text-sm text-muted-foreground">
                     {q.number} · {q.client_name ?? '—'}{vehicle ? ` · ${vehicle}` : ''}
                   </p>
@@ -133,7 +143,7 @@ export function QuotesPage() {
                   )}
 
                   {canReviseQuote(status) && (
-                    <Button size="sm" variant="outline" onClick={() => onRevise(q)} loading={busy}><RotateCcw className="h-4 w-4" /> Réviser</Button>
+                    <Button size="sm" variant="outline" onClick={() => onRevise(q)} loading={busy} title="Créer une révision du devis (nouveau brouillon)"><RotateCcw className="h-4 w-4" /> Créer une révision</Button>
                   )}
                 </div>
               </div>

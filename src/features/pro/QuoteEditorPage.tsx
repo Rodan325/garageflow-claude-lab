@@ -17,7 +17,7 @@ import { euro } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { normEmail, normPhone, normPlate } from '@/lib/normalize'
 import { computeQuoteTotals } from '@/lib/quoteTotals'
-import { clientQuoteLink, effectiveQuoteStatus } from '@/lib/quoteStatus'
+import { clientQuoteLink, effectiveQuoteStatus, quoteSendBlockReason } from '@/lib/quoteStatus'
 import { QUOTE_STATUS_META } from '@/types/domain'
 import type { Customer, DefaultLine, Vehicle } from '@/types/domain'
 
@@ -272,6 +272,13 @@ export function QuoteEditorPage() {
 
   // Save the draft, then send it to the client (mints the share link).
   async function saveAndSend() {
+    // Validity date is mandatory before sending (mirrors the send_quote RPC).
+    const blocked = quoteSendBlockReason(validUntil)
+    if (blocked) {
+      toast.error(blocked)
+      document.getElementById('qd')?.focus()
+      return
+    }
     const savedId = await persist()
     if (!savedId || !gid) return
     try {
@@ -311,8 +318,9 @@ export function QuoteEditorPage() {
               <Badge tone={meta.tone}>{meta.label}</Badge>
             </div>
             <p className="text-muted-foreground">
-              Ce devis a été envoyé au client : il n’est plus modifiable directement (les montants sont figés côté client).
-              Pour le faire évoluer, créez une <strong>nouvelle version</strong> qui repart en brouillon.
+              {status === 'accepted'
+                ? 'Ce devis a été accepté par le client : il reste tel quel. Vous pouvez créer une nouvelle version sans modifier le devis accepté.'
+                : 'Ce devis a été envoyé au client : il n’est plus modifiable directement (les montants sont figés côté client). Pour le faire évoluer, créez une nouvelle version qui repart en brouillon.'}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => navigate(`/print/quote/${existingQuote.id}`)}><Eye className="h-4 w-4" /> Aperçu</Button>
@@ -322,9 +330,7 @@ export function QuoteEditorPage() {
                   if (link) { await navigator.clipboard.writeText(link).catch(() => {}); toast.success('Lien client copié') }
                 }}><Send className="h-4 w-4" /> Copier le lien client</Button>
               )}
-              {status !== 'accepted' && (
-                <Button onClick={revise} loading={reviseQuote.isPending}><RotateCcw className="h-4 w-4" /> Créer une révision</Button>
-              )}
+              <Button onClick={revise} loading={reviseQuote.isPending}><RotateCcw className="h-4 w-4" /> Créer une révision du devis</Button>
             </div>
           </CardContent>
         </Card>
@@ -500,7 +506,7 @@ export function QuoteEditorPage() {
             <CardHeader><CardTitle>Détails</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <Field label="Intitulé" htmlFor="qt"><Input id="qt" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-              <Field label="Valable jusqu’au" htmlFor="qd"><Input id="qd" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
+              <Field label="Valable jusqu’au" htmlFor="qd" required hint="Obligatoire avant envoi au client."><Input id="qd" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
             </CardContent>
           </Card>
         </div>
