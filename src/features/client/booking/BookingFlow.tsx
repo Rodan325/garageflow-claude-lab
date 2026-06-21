@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { ArrowLeft, Check, CheckCircle2, ChevronRight, Clock, LogIn, Plus, UserPlus } from 'lucide-react'
@@ -227,12 +227,10 @@ export function BookingFlow() {
       </div>
       <p className="mb-3 text-sm font-medium text-muted-foreground">Étape {stepIndex + 1}/3 · {STEP_LABEL[step]}</p>
 
-      <AnimatePresence mode="wait">
         <motion.div
           key={step}
           initial={{ opacity: 0, x: reduced ? 0 : 16 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: reduced ? 0 : -16 }}
           transition={transition}
           className="flex-1"
         >
@@ -374,7 +372,6 @@ export function BookingFlow() {
             </div>
           )}
         </motion.div>
-      </AnimatePresence>
     </div>
   )
 }

@@ -26,19 +26,19 @@ function Kpi({
   to?: string
 }) {
   const inner = (
-    <Card className="h-full p-4 transition-colors hover:bg-muted/30">
+    <Card className="h-full min-w-0 p-4 transition-colors hover:bg-muted/30">
       <div className="flex items-center gap-3">
-        <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg', accent ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
+        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', accent ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
           {loading ? <Skeleton className="h-7 w-8" /> : <p className="text-2xl font-bold leading-none tracking-tight">{value}</p>}
-          <p className="mt-1 truncate text-xs font-medium text-muted-foreground">{label}</p>
+          <p className="mt-1 text-xs font-medium leading-tight text-muted-foreground">{label}</p>
         </div>
       </div>
     </Card>
   )
-  return to ? <Link to={to}>{inner}</Link> : inner
+  return to ? <Link to={to} className="block min-w-0">{inner}</Link> : inner
 }
 
 export function DashboardPage() {
@@ -61,12 +61,12 @@ export function DashboardPage() {
       <PageHeader title={`Bonjour ${profile?.full_name?.split(' ')[0] ?? ''}`} subtitle="Voici ce qui demande votre attention." />
 
       <div className="grid grid-cols-3 gap-3">
-        <Kpi icon={Inbox} label="Demandes en attente" value={stats?.pendingRequests ?? 0} loading={isLoading} accent to="/pro/bookings" />
-        <Kpi icon={CalendarClock} label="RDV aujourd’hui" value={stats?.todayAppointments ?? 0} loading={isLoading} to="/pro/calendar" />
-        <Kpi icon={CheckSquare} label="Tâches à faire" value={stats?.openTasks ?? 0} loading={isLoading} />
+        <Kpi icon={Inbox} label="Demandes" value={stats?.pendingRequests ?? 0} loading={isLoading} accent to="/pro/bookings" />
+        <Kpi icon={CalendarClock} label="RDV du jour" value={stats?.todayAppointments ?? 0} loading={isLoading} to="/pro/calendar" />
+        <Kpi icon={CheckSquare} label="Tâches" value={stats?.openTasks ?? 0} loading={isLoading} />
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Demandes à traiter */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
