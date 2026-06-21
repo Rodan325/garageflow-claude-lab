@@ -13,9 +13,11 @@ GarageFlow aide votre garage à **recevoir les demandes de rendez-vous en ligne*
 - La **création de devis** numérotés, calculés automatiquement, en **PDF** à votre image.
 - L'**envoi du devis au client** via un lien, et son **acceptation / refus en ligne**.
 
-## Durée
-- **3 à 4 semaines**, à partir de la mise en service.
-- Un **point à mi-parcours** (≈ 2 semaines) pour ajuster.
+## Durée & accompagnement
+- **30 jours**, à partir de la mise en service.
+- **Paramétrage initial inclus** : nous configurons votre garage, votre logo, vos prestations et vos tarifs.
+- **Accompagnement inclus** : prise en main + un **point à mi-parcours** (≈ 15 jours) pour ajuster.
+- **Retour d'expérience demandé** en fin de pilote (15 minutes).
 
 ## Ce que nous attendons de vous
 - Vos **prestations courantes** (nom, durée indicative, prix de départ).
@@ -48,6 +50,17 @@ GarageFlow aide votre garage à **recevoir les demandes de rendez-vous en ligne*
 - Un **gain de temps ressenti** sur la prise de rendez-vous et la rédaction des devis.
 - Une **image client** jugée plus professionnelle.
 - Votre **intention de continuer** après le test.
+
+## Options pilote
+À choisir ensemble selon votre situation :
+
+| Option | Pour qui | Prix | Inclus |
+|---|---|---|---|
+| **1 · Pilote gratuit** | Garage qui veut tester sans engagement | **0 € / 30 jours** | Paramétrage + accompagnement + retour d'expérience |
+| **2 · Pilote à petit prix** | Garage qui veut un suivi rapproché | **49 € pour 30 jours** | Tout le pilote gratuit + priorité sur les ajustements |
+| **3 · Abonnement lancement** | Garage déjà convaincu | **29 € / mois** (1er mois offert) | Service complet + évolutions au fil de l'eau |
+
+> Aucun engagement de durée pendant le pilote. À la fin des 30 jours, vous décidez de continuer ou non. Si vous arrêtez, vos données peuvent être exportées ou supprimées.
 
 ## Sécurité & données
 - Chaque garage ne voit **que ses propres** clients, véhicules et devis.
