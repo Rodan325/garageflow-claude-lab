@@ -20,7 +20,7 @@ export const DEMO_STAFF_ID = 'demo-staff'
 export const DEMO_CLIENT_ID = 'demo-client'
 
 const KIND_KEY = 'gf-demo'
-const STORE_KEY = 'gf-demo-store-v3'
+const STORE_KEY = 'gf-demo-store-v4'
 
 export type DemoKind = 'garage' | 'client'
 
@@ -153,11 +153,68 @@ function seed(): Store {
     open_time: weekday === 0 ? null : '08:00', close_time: weekday === 0 ? null : weekday === 6 ? '12:00' : '18:00',
     is_closed: weekday === 0,
   }))
+  // A few quotes across the whole life-cycle so the demo feels alive (not overloaded).
+  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
+  const daysAgoIso = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
+  const quotes: Quote[] = []
+  const quoteLines: QuoteLine[] = []
+  let qseq = 0
+  const marc = customers[0], ines = customers[1]
+  const clio = vehicles[0], p308 = vehicles[1]
+  const mkQuote = (o: {
+    status: string; customer: Customer; vehicle: Vehicle; title: string
+    lines: { label: string; quantity: number; unit_price: number; tax_rate: number }[]
+    validIn?: number | null; createdAgo?: number; token?: string | null
+    sentAgo?: number | null; acceptedAgo?: number | null; declinedAgo?: number | null
+    declineReason?: string | null; revisedFrom?: string | null
+  }): Quote => {
+    qseq += 1
+    const id = uid()
+    let subtotal = 0, tax = 0
+    o.lines.forEach((l, i) => {
+      const lt = round2(l.quantity * l.unit_price)
+      subtotal += lt; tax += (lt * l.tax_rate) / 100
+      quoteLines.push({ id: uid(), quote_id: id, label: l.label, quantity: l.quantity, unit_price: l.unit_price, tax_rate: l.tax_rate, line_total: lt, sort_order: i })
+    })
+    subtotal = round2(subtotal); tax = round2(tax)
+    const q: Quote = {
+      id, garage_id: DEMO_GARAGE_ID, number: 'DV-' + today().getFullYear() + '-' + String(qseq).padStart(4, '0'),
+      status: o.status, title: o.title, subtotal, tax_total: tax, total: round2(subtotal + tax), discount_total: 0,
+      notes: null, conditions: 'Devis valable 30 jours. Pièces et main-d’œuvre garanties. TVA 20% incluse.',
+      valid_until: o.validIn == null ? null : isoIn(o.validIn),
+      client_name: `${o.customer.first_name} ${o.customer.last_name}`, client_phone: o.customer.phone, client_email: o.customer.email,
+      vehicle_label: `${o.vehicle.brand} ${o.vehicle.model}${o.vehicle.registration ? ` · ${o.vehicle.registration}` : ''}`,
+      customer_id: o.customer.id, vehicle_id: o.vehicle.id, service_request_id: null, repair_id: null,
+      created_at: daysAgoIso(o.createdAgo ?? 0),
+      client_token: o.token ?? null,
+      sent_at: o.sentAgo == null ? null : daysAgoIso(o.sentAgo),
+      accepted_at: o.acceptedAgo == null ? null : daysAgoIso(o.acceptedAgo),
+      declined_at: o.declinedAgo == null ? null : daysAgoIso(o.declinedAgo),
+      decline_reason: o.declineReason ?? null,
+      revised_from: o.revisedFrom ?? null,
+    }
+    quotes.push(q)
+    return q
+  }
+
+  mkQuote({ status: 'accepted', customer: ines, vehicle: p308, title: 'Révision constructeur', createdAgo: 6, validIn: 24, token: 'demoquoteacc' + 'a1b2c3d4e5f6a7b8', sentAgo: 5, acceptedAgo: 4,
+    lines: [{ label: 'Révision constructeur (vidange + filtres)', quantity: 1, unit_price: 149, tax_rate: 20 }, { label: 'Main-d’œuvre', quantity: 1, unit_price: 60, tax_rate: 20 }] })
+  mkQuote({ status: 'sent', customer: marc, vehicle: clio, title: 'Plaquettes de frein avant', createdAgo: 2, validIn: 28, token: 'demoquotesent' + 'b2c3d4e5f6a7b8c9', sentAgo: 1,
+    lines: [{ label: 'Plaquettes de frein avant (jeu)', quantity: 1, unit_price: 119, tax_rate: 20 }, { label: 'Main-d’œuvre', quantity: 1, unit_price: 50, tax_rate: 20 }] })
+  mkQuote({ status: 'draft', customer: marc, vehicle: clio, title: 'Diagnostic électronique', createdAgo: 0, validIn: null,
+    lines: [{ label: 'Diagnostic électronique', quantity: 1, unit_price: 49, tax_rate: 20 }] })
+  const declined = mkQuote({ status: 'declined', customer: ines, vehicle: p308, title: 'Recharge climatisation', createdAgo: 9, validIn: 12, token: 'demoquotedec' + 'c3d4e5f6a7b8c9d0', sentAgo: 8, declinedAgo: 6, declineReason: 'Reporté à l’automne.',
+    lines: [{ label: 'Recharge climatisation', quantity: 1, unit_price: 89, tax_rate: 20 }] })
+  mkQuote({ status: 'sent', customer: marc, vehicle: clio, title: 'Pneus avant (x2) + montage', createdAgo: 40, validIn: -6, token: 'demoquoteexp' + 'd4e5f6a7b8c9d0e1', sentAgo: 39,
+    lines: [{ label: 'Pneu 205/55 R16 (monté)', quantity: 2, unit_price: 95, tax_rate: 20 }] })
+  mkQuote({ status: 'draft', customer: ines, vehicle: p308, title: 'Recharge climatisation', createdAgo: 0, validIn: 30, revisedFrom: declined.id,
+    lines: [{ label: 'Recharge climatisation (offre revue)', quantity: 1, unit_price: 75, tax_rate: 20 }] })
+
   return {
     garages: [g], services, news, hours, customers, vehicles, clientVehicles, requests,
-    messages: [], appointments: [], repairs, tasks, quotes: [], quoteLines: [],
+    messages: [], appointments: [], repairs, tasks, quotes, quoteLines,
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
-    reqSeq: 1, quoteSeq: 0,
+    reqSeq: 1, quoteSeq: qseq,
   }
 }
 
@@ -168,7 +225,7 @@ const QUOTE_LIFECYCLE_DEFAULTS = {
 } as const
 
 /**
- * Defensive hydration: an older `gf-demo-store-v3` saved before recent features
+ * Defensive hydration: an older demo store saved before recent features
  * may miss keys (e.g. `quotes`, `quoteSeq`) or newer quote columns. Merge it
  * with a fresh seed so arrays/sequences always exist and never crash the UI.
  * A corrupt / non-object payload falls back to a full reseed.
@@ -177,10 +234,12 @@ export function ensureStoreShape(raw: unknown): Store {
   if (!raw || typeof raw !== 'object') return seed()
   const base = seed()
   const r = raw as Record<string, unknown>
+  // Missing arrays default to [] and missing sequences to 0 (predictable, never
+  // inherits seed rows that could reference entities the stored data lacks).
   const arr = <K extends keyof Store>(k: K): Store[K] =>
-    (Array.isArray(r[k as string]) ? (r[k as string] as Store[K]) : base[k])
+    (Array.isArray(r[k as string]) ? (r[k as string] as Store[K]) : ([] as unknown as Store[K]))
   const num = (k: keyof Store): number =>
-    (typeof r[k as string] === 'number' ? (r[k as string] as number) : (base[k] as number))
+    (typeof r[k as string] === 'number' ? (r[k as string] as number) : 0)
 
   const store: Store = {
     garages: arr('garages'),

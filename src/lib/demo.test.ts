@@ -39,6 +39,8 @@ describe('ensureStoreShape — demo store migration', () => {
     const s = ensureStoreShape('not-json-an-object')
     expect(s.garages.length).toBeGreaterThan(0)
     expect(Array.isArray(s.quotes)).toBe(true)
-    expect(s.quoteSeq).toBe(0)
+    // a full reseed carries the seed's demo quotes, so quoteSeq matches their count
+    expect(typeof s.quoteSeq).toBe('number')
+    expect(s.quoteSeq).toBe(s.quotes.length)
   })
 })

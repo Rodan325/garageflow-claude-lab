@@ -41,7 +41,7 @@
 - Argument sécurité : isolation par garage (RLS), `npm run test:rls` = **42/42** ; aucune clé `service_role` côté navigateur ; un client ne modifie que le statut de sa demande ; **devis consultable seulement via un lien tokenisé non devinable**, accepter/refuser réservés au client (un garage ne peut pas accepter à sa place) ; pas de doublon client/véhicule ; devis numérotés sans collision et totaux recalculés côté serveur.
 
 ## Réinitialiser
-- Mode démo : bouton **« Réinitialiser les données »** dans le bandeau démo (réinjecte le seed sans quitter). Sinon **« Quitter la démo »**, ou en console : `localStorage.removeItem('gf-demo-store-v3')`.
+- Mode démo : bouton **« Réinitialiser les données »** dans le bandeau démo (réinjecte le seed sans quitter). Sinon **« Quitter la démo »**, ou en console : `localStorage.removeItem('gf-demo-store-v4')`.
 - Un ancien store est **migré automatiquement** au chargement (clés manquantes complétées, anciens devis complétés) → plus de crash `unshift`.
 - Réel : ré-exécuter le seed `supabase/migrations/0004_seed.sql` sur un projet de test.
 

@@ -98,7 +98,9 @@ scripts/       rls-antileak.mjs + fixtures
 - Invitations d'équipe par email et notifications email/SMS non branchées.
 
 ## Documentation
-[PRODUCT_ARCHITECTURE](./PRODUCT_ARCHITECTURE.md) · [TECHNICAL_ARCHITECTURE](./TECHNICAL_ARCHITECTURE.md) · [SUPABASE_SETUP](./SUPABASE_SETUP.md) · [SECURITY_AND_RLS](./SECURITY_AND_RLS.md) · [PILOT_READINESS_CHECKLIST](./PILOT_READINESS_CHECKLIST.md) · [DEMO_SCRIPT](./DEMO_SCRIPT.md)
+**Technique** : [PRODUCT_ARCHITECTURE](./PRODUCT_ARCHITECTURE.md) · [TECHNICAL_ARCHITECTURE](./TECHNICAL_ARCHITECTURE.md) · [SUPABASE_SETUP](./SUPABASE_SETUP.md) · [SECURITY_AND_RLS](./SECURITY_AND_RLS.md)
+
+**Démo & pilote** : [DEMO_QUICKSTART](./DEMO_QUICKSTART.md) (lancer en 5 min) · [SALES_DEMO_SCRIPT](./SALES_DEMO_SCRIPT.md) (script commercial) · [PILOT_OFFER](./PILOT_OFFER.md) (fiche à envoyer au garage) · [PILOT_DEPLOYMENT_CHECKLIST](./PILOT_DEPLOYMENT_CHECKLIST.md) · [PILOT_READINESS_CHECKLIST](./PILOT_READINESS_CHECKLIST.md) · [DEMO_SCRIPT](./DEMO_SCRIPT.md)
 
 ## Déploiement
 Frontend statique (`npm run build` → `dist/`) sur Vercel / Netlify / GitHub Pages — HashRouter, aucun rewrite serveur requis. Variables de build : `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Backend : projet Supabase `garageflow-c` (eu-west-3), migrations dans `supabase/migrations`.
