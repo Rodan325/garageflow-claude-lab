@@ -165,8 +165,67 @@ export type Database = {
           },
         ]
       }
+      client_vehicle_shares: {
+        Row: {
+          client_vehicle_id: string
+          created_at: string
+          garage_id: string
+          id: string
+          revoked_at: string | null
+          scope: string
+          service_request_id: string | null
+          shared_at: string
+          shared_by: string
+        }
+        Insert: {
+          client_vehicle_id: string
+          created_at?: string
+          garage_id: string
+          id?: string
+          revoked_at?: string | null
+          scope?: string
+          service_request_id?: string | null
+          shared_at?: string
+          shared_by: string
+        }
+        Update: {
+          client_vehicle_id?: string
+          created_at?: string
+          garage_id?: string
+          id?: string
+          revoked_at?: string | null
+          scope?: string
+          service_request_id?: string | null
+          shared_at?: string
+          shared_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_vehicle_shares_client_vehicle_id_fkey"
+            columns: ["client_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "client_vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_vehicle_shares_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_vehicle_shares_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_vehicles: {
         Row: {
+          archived: boolean
           brand: string
           client_id: string
           created_at: string
@@ -174,10 +233,12 @@ export type Database = {
           id: string
           mileage: number | null
           model: string
+          notes: string | null
           registration: string | null
           year: number | null
         }
         Insert: {
+          archived?: boolean
           brand: string
           client_id: string
           created_at?: string
@@ -185,10 +246,12 @@ export type Database = {
           id?: string
           mileage?: number | null
           model: string
+          notes?: string | null
           registration?: string | null
           year?: number | null
         }
         Update: {
+          archived?: boolean
           brand?: string
           client_id?: string
           created_at?: string
@@ -196,6 +259,7 @@ export type Database = {
           id?: string
           mileage?: number | null
           model?: string
+          notes?: string | null
           registration?: string | null
           year?: number | null
         }
@@ -1387,6 +1451,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      vehicle_shared_with_me: { Args: { p_vehicle: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

@@ -21,7 +21,7 @@ Le frontend n'utilise **que** la clé publique. Ne **jamais** exposer `service_r
 - [ ] Bucket `garage-logos` présent (public en lecture, écriture membre, pas de listing).
 
 ## 3. Migrations à appliquer
-- [ ] Migrations `supabase/migrations/0001` → `0016` appliquées dans l'ordre.
+- [ ] Migrations `supabase/migrations/0001` → `0018` appliquées dans l'ordre.
 - [ ] RPC présentes : `create_quote_with_lines`, `update_quote_with_lines`, `send_quote`, `revise_quote`, `get_quote_public`, `accept_quote_public`, `decline_quote_public`, `next_quote_number`, `expire_quotes`.
 - [ ] `src/types/database.types.ts` à jour si le schéma a changé.
 
@@ -29,7 +29,7 @@ Le frontend n'utilise **que** la clé publique. Ne **jamais** exposer `service_r
 - [ ] RLS **activée** sur toutes les tables (par défaut : refus).
 - [ ] Isolation par garage (A ne lit/écrit jamais B).
 - [ ] Devis : totaux **recalculés serveur** ; accept/refus **réservés au client** (trigger `guard_quote_transition`) ; consultation par **jeton non devinable** uniquement.
-- [ ] `npm run test:rls` → **45/45 réussis**.
+- [ ] `npm run test:rls` → **55/55 réussis**.
 - [ ] Après le test, compteur de devis du garage de démo remis à 0 si besoin.
 
 ## 5. Commandes de build & test
@@ -39,7 +39,7 @@ npm run typecheck   # 0 erreur
 npm run lint        # 0 erreur (2 warnings fast-refresh tolérés)
 npm run test        # vert
 npm run build       # -> dist/
-npm run test:rls    # 45/45 (nécessite .env Supabase)
+npm run test:rls    # 55/55 (nécessite .env Supabase)
 ```
 - [ ] Les 5 commandes passent.
 

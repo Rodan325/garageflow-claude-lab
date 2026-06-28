@@ -26,7 +26,7 @@ Permettre à un garage indépendant — même peu à l’aise avec l’informati
 - **Réserver** : parcours guidé prestation → véhicule → créneau → coordonnées → confirmation.
 - **Demandes** : suivi des réservations + acceptation d’un créneau proposé + annulation + messages.
 - **Profil** : coordonnées, garage favori, consentement, déconnexion.
-- **Véhicules** : véhicules personnels du client.
+- **Mes véhicules** : dossier véhicule **privé** du client (ajout / modification / archivage / suppression, avec marque, modèle, année, carburant, kilométrage, immatriculation, notes). Un véhicule existant est **réutilisé** lors d'une demande — sans ressaisie — et **partagé par consentement** avec le garage destinataire seulement (révocable). Préparation V2 : documents véhicule (voir `VEHICLE_DOCUMENTS_ROADMAP.md`).
 - **Actualités** : publications du garage.
 
 ## 3. Rôles

@@ -104,13 +104,16 @@ export function BookingFlow() {
     restored.current = true
   }, [services])
 
+  // Only non-archived vehicles are reusable in a booking.
+  const myVehicles = useMemo(() => (vehicles ?? []).filter((v) => !v.archived), [vehicles])
+
   // Default to an existing vehicle when the client has some.
   useEffect(() => {
-    if (vehicles && vehicles.length > 0 && !selectedVehicleId && vehicleMode === 'new' && !newVehicle.brand) {
+    if (myVehicles.length > 0 && !selectedVehicleId && vehicleMode === 'new' && !newVehicle.brand) {
       setVehicleMode('existing')
-      setSelectedVehicleId(vehicles[0].id)
+      setSelectedVehicleId(myVehicles[0].id)
     }
-  }, [vehicles]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [myVehicles]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function persistDraft() {
     sessionStorage.setItem(
@@ -306,10 +309,13 @@ export function BookingFlow() {
               <RecapCard service={service} date={date} time={time} />
 
               {/* Vehicle */}
-              <p className="mb-2 mt-4 text-sm font-medium">Véhicule</p>
-              {authed && (vehicles ?? []).length > 0 && (
+              <p className="mb-1 mt-4 text-sm font-medium">Véhicule</p>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Les informations de votre véhicule sont utilisées pour permettre au garage de traiter votre demande, préparer le rendez-vous et établir un devis.
+              </p>
+              {authed && myVehicles.length > 0 && (
                 <div className="space-y-2">
-                  {vehicles!.map((v) => (
+                  {myVehicles.map((v) => (
                     <button
                       key={v.id}
                       onClick={() => { setVehicleMode('existing'); setSelectedVehicleId(v.id) }}
@@ -332,7 +338,7 @@ export function BookingFlow() {
                   </button>
                 </div>
               )}
-              {(vehicleMode === 'new' || !authed || (vehicles ?? []).length === 0) && (
+              {(vehicleMode === 'new' || !authed || myVehicles.length === 0) && (
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Marque" htmlFor="vb" required><Input id="vb" value={newVehicle.brand} onChange={(e) => setNewVehicle({ ...newVehicle, brand: e.target.value })} /></Field>
                   <Field label="Modèle" htmlFor="vm" required><Input id="vm" value={newVehicle.model} onChange={(e) => setNewVehicle({ ...newVehicle, model: e.target.value })} /></Field>
@@ -349,8 +355,14 @@ export function BookingFlow() {
                 <Field label="Message au garage" htmlFor="msg"><Textarea id="msg" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Décrivez le problème (facultatif)" /></Field>
               </div>
 
+              {/* Consent before sharing the vehicle with this garage */}
+              <p className="mt-4 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
+                En envoyant cette demande, vous autorisez ce garage à consulter les informations de ce véhicule
+                uniquement pour traiter votre demande, préparer un rendez-vous, établir un devis et assurer le suivi de l'intervention.
+              </p>
+
               {/* Confirm / identify */}
-              <div className="mt-5">
+              <div className="mt-4">
                 {authed ? (
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={back} aria-label="Retour"><ArrowLeft className="h-4 w-4" /></Button>

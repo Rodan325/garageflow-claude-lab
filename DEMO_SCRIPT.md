@@ -15,6 +15,8 @@
 1. « Espace client » → choisir **Garage Central Lyon** (logo affiché).
 2. Liste des **prestations** (durée, prix, prochains créneaux) → **Réserver** sur une prestation.
 3. Parcours : **créneau** (jours en ligne, horaires) → **véhicule + coordonnées**.
+   - Onglet **Véhicules** : le client a déjà un véhicule enregistré (VW Golf 7) → il le **réutilise** sans tout ressaisir ; il peut en ajouter / modifier / archiver.
+   - À l'étape véhicule, montrer le **texte de consentement** : le client autorise ce garage à consulter les infos du véhicule **uniquement** pour traiter sa demande.
 4. À la dernière étape : *« Identifiez-vous pour confirmer »* → **Démo client** (ou login). Le brouillon est conservé.
 5. **Confirmation** : référence `GF-…`, prestation, garage, date, statut. → « Voir ma demande ».
 

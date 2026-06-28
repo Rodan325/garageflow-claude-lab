@@ -34,6 +34,19 @@ export function useUpsertClientVehicle() {
   })
 }
 
+export function useUpdateClientVehicle(clientId?: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: TablesUpdate<'client_vehicles'> }) => {
+      if (isDemo()) return demo.updateClientVehicle(id, patch as Partial<ClientVehicle>)
+      const { data, error } = await supabase.from('client_vehicles').update(patch).eq('id', id).select('*').single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['client-vehicles', clientId] }),
+  })
+}
+
 export function useDeleteClientVehicle(clientId?: string | null) {
   const qc = useQueryClient()
   return useMutation({

@@ -19,7 +19,9 @@
 | `garage_hours` | publique | `owner`/`admin`/`front_desk` |
 | `customers`, `vehicles`, `appointments`, `repairs`, `quotes`, `quote_lines`, `documents`, `tasks`, `quote_counters` | **membres du garage** | membres du garage |
 | `profiles` | soi + collègues du même garage | soi |
-| `client_profiles`, `client_vehicles`, `consents` | **soi uniquement** | soi |
+| `client_profiles`, `consents` | **soi uniquement** | soi |
+| `client_vehicles` | **propriétaire** ; **+ garage** si le véhicule lui est **partagé** (share actif) | propriétaire uniquement |
+| `client_vehicle_shares` | le client (sharer) **ou** le garage destinataire | le client (créer / révoquer) |
 | `service_requests` | client propriétaire **ou** membres du garage | insert par le client ; update client **status-only** (trigger) ou membres |
 | `service_request_messages` | participants | client/garage selon `sender` + `author_id = auth.uid()` |
 | `audit_logs` | `owner`/`admin` | membres |
@@ -41,6 +43,12 @@
   - `revise_quote(p_id)` (membre) : crée une **nouvelle version en brouillon** (numéro neuf, lien `revised_from`) sans écraser l'original envoyé/accepté.
 - **`next_quote_number`** : séquence atomique par garage/année → pas de numéro en doublon.
 - **Promotion demande→RDV** (`request-to-appointment`) : Edge Function sous **JWT de l'appelant** (RLS appliquée), pas de `service_role`.
+- **Dossier véhicule client + partage par consentement** (migration `0017`) :
+  - `client_vehicles` reste **privé au propriétaire** (`client_id = auth.uid()` en lecture/écriture). Champs ajoutés : `notes`, `archived`.
+  - `client_vehicle_shares` = **journal de consentement** (qui a partagé quel véhicule, avec quel garage, depuis quelle demande, quand, et `revoked_at`). Le client crée/révoque ; le garage destinataire peut **seulement lire** ses shares.
+  - Un garage peut lire **un** `client_vehicle` **uniquement** s'il existe un **share actif** vers son garage — vérifié par `vehicle_shared_with_me(uuid)` (`SECURITY DEFINER`, évite la récursion RLS). Un garage **ne lit jamais tous** les véhicules d'un client.
+  - **Consentement automatique mais explicite** : à l'insertion d'une demande portant `client_vehicle_id`, le trigger `share_vehicle_on_request` crée le share — **seulement si le véhicule appartient au demandeur** (jamais le véhicule d'un autre), idempotent par paire (véhicule, garage) active. Le client autorise ce partage via le texte de consentement affiché avant l'envoi.
+  - **Révocation** : poser `revoked_at` coupe l'accès du garage (l'index unique partiel n'autorise qu'un share actif par paire).
 
 ## 5. Devis : robustesse client/véhicule
 - Comparaisons sur valeurs **normalisées** : téléphone (FR-friendly : `+33`/`0033` → `0`), email (trim+lowercase), plaque (uppercase, sans espaces/tirets).
@@ -60,10 +68,11 @@
 - Données client limitées (nom, contact, véhicule).
 
 ## 9. Preuve d'isolation
-`npm run test:rls` — **42 assertions** via clé anon + sign-in réel :
+`npm run test:rls` — **55 assertions** via clé anon + sign-in réel :
 - **16** d'isolation pure (anon, client final, garage A vs B) — un garage ne lit/écrit jamais les données d'un autre.
 - **16** sur les RPC devis : recalcul serveur (montants bidons ignorés, totaux recalculés), refus quantité/TVA invalides et devis sans ligne, refus de lier un devis à un **client / véhicule / demande d'un autre garage**, refus du **véhicule d'un autre client sans confirmation** (accepté avec), refus d'un **non-membre**, et recalcul à l'**update**.
-- **10** sur le cycle de vie : `send_quote` (jeton généré), devis envoyé **non modifiable**, **garage ne peut pas accepter** (trigger), consultation publique par jeton (et jeton invalide → rien, anon ne lit pas `quotes`), **acceptation** et **refus + motif** côté client, **révision** en brouillon liée à l'original.
+- **13** sur le cycle de vie devis : envoi refusé sans/avec date de validité passée, `send_quote` (jeton généré), devis envoyé **non modifiable**, **garage ne peut pas accepter** (trigger), consultation publique par jeton (jeton invalide → rien, anon ne lit pas `quotes`), **acceptation** et **refus + motif** côté client, **révision** en brouillon liée à l'original (inchangé).
+- **10** sur le dossier véhicule : véhicule **privé** non visible des garages ; **partage par consentement** rendant le véhicule lisible **uniquement** par le garage de la demande ; **autre garage** exclu (véhicule + shares) ; **révocation** coupant l'accès ; **suppression** d'un véhicule utilisé dans une demande (cascade non bloquée — `0018`).
 
 ## 10. Advisors Supabase
 - Réglés : search_path des fonctions ; listing du bucket logos retiré.

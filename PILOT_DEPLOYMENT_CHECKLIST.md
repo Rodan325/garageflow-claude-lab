@@ -15,7 +15,7 @@ Le frontend n'utilise **que** la clé publique (`anon`). Ne **jamais** exposer l
 - [ ] Mêmes variables configurées dans le **dashboard de l'hébergeur** (build env).
 
 ## 2. Base de données Supabase (migrations)
-- [ ] Appliquer les migrations `supabase/migrations/0001` → `0016` dans l'ordre (schéma, fonctions, RLS, seed, catalogue/branding, numérotation, RPC transactionnelles, totaux serveur, cycle de vie devis, date de validité).
+- [ ] Appliquer les migrations `supabase/migrations/0001` → `0018` dans l'ordre (schéma, fonctions, RLS, seed, catalogue/branding, numérotation, RPC transactionnelles, totaux serveur, cycle de vie devis, date de validité, dossier véhicule + partage).
 - [ ] Vérifier que les RPC existent : `create_quote_with_lines`, `update_quote_with_lines`, `send_quote`, `revise_quote`, `get_quote_public`, `accept_quote_public`, `decline_quote_public`, `next_quote_number`.
 - [ ] Types TS à jour si le schéma a changé (`src/types/database.types.ts`).
 
@@ -27,7 +27,7 @@ Le frontend n'utilise **que** la clé publique (`anon`). Ne **jamais** exposer l
 - [ ] *(Recommandé)* Activer **Leaked Password Protection** dans Supabase Auth.
 
 ## 4. Test d'isolation (anti-fuite)
-- [ ] `npm run test:rls` → **45/45 réussis** (isolation + recalcul serveur + cycle de vie devis).
+- [ ] `npm run test:rls` → **55/55 réussis** (isolation + recalcul serveur + cycle de vie devis + dossier véhicule).
 - [ ] Après le test, remettre le compteur de devis du garage de démo à zéro si besoin (le script nettoie ses devis de test).
 
 ## 5. Build

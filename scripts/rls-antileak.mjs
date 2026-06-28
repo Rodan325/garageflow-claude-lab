@@ -242,6 +242,54 @@ async function main() {
     console.log(`  (${created.length} devis de test nettoyés)`)
   }
 
+  // 7) CLIENT VEHICLE DOSSIER — consent-based sharing
+  console.log('\nDossier véhicule client — partage par consentement')
+  {
+    const cl = await clientFor('client@demo.fr', 'Demo1234!')
+    const { data: me } = await cl.auth.getUser()
+    const uid = me?.user?.id
+    const gA = await clientFor('owner@demo-garage.fr', 'Demo1234!')
+    const gB = await clientFor('ownerb@demo-garage.fr', 'Demo1234!')
+
+    const veh = await cl.from('client_vehicles')
+      .insert({ client_id: uid, brand: 'Tesla', model: 'Model 3', registration: 'TS-123-LA' }).select().single()
+    check('client crée son véhicule (privé)', !veh.error && !!veh.data, veh.error?.message)
+    const vid = veh.data?.id
+
+    if (vid) {
+      const aBefore = await gA.from('client_vehicles').select('*').eq('id', vid)
+      check('garage A ne voit PAS le véhicule non partagé', (aBefore.data ?? []).length === 0)
+
+      const req = await cl.from('service_requests')
+        .insert({ garage_id: GARAGE_A, client_id: uid, service_name: 'Test partage vehicule', client_vehicle_id: vid, vehicle_label: 'Tesla Model 3 · TS-123-LA', status: 'pending' })
+        .select().single()
+      check('client crée une demande avec son véhicule', !req.error && !!req.data, req.error?.message)
+
+      const aAfter = await gA.from('client_vehicles').select('*').eq('id', vid)
+      check('garage A voit le véhicule PARTAGÉ via sa demande', (aAfter.data ?? []).length === 1)
+      const aShare = await gA.from('client_vehicle_shares').select('*').eq('client_vehicle_id', vid)
+      check('garage A voit le consentement (share actif)', (aShare.data ?? []).length === 1)
+
+      const bAfter = await gB.from('client_vehicles').select('*').eq('id', vid)
+      check('garage B ne voit PAS le véhicule (non partagé avec lui)', (bAfter.data ?? []).length === 0)
+      const bShares = await gB.from('client_vehicle_shares').select('*')
+      check('garage B ne voit aucun share de ce véhicule', !(bShares.data ?? []).some((s) => s.client_vehicle_id === vid))
+
+      const rev = await cl.from('client_vehicle_shares').update({ revoked_at: new Date().toISOString() })
+        .eq('client_vehicle_id', vid).is('revoked_at', null).select()
+      check('client révoque le partage', !rev.error && (rev.data ?? []).length >= 1, rev.error?.message)
+      const aRevoked = await gA.from('client_vehicles').select('*').eq('id', vid)
+      check('garage A ne voit plus le véhicule après révocation', (aRevoked.data ?? []).length === 0)
+
+      // client can delete a vehicle even after it was used in a request
+      // (FK SET NULL cascade must not be blocked by the request guard — see 0018)
+      await cl.from('client_vehicles').delete().eq('id', vid) // share cascades
+      const gone = await cl.from('client_vehicles').select('id').eq('id', vid)
+      check('client supprime un véhicule utilisé dans une demande', (gone.data ?? []).length === 0)
+    }
+    console.log('  (véhicule de test supprimé ; demande « Test partage vehicule » à nettoyer)')
+  }
+
   console.log(`\nRésultat : ${pass} réussis, ${fail} échoués\n`)
   process.exit(fail === 0 ? 0 : 1)
 }

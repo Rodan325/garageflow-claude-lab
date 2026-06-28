@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { CalendarCheck, Home, ListChecks, User } from 'lucide-react'
+import { CalendarCheck, Car, Home, ListChecks, User } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { cn } from '@/lib/utils'
@@ -8,6 +8,7 @@ const nav = [
   { to: '/app', label: 'Accueil', icon: Home, end: true },
   { to: '/app/book', label: 'Réserver', icon: CalendarCheck, end: false },
   { to: '/app/bookings', label: 'Demandes', icon: ListChecks, end: false },
+  { to: '/app/vehicles', label: 'Véhicules', icon: Car, end: false },
   { to: '/app/profile', label: 'Profil', icon: User, end: false },
 ]
 
@@ -58,7 +59,7 @@ export function ClientShell() {
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="mx-auto grid max-w-md grid-cols-5 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-2">
           {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}

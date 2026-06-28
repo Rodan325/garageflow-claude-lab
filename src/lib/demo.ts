@@ -112,7 +112,7 @@ function seed(): Store {
     veh(customers[1].id, 'Peugeot', '308', 2020, 52000, 'Diesel', 'EF-456-GH', 'in_service'),
   ]
   const clientVehicles: ClientVehicle[] = [
-    { id: 'demo-cv-1', client_id: DEMO_CLIENT_ID, brand: 'Volkswagen', model: 'Golf 7', year: 2017, fuel: 'Diesel', mileage: 98000, registration: 'IJ-789-KL', created_at: today().toISOString() },
+    { id: 'demo-cv-1', client_id: DEMO_CLIENT_ID, brand: 'Volkswagen', model: 'Golf 7', year: 2017, fuel: 'Diesel', mileage: 98000, registration: 'IJ-789-KL', notes: null, archived: false, created_at: today().toISOString() },
   ]
   const requests: ServiceRequest[] = [
     {
@@ -444,11 +444,20 @@ export const demo = {
     const row: ClientVehicle = {
       id: uid(), client_id: DEMO_CLIENT_ID, brand: input.brand ?? '', model: input.model ?? '',
       year: input.year ?? null, fuel: input.fuel ?? null, mileage: input.mileage ?? null,
-      registration: input.registration ?? null, created_at: new Date().toISOString(),
+      registration: input.registration ?? null, notes: input.notes ?? null,
+      archived: input.archived ?? false, created_at: new Date().toISOString(),
     }
     s.clientVehicles.unshift(row)
     save()
     return row
+  },
+  updateClientVehicle: (id: string, patch: Partial<ClientVehicle>): ClientVehicle => {
+    const s = load()
+    const v = s.clientVehicles.find((x) => x.id === id)
+    if (!v) throw new Error('Véhicule introuvable')
+    Object.assign(v, patch)
+    save()
+    return clone(v)
   },
   deleteClientVehicle: (id: string) => {
     const s = load()
