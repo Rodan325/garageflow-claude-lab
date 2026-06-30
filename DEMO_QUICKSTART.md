@@ -22,6 +22,8 @@ Sur la page **/login** :
 
 Les deux partagent les mêmes données locales : une réservation faite côté client apparaît côté garage.
 
+> **Démo à deux onglets** : le rôle (client / garage) est **propre à chaque onglet** (stocké en `sessionStorage`), tandis que les données sont **partagées** (`localStorage`). Vous pouvez donc ouvrir un onglet **Démo client** et un onglet **Démo garage** en parallèle, avec les bons profils (Julie Durand côté client, Sophie Martin côté garage), et voir les données se synchroniser entre les deux.
+
 Le bandeau jaune en haut propose **« Réinitialiser les données »** (repartir du jeu de démo) et **« Quitter la démo »**.
 
 ## 4. Parcours à tester (le fil rouge)

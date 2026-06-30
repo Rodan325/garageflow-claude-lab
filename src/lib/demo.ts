@@ -19,14 +19,16 @@ export const DEMO_GARAGE_ID = 'demo-garage'
 export const DEMO_STAFF_ID = 'demo-staff'
 export const DEMO_CLIENT_ID = 'demo-client'
 
+// Active role is PER-TAB (sessionStorage) so two tabs can run different roles
+// (client + garage) side by side; the demo DATA is shared (localStorage).
 const KIND_KEY = 'gf-demo'
-const STORE_KEY = 'gf-demo-store-v4'
+export const STORE_KEY = 'gf-demo-store-v4'
 
 export type DemoKind = 'garage' | 'client'
 
 export function getDemoKind(): DemoKind | null {
   if (typeof window === 'undefined') return null
-  const v = localStorage.getItem(KIND_KEY)
+  const v = sessionStorage.getItem(KIND_KEY)
   return v === 'garage' || v === 'client' ? v : null
 }
 export function isDemo() {
@@ -34,12 +36,12 @@ export function isDemo() {
 }
 export function setDemoKind(kind: DemoKind) {
   ensureStore()
-  localStorage.setItem(KIND_KEY, kind)
-  window.dispatchEvent(new Event('gf-demo-change'))
+  sessionStorage.setItem(KIND_KEY, kind) // per-tab → never propagated to other tabs
+  window.dispatchEvent(new Event('gf-demo-role'))
 }
 export function clearDemo() {
-  localStorage.removeItem(KIND_KEY)
-  window.dispatchEvent(new Event('gf-demo-change'))
+  sessionStorage.removeItem(KIND_KEY)
+  window.dispatchEvent(new Event('gf-demo-role'))
 }
 
 const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -295,7 +297,12 @@ function ensureStore() {
 export function resetDemoData() {
   cache = seed()
   save()
-  window.dispatchEvent(new Event('gf-demo-change'))
+  window.dispatchEvent(new Event('gf-demo-data'))
+}
+/** Drop the in-memory store so the next read re-hydrates from localStorage —
+ *  used when another tab changed the shared demo data (cross-tab sync). */
+export function reloadDemoCache() {
+  cache = null
 }
 
 /** Return fresh copies so React Query's structural sharing detects changes

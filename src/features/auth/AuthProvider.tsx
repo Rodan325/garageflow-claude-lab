@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import type { Garage, GarageMember, GarageRole, Profile } from '@/types/domain'
+import { queryClient } from '@/lib/queryClient'
 import {
   clearDemo,
   demoGarage,
@@ -10,6 +11,8 @@ import {
   DEMO_STAFF_ID,
   getDemoKind,
   setDemoKind,
+  reloadDemoCache,
+  STORE_KEY,
   type DemoKind,
 } from '@/lib/demo'
 
@@ -111,14 +114,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe()
   }, [loadAccount, demo])
 
-  // React to demo changes from other tabs / buttons.
+  // Role changes are PER-TAB (sessionStorage) → only react to in-tab role events,
+  // never to cross-tab `storage` events (which would leak the other tab's role).
+  // Shared demo DATA lives in localStorage → on a cross-tab data change, drop the
+  // cache and refetch so e.g. a client's new request shows up in the garage tab.
   useEffect(() => {
-    const handler = () => setDemo(getDemoKind())
-    window.addEventListener('gf-demo-change', handler)
-    window.addEventListener('storage', handler)
+    const onRole = () => setDemo(getDemoKind())
+    const onData = () => { reloadDemoCache(); if (getDemoKind()) queryClient.invalidateQueries() }
+    const onStorage = (e: StorageEvent) => { if (e.key === STORE_KEY || e.key === null) onData() }
+    window.addEventListener('gf-demo-role', onRole)
+    window.addEventListener('gf-demo-data', onData)
+    window.addEventListener('storage', onStorage)
     return () => {
-      window.removeEventListener('gf-demo-change', handler)
-      window.removeEventListener('storage', handler)
+      window.removeEventListener('gf-demo-role', onRole)
+      window.removeEventListener('gf-demo-data', onData)
+      window.removeEventListener('storage', onStorage)
     }
   }, [])
 
