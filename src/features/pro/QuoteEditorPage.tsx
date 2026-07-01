@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
+import { VehicleFields } from '@/components/common/VehicleFields'
 import { LoadingState } from '@/components/ui/feedback'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/ui/toast'
@@ -470,8 +471,11 @@ export function QuoteEditorPage() {
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
-                    <Field label="Marque" htmlFor="vb"><Input id="vb" value={newVehicle.brand} onChange={(e) => setNewVehicle({ ...newVehicle, brand: e.target.value })} /></Field>
-                    <Field label="Modèle" htmlFor="vm"><Input id="vm" value={newVehicle.model} onChange={(e) => setNewVehicle({ ...newVehicle, model: e.target.value })} /></Field>
+                    <VehicleFields
+                      value={{ brand: newVehicle.brand, model: newVehicle.model, year: '', fuel: '' }}
+                      onChange={(p) => setNewVehicle((v) => ({ ...v, ...p }))}
+                      showYear={false} showFuel={false} required={false}
+                    />
                     <div className="col-span-2"><Field label="Immatriculation" htmlFor="vr"><Input id="vr" value={newVehicle.registration} onChange={(e) => setNewVehicle({ ...newVehicle, registration: e.target.value })} /></Field></div>
                   </div>
                   {plateMatch && (() => {

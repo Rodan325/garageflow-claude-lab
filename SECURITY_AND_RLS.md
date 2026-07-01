@@ -4,7 +4,8 @@
 - **Minimisation** : seules les données nécessaires au rendez-vous / devis.
 - **Isolation** : chaque donnée métier porte `garage_id` ; RLS en dernier rempart.
 - **Séparation des identités** : *garage member* (rôle) / *administrateur* (owner/admin) / *client final* — cloisonnés.
-- **Aucun secret côté frontend** : clé anon publique uniquement ; `service_role` jamais utilisée ; `.env` gitignoré.
+- **Séparation des espaces (navigation)** : `/pro/*` derrière `RequireStaff` (client → redirigé vers `/app`), pages client sensibles (`/app/vehicles`, `/app/bookings`, `/app/profile`) derrière `RequireClientAuth` (garage → redirigé vers `/pro`) ; non connecté → `/login`. **Le frontend n'est qu'une commodité** : la vraie barrière est la RLS (un menu masqué ne protège rien). Un futur rôle *super-admin* devra être séparé explicitement (rôle dédié + policies), pas juste caché.
+- **Aucun secret côté frontend** : clé anon publique uniquement ; `service_role` / clés IA / paiement jamais utilisées ni exposées ; `.env` gitignoré. Vérifié par `npm run security:scan`. Voir [PILOT_SECURITY_GATE](./PILOT_SECURITY_GATE.md), [COST_GUARDRAILS](./COST_GUARDRAILS.md), [SESSION_SECURITY_NOTES](./SESSION_SECURITY_NOTES.md), [AUTH_RATE_LIMITING](./AUTH_RATE_LIMITING.md), [PASSWORD_SECURITY](./PASSWORD_SECURITY.md), [MFA_ROADMAP](./MFA_ROADMAP.md), [DEPLOYMENT_SECURITY_CHECKLIST](./DEPLOYMENT_SECURITY_CHECKLIST.md).
 - **Défense en profondeur** : RLS + triggers + RPC `SECURITY DEFINER` member-checked.
 
 ## 2. Fonctions d'aide (SECURITY DEFINER, search_path épinglé)
@@ -46,6 +47,7 @@
 - **Dossier véhicule client + partage par consentement** (migration `0017`) :
   - `client_vehicles` reste **privé au propriétaire** (`client_id = auth.uid()` en lecture/écriture). Champs ajoutés : `notes`, `archived`.
   - `client_vehicle_shares` = **journal de consentement** (qui a partagé quel véhicule, avec quel garage, depuis quelle demande, quand, et `revoked_at`). Le client crée/révoque ; le garage destinataire peut **seulement lire** ses shares.
+  - **Un share ne peut être créé que par le PROPRIÉTAIRE du véhicule** (`with check` : `shared_by = auth.uid()` **et** le véhicule appartient à `auth.uid()` — migration `0019`). → un garage **ne peut pas s'auto-donner accès** en insérant un share pour un véhicule qu'il ne possède pas.
   - Un garage peut lire **un** `client_vehicle` **uniquement** s'il existe un **share actif** vers son garage — vérifié par `vehicle_shared_with_me(uuid)` (`SECURITY DEFINER`, évite la récursion RLS). Un garage **ne lit jamais tous** les véhicules d'un client.
   - **Consentement automatique mais explicite** : à l'insertion d'une demande portant `client_vehicle_id`, le trigger `share_vehicle_on_request` crée le share — **seulement si le véhicule appartient au demandeur** (jamais le véhicule d'un autre), idempotent par paire (véhicule, garage) active. Le client autorise ce partage via le texte de consentement affiché avant l'envoi.
   - **Révocation** : poser `revoked_at` coupe l'accès du garage (l'index unique partiel n'autorise qu'un share actif par paire).
@@ -68,11 +70,12 @@
 - Données client limitées (nom, contact, véhicule).
 
 ## 9. Preuve d'isolation
-`npm run test:rls` — **55 assertions** via clé anon + sign-in réel :
+`npm run test:rls` — **60 assertions** via clé anon + sign-in réel :
 - **16** d'isolation pure (anon, client final, garage A vs B) — un garage ne lit/écrit jamais les données d'un autre.
 - **16** sur les RPC devis : recalcul serveur (montants bidons ignorés, totaux recalculés), refus quantité/TVA invalides et devis sans ligne, refus de lier un devis à un **client / véhicule / demande d'un autre garage**, refus du **véhicule d'un autre client sans confirmation** (accepté avec), refus d'un **non-membre**, et recalcul à l'**update**.
 - **13** sur le cycle de vie devis : envoi refusé sans/avec date de validité passée, `send_quote` (jeton généré), devis envoyé **non modifiable**, **garage ne peut pas accepter** (trigger), consultation publique par jeton (jeton invalide → rien, anon ne lit pas `quotes`), **acceptation** et **refus + motif** côté client, **révision** en brouillon liée à l'original (inchangé).
-- **10** sur le dossier véhicule : véhicule **privé** non visible des garages ; **partage par consentement** rendant le véhicule lisible **uniquement** par le garage de la demande ; **autre garage** exclu (véhicule + shares) ; **révocation** coupant l'accès ; **suppression** d'un véhicule utilisé dans une demande (cascade non bloquée — `0018`).
+- **12** sur le dossier véhicule : véhicule **privé** non visible des garages ; **partage par consentement** rendant le véhicule lisible **uniquement** par le garage de la demande ; **autre garage** exclu (véhicule + shares) ; **un garage ne peut pas s'auto-donner accès** (insert de share refusé — `0019`) ; **révocation** coupant l'accès ; **suppression** d'un véhicule utilisé dans une demande (cascade non bloquée — `0018`).
+- **3** sur l'accès par **ID direct** : un devis n'est jamais lisible par un autre garage, par un client, ni par un anon **en devinant son ID** (RLS, pas seulement « caché »).
 
 ## 10. Advisors Supabase
 - Réglés : search_path des fonctions ; listing du bucket logos retiré.

@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Field, Input, Textarea } from '@/components/ui/input'
 import { EmptyState, LoadingState } from '@/components/ui/feedback'
+import { VehicleFields } from '@/components/common/VehicleFields'
+import { vehicleFieldsError } from '@/data/vehicleCatalog'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useClientVehicles, useUpsertClientVehicle, useUpdateClientVehicle, useDeleteClientVehicle } from '@/data/clientData'
@@ -105,8 +107,9 @@ function VehicleModal({ clientId, vehicle, onClose }: { clientId: string; vehicl
   const isEdit = !!vehicle
 
   async function submit() {
-    if (!form.brand.trim() || !form.model.trim()) {
-      toast.error('Marque et modèle requis')
+    const vErr = vehicleFieldsError({ brand: form.brand, model: form.model, year: form.year, fuel: form.fuel })
+    if (vErr) {
+      toast.error(vErr)
       return
     }
     const payload = {
@@ -134,10 +137,10 @@ function VehicleModal({ clientId, vehicle, onClose }: { clientId: string; vehicl
       footer={<><Button variant="ghost" onClick={onClose}>Annuler</Button><Button loading={add.isPending || update.isPending} onClick={submit}>{isEdit ? 'Enregistrer' : 'Ajouter'}</Button></>}
     >
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Marque" htmlFor="b" required><Input id="b" value={form.brand} onChange={(e) => set('brand', e.target.value)} /></Field>
-        <Field label="Modèle" htmlFor="m" required><Input id="m" value={form.model} onChange={(e) => set('model', e.target.value)} /></Field>
-        <Field label="Année" htmlFor="y"><Input id="y" type="number" value={form.year} onChange={(e) => set('year', e.target.value)} /></Field>
-        <Field label="Carburant" htmlFor="f"><Input id="f" value={form.fuel} onChange={(e) => set('fuel', e.target.value)} placeholder="Essence, Diesel…" /></Field>
+        <VehicleFields
+          value={{ brand: form.brand, model: form.model, year: form.year, fuel: form.fuel }}
+          onChange={(p) => setForm((f) => ({ ...f, ...p }))}
+        />
         <Field label="Kilométrage" htmlFor="km"><Input id="km" type="number" value={form.mileage} onChange={(e) => set('mileage', e.target.value)} /></Field>
         <Field label="Immatriculation" htmlFor="r"><Input id="r" value={form.registration} onChange={(e) => set('registration', e.target.value)} /></Field>
         <div className="col-span-2"><Field label="Notes (facultatif)" htmlFor="n"><Textarea id="n" value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Couleur, particularités…" /></Field></div>

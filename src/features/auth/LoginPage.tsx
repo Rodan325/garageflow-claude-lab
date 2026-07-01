@@ -39,7 +39,8 @@ export function LoginPage() {
     const { error } = await signIn(data.email, data.password)
     setSubmitting(false)
     if (error) {
-      toast.error('Connexion impossible', error)
+      // Generic message on purpose: never reveal whether the email exists.
+      toast.error('Connexion impossible', 'Email ou mot de passe incorrect.')
       return
     }
     setJustLoggedIn(true)

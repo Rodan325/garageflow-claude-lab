@@ -275,6 +275,15 @@ async function main() {
       const bShares = await gB.from('client_vehicle_shares').select('*')
       check('garage B ne voit aucun share de ce véhicule', !(bShares.data ?? []).some((s) => s.client_vehicle_id === vid))
 
+      // A garage cannot SELF-GRANT access by inserting a share for a vehicle it doesn't own (0019).
+      const { data: meB } = await gB.auth.getUser()
+      const selfGrant = await gB.from('client_vehicle_shares')
+        .insert({ client_vehicle_id: vid, garage_id: GARAGE_B, shared_by: meB?.user?.id })
+        .select()
+      check('un garage ne peut pas s’auto-donner accès (share)', !!selfGrant.error || (selfGrant.data ?? []).length === 0)
+      const bAfterSelf = await gB.from('client_vehicles').select('*').eq('id', vid)
+      check('garage B ne voit toujours pas le véhicule après auto-share', (bAfterSelf.data ?? []).length === 0)
+
       const rev = await cl.from('client_vehicle_shares').update({ revoked_at: new Date().toISOString() })
         .eq('client_vehicle_id', vid).is('revoked_at', null).select()
       check('client révoque le partage', !rev.error && (rev.data ?? []).length >= 1, rev.error?.message)
@@ -288,6 +297,31 @@ async function main() {
       check('client supprime un véhicule utilisé dans une demande', (gone.data ?? []).length === 0)
     }
     console.log('  (véhicule de test supprimé ; demande « Test partage vehicule » à nettoyer)')
+  }
+
+  // 8) DIRECT-ID ACCESS — a guessed row id must never bypass RLS
+  console.log('\nAccès par ID direct (contournement RLS)')
+  {
+    const gA = await clientFor('owner@demo-garage.fr', 'Demo1234!')
+    const gB = await clientFor('ownerb@demo-garage.fr', 'Demo1234!')
+    const cl = await clientFor('client@demo.fr', 'Demo1234!')
+
+    const q = await gA.rpc('create_quote_with_lines', {
+      p_quote: { garage_id: GARAGE_A, title: 'IDtest', client_name: 'X', valid_until: new Date(Date.now() + 20 * 864e5).toISOString().slice(0, 10), subtotal: 1, tax_total: 1, total: 1 },
+      p_lines: [{ label: 'L', quantity: 1, unit_price: 10, tax_rate: 20 }],
+    })
+    const qid = q.data?.id
+    if (qid) {
+      const bById = await gB.from('quotes').select('*').eq('id', qid)
+      check('garage B ne lit pas un devis A par ID direct', (bById.data ?? []).length === 0)
+      const cById = await cl.from('quotes').select('*').eq('id', qid)
+      check('un client ne lit pas un devis garage par ID direct', (cById.data ?? []).length === 0)
+      const anonById = await createClient(url, anon, { auth: { persistSession: false } }).from('quotes').select('*').eq('id', qid)
+      check('anon ne lit pas un devis par ID direct', (anonById.data ?? []).length === 0)
+      await gA.from('quotes').delete().eq('id', qid)
+    } else {
+      check('création devis (test ID direct)', false, q.error?.message)
+    }
   }
 
   console.log(`\nRésultat : ${pass} réussis, ${fail} échoués\n`)

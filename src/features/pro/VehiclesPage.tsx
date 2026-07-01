@@ -6,6 +6,8 @@ import { Modal } from '@/components/ui/modal'
 import { Field, Input, Select } from '@/components/ui/input'
 import { StatusPill } from '@/components/ui/badge'
 import { EmptyState, LoadingState } from '@/components/ui/feedback'
+import { VehicleFields } from '@/components/common/VehicleFields'
+import { vehicleFieldsError } from '@/data/vehicleCatalog'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -97,8 +99,9 @@ function NewVehicleModal({
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   async function submit() {
-    if (!form.brand || !form.model) {
-      toast.error('Marque et modèle requis')
+    const vErr = vehicleFieldsError({ brand: form.brand, model: form.model, year: form.year, fuel: form.fuel })
+    if (vErr) {
+      toast.error(vErr)
       return
     }
     try {
@@ -122,10 +125,10 @@ function NewVehicleModal({
   return (
     <Modal open onClose={onClose} title="Ajouter un véhicule" footer={<><Button variant="ghost" onClick={onClose}>Annuler</Button><Button loading={create.isPending} onClick={submit}>Ajouter</Button></>}>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Marque" htmlFor="br" required><Input id="br" value={form.brand} onChange={(e) => set('brand', e.target.value)} /></Field>
-        <Field label="Modèle" htmlFor="mo" required><Input id="mo" value={form.model} onChange={(e) => set('model', e.target.value)} /></Field>
-        <Field label="Année" htmlFor="ye"><Input id="ye" type="number" value={form.year} onChange={(e) => set('year', e.target.value)} /></Field>
-        <Field label="Carburant" htmlFor="fu"><Input id="fu" value={form.fuel} onChange={(e) => set('fuel', e.target.value)} placeholder="Essence / Diesel" /></Field>
+        <VehicleFields
+          value={{ brand: form.brand, model: form.model, year: form.year, fuel: form.fuel }}
+          onChange={(p) => setForm((f) => ({ ...f, ...p }))}
+        />
         <Field label="Kilométrage" htmlFor="mi"><Input id="mi" type="number" value={form.mileage} onChange={(e) => set('mileage', e.target.value)} /></Field>
         <Field label="Plaque" htmlFor="re"><Input id="re" value={form.registration} onChange={(e) => set('registration', e.target.value)} /></Field>
         <div className="col-span-2">

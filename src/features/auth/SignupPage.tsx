@@ -8,13 +8,17 @@ import { Card } from '@/components/ui/card'
 import { Field, Input } from '@/components/ui/input'
 import { Logo } from '@/components/common/Logo'
 import { useToast } from '@/components/ui/toast'
+import { passwordIssue, passwordStrength } from '@/lib/password'
 import { useAuth } from './AuthProvider'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Indiquez votre nom complet'),
   email: z.string().email('Adresse email invalide'),
   phone: z.string().optional(),
-  password: z.string().min(8, '8 caractères minimum'),
+  password: z.string().superRefine((val, ctx) => {
+    const issue = passwordIssue(val)
+    if (issue) ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue })
+  }),
   consent: z.literal(true, { errorMap: () => ({ message: 'Le consentement est requis' }) }),
 })
 type Form = z.infer<typeof schema>
@@ -28,7 +32,9 @@ export function SignupPage() {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<Form>({ resolver: zodResolver(schema) })
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<Form>({ resolver: zodResolver(schema) })
+  const pw = watch('password') ?? ''
+  const strength = passwordStrength(pw)
 
   useEffect(() => {
     if (done && ready && session && accountType === 'client') navigate(redirect || '/app', { replace: true })
@@ -71,9 +77,25 @@ export function SignupPage() {
           <Field label="Téléphone" htmlFor="phone" hint="Facultatif — utile pour vous joindre au sujet d’un rendez-vous." error={errors.phone?.message}>
             <Input id="phone" type="tel" autoComplete="tel" placeholder="06 12 34 56 78" {...register('phone')} />
           </Field>
-          <Field label="Mot de passe" htmlFor="password" error={errors.password?.message} required>
-            <Input id="password" type="password" autoComplete="new-password" placeholder="8 caractères minimum" {...register('password')} />
+          <Field label="Mot de passe" htmlFor="password" error={errors.password?.message} required hint="12 caractères minimum — une phrase de passe longue est idéale.">
+            <Input id="password" type="password" autoComplete="new-password" placeholder="Une phrase de passe que vous retenez" {...register('password')} />
           </Field>
+          {pw && !errors.password && (
+            <div className="flex items-center gap-2 text-xs">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={
+                    strength === 'fort' ? 'h-full w-full bg-success'
+                    : strength === 'moyen' ? 'h-full w-2/3 bg-warning'
+                    : 'h-full w-1/3 bg-danger'
+                  }
+                />
+              </div>
+              <span className="text-muted-foreground">
+                {strength === 'fort' ? 'Fort' : strength === 'moyen' ? 'Moyen' : 'Faible'}
+              </span>
+            </div>
+          )}
 
           <label className="flex items-start gap-2 text-sm text-muted-foreground">
             <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-input" {...register('consent')} />

@@ -85,7 +85,7 @@ src/
   lib/         supabase, env, theme, motion, format, normalize, slots, demo, utils
   types/       database.types.ts (généré) + domain.ts
 supabase/
-  migrations/  0001 → 0018 (schéma, RLS, fonctions, seed, catalogue/branding, devis, RPC transactionnelles, totaux serveur, cycle de vie devis, dossier véhicule + partage)
+  migrations/  0001 → 0019 (schéma, RLS, fonctions, seed, catalogue/branding, devis, RPC transactionnelles, totaux serveur, cycle de vie devis, dossier véhicule + partage owner-only)
   functions/   request-to-appointment, generate-vehicle-ad, repair-summary
 scripts/       rls-antileak.mjs + fixtures
 ```
@@ -99,6 +99,8 @@ scripts/       rls-antileak.mjs + fixtures
 
 ## Documentation
 **Technique** : [PRODUCT_ARCHITECTURE](./PRODUCT_ARCHITECTURE.md) · [TECHNICAL_ARCHITECTURE](./TECHNICAL_ARCHITECTURE.md) · [SUPABASE_SETUP](./SUPABASE_SETUP.md) · [SECURITY_AND_RLS](./SECURITY_AND_RLS.md) · [DATA_PRIVACY_NOTES](./DATA_PRIVACY_NOTES.md) · [VEHICLE_DOCUMENTS_ROADMAP](./VEHICLE_DOCUMENTS_ROADMAP.md)
+
+**Sécurité pilote** : [PILOT_SECURITY_GATE](./PILOT_SECURITY_GATE.md) (go/no-go) · [COST_GUARDRAILS](./COST_GUARDRAILS.md) · [AUTH_RATE_LIMITING](./AUTH_RATE_LIMITING.md) · [SESSION_SECURITY_NOTES](./SESSION_SECURITY_NOTES.md) · [PASSWORD_SECURITY](./PASSWORD_SECURITY.md) · [MFA_ROADMAP](./MFA_ROADMAP.md) · [DEPLOYMENT_SECURITY_CHECKLIST](./DEPLOYMENT_SECURITY_CHECKLIST.md) · `npm run security:scan`
 
 **Démo & pilote** : [DEMO_QUICKSTART](./DEMO_QUICKSTART.md) (lancer en 5 min) · [LAUNCH_CHECKLIST](./LAUNCH_CHECKLIST.md) (runbook de lancement + plan 72h) · [SALES_DEMO_SCRIPT](./SALES_DEMO_SCRIPT.md) (script de démo) · [GARAGE_DEMO_CHECKLIST](./GARAGE_DEMO_CHECKLIST.md) (RDV garage) · [PILOT_OFFER](./PILOT_OFFER.md) (fiche à envoyer au garage) · [PILOT_DEPLOYMENT_CHECKLIST](./PILOT_DEPLOYMENT_CHECKLIST.md) · [PILOT_READINESS_CHECKLIST](./PILOT_READINESS_CHECKLIST.md) · [DEMO_SCRIPT](./DEMO_SCRIPT.md)
 

@@ -7,6 +7,8 @@ import { ArrowLeft, Check, CheckCircle2, ChevronRight, Clock, LogIn, Plus, UserP
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Field, Input, Textarea } from '@/components/ui/input'
+import { VehicleFields } from '@/components/common/VehicleFields'
+import { vehicleFieldsError } from '@/data/vehicleCatalog'
 import { EmptyState, LoadingState } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -160,8 +162,9 @@ export function BookingFlow() {
       let vehId: string | null = null
       let label = ''
       if (vehicleMode === 'new') {
-        if (!newVehicle.brand || !newVehicle.model) {
-          toast.error('Renseignez la marque et le modèle')
+        const vErr = vehicleFieldsError({ brand: newVehicle.brand, model: newVehicle.model, year: newVehicle.year, fuel: '' })
+        if (vErr) {
+          toast.error(vErr)
           return
         }
         const created = await addVehicle.mutateAsync({
@@ -340,9 +343,11 @@ export function BookingFlow() {
               )}
               {(vehicleMode === 'new' || !authed || myVehicles.length === 0) && (
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Marque" htmlFor="vb" required><Input id="vb" value={newVehicle.brand} onChange={(e) => setNewVehicle({ ...newVehicle, brand: e.target.value })} /></Field>
-                  <Field label="Modèle" htmlFor="vm" required><Input id="vm" value={newVehicle.model} onChange={(e) => setNewVehicle({ ...newVehicle, model: e.target.value })} /></Field>
-                  <Field label="Année" htmlFor="vy"><Input id="vy" type="number" value={newVehicle.year} onChange={(e) => setNewVehicle({ ...newVehicle, year: e.target.value })} /></Field>
+                  <VehicleFields
+                    value={{ brand: newVehicle.brand, model: newVehicle.model, year: newVehicle.year, fuel: '' }}
+                    onChange={(p) => setNewVehicle((v) => ({ ...v, ...p }))}
+                    showFuel={false}
+                  />
                   <Field label="Plaque" htmlFor="vr"><Input id="vr" value={newVehicle.registration} onChange={(e) => setNewVehicle({ ...newVehicle, registration: e.target.value })} /></Field>
                 </div>
               )}
