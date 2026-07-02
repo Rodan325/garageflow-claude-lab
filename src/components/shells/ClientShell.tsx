@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { CalendarCheck, Car, Home, ListChecks, User } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { LegalFooter } from '@/components/common/LegalFooter'
 import { cn } from '@/lib/utils'
 
 const nav = [
@@ -55,6 +56,7 @@ export function ClientShell() {
 
       <main className="mx-auto w-full max-w-3xl flex-1 pb-24 lg:pb-12">
         <Outlet />
+        <LegalFooter className="mt-8" />
       </main>
 
       {/* Mobile bottom nav */}

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { LegalFooter } from '@/components/common/LegalFooter'
 import { SupabaseStatus } from '@/components/common/SupabaseStatus'
 import { Avatar } from '@/components/ui/avatar'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -147,6 +148,7 @@ export function ProShell() {
         </header>
         <main className="mx-auto max-w-5xl p-4 lg:p-8">
           <Outlet />
+          <LegalFooter className="mt-10" />
         </main>
       </div>
     </div>

@@ -362,8 +362,9 @@ export function BookingFlow() {
 
               {/* Consent before sharing the vehicle with this garage */}
               <p className="mt-4 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
-                En envoyant cette demande, vous autorisez ce garage à consulter les informations de ce véhicule
-                uniquement pour traiter votre demande, préparer un rendez-vous, établir un devis et assurer le suivi de l'intervention.
+                En envoyant cette demande, vous autorisez le garage sélectionné à consulter les informations
+                nécessaires au traitement de votre demande, y compris le véhicule choisi. Consultez la{' '}
+                <Link to="/privacy" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>.
               </p>
 
               {/* Confirm / identify */}

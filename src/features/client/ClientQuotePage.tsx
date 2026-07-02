@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { Check, Download, FileText, ShieldCheck, X } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/input'
 import { LoadingState, EmptyState } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/toast'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { LegalFooter } from '@/components/common/LegalFooter'
 import { usePublicQuote, useAcceptPublicQuote, useDeclinePublicQuote } from '@/data/quotes'
 import { effectiveQuoteStatus, clientCanRespond } from '@/lib/quoteStatus'
 import { euro, shortDate } from '@/lib/format'
@@ -199,18 +200,25 @@ export function ClientQuotePage() {
       </div>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">Devis émis par {garage.name} via GarageFlow.</p>
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        Données personnelles, confidentialité et conditions d’utilisation :{' '}
+        <Link to="/privacy" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>
+        {' · '}
+        <Link to="/terms" className="font-medium text-primary hover:underline">CGU</Link>
+      </p>
     </Shell>
   )
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur">
         <span className="text-sm font-semibold">GarageFlow</span>
         <ThemeToggle />
       </header>
-      <main className="mx-auto w-full max-w-2xl px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">{children}</main>
+      <LegalFooter className="border-t border-border" />
     </div>
   )
 }

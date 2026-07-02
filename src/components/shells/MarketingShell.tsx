@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { LegalFooter } from '@/components/common/LegalFooter'
 import { Button } from '@/components/ui/button'
 
 export function MarketingShell({ children }: { children: React.ReactNode }) {
@@ -59,6 +60,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
             <Link to="/app" className="hover:text-foreground">Application client</Link>
           </div>
         </div>
+        <LegalFooter className="border-t border-border/60" />
       </footer>
     </div>
   )

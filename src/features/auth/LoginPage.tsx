@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Field, Input } from '@/components/ui/input'
 import { Logo } from '@/components/common/Logo'
+import { LegalFooter } from '@/components/common/LegalFooter'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from './AuthProvider'
 
@@ -132,6 +133,8 @@ export function LoginPage() {
             Pas encore de compte client ?{' '}
             <Link to="/signup" className="font-medium text-primary hover:underline">Créer un compte</Link>
           </p>
+
+          <LegalFooter className="mt-6 px-0" />
         </div>
       </div>
     </div>

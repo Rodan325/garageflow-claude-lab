@@ -34,6 +34,12 @@ import { ClientBookingDetailPage } from '@/features/client/ClientBookingDetailPa
 import { ClientVehiclesPage } from '@/features/client/ClientVehiclesPage'
 import { ClientProfilePage } from '@/features/client/ClientProfilePage'
 import { ClientQuotePage } from '@/features/client/ClientQuotePage'
+// Legal (public)
+import { LegalPage } from '@/features/legal/LegalPage'
+import { PrivacyPage } from '@/features/legal/PrivacyPage'
+import { TermsPage } from '@/features/legal/TermsPage'
+import { PilotAgreementPage } from '@/features/legal/PilotAgreementPage'
+import { DpaPage } from '@/features/legal/DpaPage'
 import { NotFoundPage } from '@/features/marketing/NotFoundPage'
 
 export function App() {
@@ -67,6 +73,13 @@ export function App() {
 
         {/* Public, tokenised quote consultation (no login required) */}
         <Route path="/devis/:token" element={<ClientQuotePage />} />
+
+        {/* Legal pages (public, no login required) */}
+        <Route path="/legal" element={<LegalPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/pilot-agreement" element={<PilotAgreementPage />} />
+        <Route path="/dpa" element={<DpaPage />} />
 
         <Route path="/app" element={<ClientShell />}>
           <Route index element={<ClientHomePage />} />

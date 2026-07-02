@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Field, Input } from '@/components/ui/input'
 import { Logo } from '@/components/common/Logo'
+import { LegalFooter } from '@/components/common/LegalFooter'
 import { useToast } from '@/components/ui/toast'
 import { passwordIssue, passwordStrength } from '@/lib/password'
 import { useAuth } from './AuthProvider'
@@ -59,7 +60,7 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-muted/40 p-4">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md p-7">
         <Link to="/" className="mb-6 inline-flex"><Logo /></Link>
         <h1 className="text-2xl font-bold">Créer un compte client</h1>
@@ -107,6 +108,13 @@ export function SignupPage() {
           </label>
 
           <Button type="submit" className="w-full" loading={submitting}>Créer mon compte</Button>
+
+          <p className="text-center text-xs text-muted-foreground">
+            En créant un compte, vous acceptez les{' '}
+            <Link to="/terms" className="font-medium text-primary hover:underline">Conditions d’utilisation</Link>{' '}
+            et vous reconnaissez avoir pris connaissance de la{' '}
+            <Link to="/privacy" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>.
+          </p>
         </form>
 
         <p className="mt-5 text-center text-sm text-muted-foreground">
@@ -114,6 +122,8 @@ export function SignupPage() {
           <Link to="/login" className="font-medium text-primary hover:underline">Se connecter</Link>
         </p>
       </Card>
+
+      <LegalFooter />
     </div>
   )
 }

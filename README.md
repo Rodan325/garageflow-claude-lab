@@ -102,6 +102,8 @@ scripts/       rls-antileak.mjs + fixtures
 
 **Sécurité pilote** : [PILOT_SECURITY_GATE](./PILOT_SECURITY_GATE.md) (go/no-go) · [COST_GUARDRAILS](./COST_GUARDRAILS.md) · [AUTH_RATE_LIMITING](./AUTH_RATE_LIMITING.md) · [SESSION_SECURITY_NOTES](./SESSION_SECURITY_NOTES.md) · [PASSWORD_SECURITY](./PASSWORD_SECURITY.md) · [MFA_ROADMAP](./MFA_ROADMAP.md) · [DEPLOYMENT_SECURITY_CHECKLIST](./DEPLOYMENT_SECURITY_CHECKLIST.md) · `npm run security:scan`
 
+**Légal** : pages publiques `/legal` · `/privacy` · `/terms` · `/pilot-agreement` · `/dpa` (config : `src/config/legal.ts`) · [LEGAL_READINESS_CHECKLIST](./LEGAL_READINESS_CHECKLIST.md) · [TERMS_OF_USE](./TERMS_OF_USE.md) · [PILOT_AGREEMENT_DRAFT](./PILOT_AGREEMENT_DRAFT.md) · [DPA_DRAFT](./DPA_DRAFT.md) · [DATA_PRIVACY_NOTES](./DATA_PRIVACY_NOTES.md)
+
 **Démo & pilote** : [DEMO_QUICKSTART](./DEMO_QUICKSTART.md) (lancer en 5 min) · [LAUNCH_CHECKLIST](./LAUNCH_CHECKLIST.md) (runbook de lancement + plan 72h) · [SALES_DEMO_SCRIPT](./SALES_DEMO_SCRIPT.md) (script de démo) · [GARAGE_DEMO_CHECKLIST](./GARAGE_DEMO_CHECKLIST.md) (RDV garage) · [PILOT_OFFER](./PILOT_OFFER.md) (fiche à envoyer au garage) · [PILOT_DEPLOYMENT_CHECKLIST](./PILOT_DEPLOYMENT_CHECKLIST.md) · [PILOT_READINESS_CHECKLIST](./PILOT_READINESS_CHECKLIST.md) · [DEMO_SCRIPT](./DEMO_SCRIPT.md)
 
 **Prospection** : [SALES_OUTREACH](./SALES_OUTREACH.md) (SMS/e-mails/pitchs/questions) · [SALES_CALL_SCRIPT](./SALES_CALL_SCRIPT.md) (script d'appel) · [SALES_ARGUMENTS](./SALES_ARGUMENTS.md) (argumentaire) · [PROSPECTING_TRACKER_TEMPLATE](./PROSPECTING_TRACKER_TEMPLATE.md) (suivi)
