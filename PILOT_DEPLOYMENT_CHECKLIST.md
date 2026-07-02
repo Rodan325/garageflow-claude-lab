@@ -15,7 +15,7 @@ Le frontend n'utilise **que** la clé publique (`anon`). Ne **jamais** exposer l
 - [ ] Mêmes variables configurées dans le **dashboard de l'hébergeur** (build env).
 
 ## 2. Base de données Supabase (migrations)
-- [ ] Appliquer les migrations `supabase/migrations/0001` → `0019` dans l'ordre (schéma, fonctions, RLS, seed, catalogue/branding, numérotation, RPC transactionnelles, totaux serveur, cycle de vie devis, date de validité, dossier véhicule + partage owner-only).
+- [ ] Appliquer les migrations `supabase/migrations/0001` → `0020` dans l'ordre (schéma, fonctions, RLS, seed, catalogue/branding, numérotation, RPC transactionnelles, totaux serveur, cycle de vie devis, date de validité, dossier véhicule + partage owner-only, delete demande par membre).
 - [ ] Vérifier que les RPC existent : `create_quote_with_lines`, `update_quote_with_lines`, `send_quote`, `revise_quote`, `get_quote_public`, `accept_quote_public`, `decline_quote_public`, `next_quote_number`.
 - [ ] Types TS à jour si le schéma a changé (`src/types/database.types.ts`).
 

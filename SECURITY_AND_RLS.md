@@ -23,7 +23,7 @@
 | `client_profiles`, `consents` | **soi uniquement** | soi |
 | `client_vehicles` | **propriétaire** ; **+ garage** si le véhicule lui est **partagé** (share actif) | propriétaire uniquement |
 | `client_vehicle_shares` | le client (sharer) **ou** le garage destinataire | le client (créer / révoquer) |
-| `service_requests` | client propriétaire **ou** membres du garage | insert par le client ; update client **status-only** (trigger) ou membres |
+| `service_requests` | client propriétaire **ou** membres du garage | insert par le client ; update client **status-only** (trigger) ou membres ; **delete par un membre du garage** (gestion de l'inbox — `0020`) |
 | `service_request_messages` | participants | client/garage selon `sender` + `author_id = auth.uid()` |
 | `audit_logs` | `owner`/`admin` | membres |
 

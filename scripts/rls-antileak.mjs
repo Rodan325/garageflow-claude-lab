@@ -264,6 +264,7 @@ async function main() {
         .insert({ garage_id: GARAGE_A, client_id: uid, service_name: 'Test partage vehicule', client_vehicle_id: vid, vehicle_label: 'Tesla Model 3 · TS-123-LA', status: 'pending' })
         .select().single()
       check('client crée une demande avec son véhicule', !req.error && !!req.data, req.error?.message)
+      const rid = req.data?.id
 
       const aAfter = await gA.from('client_vehicles').select('*').eq('id', vid)
       check('garage A voit le véhicule PARTAGÉ via sa demande', (aAfter.data ?? []).length === 1)
@@ -295,8 +296,16 @@ async function main() {
       await cl.from('client_vehicles').delete().eq('id', vid) // share cascades
       const gone = await cl.from('client_vehicles').select('id').eq('id', vid)
       check('client supprime un véhicule utilisé dans une demande', (gone.data ?? []).length === 0)
+
+      // Clean up the test request: the garage removes it from its own inbox (policy 0020).
+      // Done without a check() to keep the 60/60 total; warn if it somehow remains.
+      if (rid) {
+        await gA.from('service_requests').delete().eq('id', rid)
+        const leftover = await gA.from('service_requests').select('id').eq('id', rid)
+        if ((leftover.data ?? []).length > 0) console.warn(`  ⚠ demande de test non supprimée (${rid})`)
+      }
     }
-    console.log('  (véhicule de test supprimé ; demande « Test partage vehicule » à nettoyer)')
+    console.log('  (véhicule + demande de test nettoyés)')
   }
 
   // 8) DIRECT-ID ACCESS — a guessed row id must never bypass RLS

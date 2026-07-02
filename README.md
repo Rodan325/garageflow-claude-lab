@@ -85,7 +85,7 @@ src/
   lib/         supabase, env, theme, motion, format, normalize, slots, demo, utils
   types/       database.types.ts (généré) + domain.ts
 supabase/
-  migrations/  0001 → 0019 (schéma, RLS, fonctions, seed, catalogue/branding, devis, RPC transactionnelles, totaux serveur, cycle de vie devis, dossier véhicule + partage owner-only)
+  migrations/  0001 → 0020 (schéma, RLS, fonctions, seed, catalogue/branding, devis, RPC transactionnelles, totaux serveur, cycle de vie devis, dossier véhicule + partage owner-only, delete demande par membre)
   functions/   request-to-appointment, generate-vehicle-ad, repair-summary
 scripts/       rls-antileak.mjs + fixtures
 ```

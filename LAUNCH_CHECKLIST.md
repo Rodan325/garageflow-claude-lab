@@ -21,7 +21,7 @@ Le frontend n'utilise **que** la clé publique. Ne **jamais** exposer `service_r
 - [ ] Bucket `garage-logos` présent (public en lecture, écriture membre, pas de listing).
 
 ## 3. Migrations à appliquer
-- [ ] Migrations `supabase/migrations/0001` → `0019` appliquées dans l'ordre.
+- [ ] Migrations `supabase/migrations/0001` → `0020` appliquées dans l'ordre.
 - [ ] RPC présentes : `create_quote_with_lines`, `update_quote_with_lines`, `send_quote`, `revise_quote`, `get_quote_public`, `accept_quote_public`, `decline_quote_public`, `next_quote_number`, `expire_quotes`.
 - [ ] `src/types/database.types.ts` à jour si le schéma a changé.
 
