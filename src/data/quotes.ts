@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { isDemo, demo } from '@/lib/demo'
+import { legalVersions } from '@/config/legal'
 import type { Quote, QuoteLine } from '@/types/domain'
 import type { TablesInsert } from '@/types/database.types'
 
@@ -157,7 +158,12 @@ export function useAcceptPublicQuote() {
   return useMutation({
     mutationFn: async ({ token }: { token: string }): Promise<PublicQuoteView> => {
       if (isDemo()) return demo.acceptPublicQuote(token)
-      const { data, error } = await supabase.rpc('accept_quote_public', { p_token: token })
+      // Proof: stamp the CGU/privacy versions displayed at acceptance time.
+      const { data, error } = await supabase.rpc('accept_quote_public', {
+        p_token: token,
+        p_terms_version: legalVersions.terms,
+        p_privacy_version: legalVersions.privacy,
+      })
       if (error) throw error
       return data as unknown as PublicQuoteView
     },

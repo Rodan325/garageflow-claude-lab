@@ -11,6 +11,7 @@ import type {
 import type { DashboardStats, TeamMember } from '@/data/proData'
 import { computeQuoteTotals, lineTotal } from '@/lib/quoteTotals'
 import { quoteSendBlockReason } from '@/lib/quoteStatus'
+import { legalVersions } from '@/config/legal'
 
 const totalsFrom = (lines: Partial<QuoteLine>[]) =>
   computeQuoteTotals(lines.map((l) => ({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 })))
@@ -194,6 +195,8 @@ function seed(): Store {
       declined_at: o.declinedAgo == null ? null : daysAgoIso(o.declinedAgo),
       decline_reason: o.declineReason ?? null,
       revised_from: o.revisedFrom ?? null,
+      accepted_terms_version: o.acceptedAgo == null ? null : legalVersions.terms,
+      accepted_privacy_version: o.acceptedAgo == null ? null : legalVersions.privacy,
     }
     quotes.push(q)
     return q
@@ -224,6 +227,7 @@ function seed(): Store {
 const QUOTE_LIFECYCLE_DEFAULTS = {
   client_token: null, sent_at: null, accepted_at: null, declined_at: null,
   decline_reason: null, revised_from: null,
+  accepted_terms_version: null, accepted_privacy_version: null,
 } as const
 
 /**
@@ -602,6 +606,7 @@ export const demo = {
       client_phone: quote.client_phone ?? null, client_email: quote.client_email ?? null,
       client_token: null, sent_at: null, accepted_at: null, declined_at: null,
       decline_reason: null, revised_from: null,
+      accepted_terms_version: null, accepted_privacy_version: null,
     }
     s.quotes.unshift(row)
     lines.forEach((l, i) =>
@@ -661,6 +666,7 @@ export const demo = {
     const row: Quote = {
       ...src, id: newId, number, status: 'draft', created_at: new Date().toISOString(),
       client_token: null, sent_at: null, accepted_at: null, declined_at: null, decline_reason: null, revised_from: src.id,
+      accepted_terms_version: null, accepted_privacy_version: null,
     }
     s.quotes.unshift(row)
     s.quoteLines.filter((l) => l.quote_id === id).forEach((l, i) =>
@@ -675,7 +681,9 @@ export const demo = {
     if (!q) throw new Error('Devis introuvable')
     if (q.status === 'sent') {
       if (q.valid_until && q.valid_until < new Date().toISOString().slice(0, 10)) throw new Error('Devis expiré')
-      q.status = 'accepted'; q.accepted_at = new Date().toISOString(); save()
+      q.status = 'accepted'; q.accepted_at = new Date().toISOString()
+      q.accepted_terms_version = legalVersions.terms; q.accepted_privacy_version = legalVersions.privacy
+      save()
     } else if (q.status !== 'accepted') throw new Error('Devis non disponible')
     return buildPublicQuote(load(), token)!
   },

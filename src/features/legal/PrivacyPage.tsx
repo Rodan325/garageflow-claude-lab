@@ -1,9 +1,44 @@
-import { legalConfig as c } from '@/config/legal'
+import { legalConfig as c, legalVersions } from '@/config/legal'
 import { LegalLayout, H2, P, UL, MailLink, ExtLink } from './LegalLayout'
+
+const SUMMARY: { label: string; value: string }[] = [
+  { label: 'Données collectées', value: 'Identité, coordonnées, compte, véhicule, demandes, messages, devis et statuts, logs techniques limités.' },
+  { label: 'Pourquoi', value: 'Permettre les demandes de rendez-vous, les devis et leur acceptation, le support et la sécurité du service.' },
+  { label: 'Qui y accède', value: 'Vous, le garage concerné par votre demande uniquement, RODANBTECH pour l’exploitation technique, et les prestataires strictement nécessaires (Supabase, Vercel).' },
+  { label: 'Combien de temps', value: 'Pendant la durée du compte ou du pilote, puis export ou suppression sur demande (sauvegardes techniques temporaires).' },
+  { label: 'Vos droits', value: 'Accès, rectification, suppression, limitation, opposition, portabilité, retrait du consentement.' },
+  { label: 'Contact', value: 'anas.rodriguez@rodanbtech.com — réclamation possible auprès de la CNIL.' },
+]
+
+const DATA_TABLE: { data: string; nature: string; base: string; dest: string; duration: string }[] = [
+  { data: 'Identité & coordonnées (nom, email, téléphone)', nature: 'Obligatoire (compte / demande)', base: 'Exécution du service', dest: 'Garage concerné, RODANBTECH', duration: 'Durée du compte / pilote' },
+  { data: 'Informations de compte (authentification)', nature: 'Obligatoire', base: 'Exécution du service', dest: 'RODANBTECH (via Supabase Auth)', duration: 'Durée du compte' },
+  { data: 'Véhicule (marque, modèle, année, carburant, km, plaque)', nature: 'Plaque et détails facultatifs', base: 'Consentement (partage avec le garage)', dest: 'Garage destinataire de la demande uniquement', duration: 'Durée du compte / pilote' },
+  { data: 'Demandes & messages', nature: 'Obligatoire pour le service', base: 'Exécution du service', dest: 'Garage concerné, RODANBTECH', duration: 'Durée du pilote' },
+  { data: 'Devis & statuts (acceptation/refus horodatés)', nature: 'Obligatoire pour le service', base: 'Exécution du service / mesures précontractuelles', dest: 'Garage émetteur, client destinataire', duration: 'Durée du pilote' },
+  { data: 'Acceptations légales (document, version, date)', nature: 'Obligatoire (preuve)', base: 'Intérêt légitime / obligation de preuve', dest: 'RODANBTECH', duration: 'Durée du compte + preuve' },
+  { data: 'Logs techniques limités', nature: 'Automatique', base: 'Intérêt légitime (sécurité)', dest: 'RODANBTECH', duration: 'Durée limitée (diagnostic/sécurité)' },
+]
 
 export function PrivacyPage() {
   return (
-    <LegalLayout title="Politique de confidentialité">
+    <LegalLayout title="Politique de confidentialité" version={legalVersions.privacy}>
+      <section className="rounded-xl border border-border bg-muted/30 p-4">
+        <h2 className="text-base font-semibold">Résumé rapide</h2>
+        <dl className="mt-2 space-y-1.5 text-sm">
+          {SUMMARY.map(({ label, value }) => (
+            <div key={label} className="sm:flex sm:gap-2">
+              <dt className="shrink-0 font-medium sm:w-40">{label}</dt>
+              <dd className="text-muted-foreground">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Pas de cookies publicitaires, pas de traceurs marketing, pas de documents sensibles pendant le pilote. Votre
+          acceptation des documents légaux est enregistrée (version + date).
+        </p>
+      </section>
+
       <H2>1. Objet</H2>
       <P>
         Cette politique explique comment {c.appName} traite les données personnelles dans le cadre de sa version
@@ -73,6 +108,31 @@ export function PrivacyPage() {
         ]}
       />
       <P>{c.appName} ne stocke pas les mots de passe en clair.</P>
+
+      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+        <table className="w-full min-w-[640px] text-left text-xs">
+          <thead className="bg-muted/50 text-muted-foreground">
+            <tr>
+              <th className="p-2 font-semibold">Données</th>
+              <th className="p-2 font-semibold">Caractère</th>
+              <th className="p-2 font-semibold">Base légale</th>
+              <th className="p-2 font-semibold">Destinataires</th>
+              <th className="p-2 font-semibold">Durée indicative</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border text-muted-foreground">
+            {DATA_TABLE.map((row) => (
+              <tr key={row.data}>
+                <td className="p-2 font-medium text-foreground">{row.data}</td>
+                <td className="p-2">{row.nature}</td>
+                <td className="p-2">{row.base}</td>
+                <td className="p-2">{row.dest}</td>
+                <td className="p-2">{row.duration}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <H2>4. Données interdites pendant le pilote</H2>
       <P>Pendant le pilote, {c.appName} ne doit pas être utilisé pour stocker :</P>

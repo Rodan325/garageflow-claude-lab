@@ -9,7 +9,7 @@ import { legalConfig } from '@/config/legal'
  * /pilot-agreement, /dpa). Accessible without login, mobile-first,
  * document-style. All identity values come from legalConfig.
  */
-export function LegalLayout({ title, children }: { title: string; children: React.ReactNode }) {
+export function LegalLayout({ title, version, children }: { title: string; version?: string; children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
@@ -22,14 +22,16 @@ export function LegalLayout({ title, children }: { title: string; children: Reac
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
         <h1 className="text-2xl font-bold">{title}</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          {legalConfig.appName} · {legalConfig.pilotVersion} · Dernière mise à jour : {legalConfig.lastUpdated}
+          {legalConfig.appName} · {legalConfig.pilotVersion}
+          {version ? <> · Version du document : {version}</> : null}
+          {' · '}Dernière mise à jour : {legalConfig.lastUpdated}
         </p>
 
         <div className="mt-6">{children}</div>
 
         <p className="mt-10 border-t border-border pt-4 text-xs text-muted-foreground">
-          Documents préparés pour le pilote, à faire relire par un professionnel du droit avant commercialisation
-          large ou engagement contractuel important.
+          {legalConfig.appName} est proposé en version pilote. Les documents légaux applicables sont accessibles
+          depuis le footer.
         </p>
       </main>
 

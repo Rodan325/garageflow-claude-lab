@@ -179,7 +179,14 @@ export function ClientQuotePage() {
         {mode === 'accept' && (
           <Card><CardContent className="space-y-3 py-4">
             <p className="text-sm font-medium">Confirmer l’acceptation de ce devis ?</p>
-            <p className="text-xs text-muted-foreground">En acceptant, vous donnez votre accord au garage pour réaliser l’intervention décrite.</p>
+            <p className="text-xs text-muted-foreground">
+              En acceptant ce devis, vous confirmez avoir lu le devis présenté et vous acceptez sa transmission au
+              garage concerné. Votre acceptation est horodatée. Les{' '}
+              <Link to="/terms" target="_blank" className="font-medium text-primary hover:underline">conditions d’utilisation</Link>{' '}
+              et la{' '}
+              <Link to="/privacy" target="_blank" className="font-medium text-primary hover:underline">politique de confidentialité</Link>{' '}
+              s’appliquent. Si le garage exige un contrat ou un ordre de réparation signé, celui-ci reste applicable.
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <Button variant="ghost" onClick={() => setMode('idle')}>Annuler</Button>
               <Button onClick={onAccept} loading={accept.isPending}><Check className="h-4 w-4" /> Confirmer</Button>

@@ -1,8 +1,10 @@
 # GarageFlow — Accord de sous-traitance RGPD (référence interne)
 
-> **Note interne** : Documents préparés pour le pilote. Relecture juridique recommandée avant commercialisation large, signature de contrats payants importants ou traitement à grande échelle. La version publique fait foi : page **/dpa** (source : `src/features/legal/DpaPage.tsx`, valeurs dans `src/config/legal.ts`).
+> **Note interne** : Relecture juridique recommandée avant commercialisation large, contrat payant important, traitement à grande échelle ou ajout de documents sensibles. La version publique fait foi : page **/dpa** (source : `src/features/legal/DpaPage.tsx`, valeurs dans `src/config/legal.ts`).
 
-Dernière mise à jour : 2026-07-02
+Version du document : 2026-07-02 · Dernière mise à jour : 2026-07-02
+
+**Renforcements 2026-07-02 (rapprochement article 28 RGPD)** : instructions documentées avec droit de refuser une instruction illicite/dangereuse ; section dédiée « données sensibles interdites » (obligation d'informer les équipes) ; sous-traitants listés incluant un futur fournisseur email, avec information raisonnable du garage en cas de changement ; clause d'audit raisonnable (informations sur demande, pas d'audit sur site promis) ; sort des données détaillé (suppression, export, anonymisation, sauvegardes temporaires) ; non-réutilisation sauf sécurité/support/légal/statistiques anonymisées/accord écrit.
 
 ## 1. Objet
 Encadre le traitement de données personnelles réalisé par RODANBTECH dans le cadre de la fourniture de GarageFlow à un garage participant au pilote.

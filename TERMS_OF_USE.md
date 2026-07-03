@@ -1,8 +1,10 @@
 # GarageFlow — Conditions générales d'utilisation (référence interne)
 
-> **Note interne** : Documents préparés pour le pilote. Relecture juridique recommandée avant commercialisation large, signature de contrats payants importants ou traitement à grande échelle. La version publique fait foi : page **/terms** de l'application (source : `src/features/legal/TermsPage.tsx`, valeurs dans `src/config/legal.ts`).
+> **Note interne** : Relecture juridique recommandée avant commercialisation large, contrat payant important, traitement à grande échelle ou ajout de documents sensibles. La version publique fait foi : page **/terms** de l'application (source : `src/features/legal/TermsPage.tsx`, valeurs dans `src/config/legal.ts`).
 
-Dernière mise à jour : 2026-07-02
+Version du document : 2026-07-02 · Dernière mise à jour : 2026-07-02
+
+**Renforcements 2026-07-02** : définitions (10 termes) ; acceptation horodatée + journal + re-acceptation en cas de nouvelle version ; rôle négatif de RODANBTECH (pas garagiste, pas expert, pas caisse certifiée…) ; devis établi sous la responsabilité du garage (vérification avant envoi, lecture avant acceptation, primauté possible d'un contrat signé séparé) ; données interdites élargies (RIB, carte bancaire, mineurs, infractions) ; usage interdit détaillé ; limitation de responsabilité raisonnable (dommages directs prouvés ; faute lourde/dolosive et obligations impératives non exclues) ; clause de preuve (journaux, horodatages, acceptations).
 
 ## 1. Objet
 Les CGU encadrent l'accès et l'utilisation de GarageFlow en version pilote : réception et suivi de demandes de rendez-vous, gestion de clients et véhicules, création et envoi de devis, acceptation/refus du devis en ligne par le client.

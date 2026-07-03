@@ -1,8 +1,10 @@
 # GarageFlow — Conditions du pilote garage (référence interne)
 
-> **Note interne** : Documents préparés pour le pilote. Relecture juridique recommandée avant commercialisation large, signature de contrats payants importants ou traitement à grande échelle. La version publique fait foi : page **/pilot-agreement** (source : `src/features/legal/PilotAgreementPage.tsx`, valeurs dans `src/config/legal.ts`).
+> **Note interne** : Relecture juridique recommandée avant commercialisation large, contrat payant important, traitement à grande échelle ou ajout de documents sensibles. La version publique fait foi : page **/pilot-agreement** (source : `src/features/legal/PilotAgreementPage.tsx`, valeurs dans `src/config/legal.ts`).
 
-Dernière mise à jour : 2026-07-02
+Version du document : 2026-07-02 · Dernière mise à jour : 2026-07-02
+
+**Renforcements 2026-07-02** : acceptation multi-modes horodatée (compte, coche explicite, usage, écrit séparé) ; prolongation uniquement par écrit/email ; périmètre exclu élargi (fiscalité, diagnostic, expertise, garantie mécanique, assurance) ; conditions financières explicites ; clause forte de responsabilité (le garage décide seul de réparer/facturer/garantir/diagnostiquer) ; **plafond de responsabilité : 100 € si pilote gratuit, montant payé sur 3 mois si accord payant, hors faute lourde/dolosive et obligations impératives** ; confidentialité réciproque ; résiliation par email (immédiate en cas d'abus) ; non-référence commerciale sans accord écrit.
 
 ## 1. Objet
 Cadre d'un pilote GarageFlow entre RODANBTECH et un garage participant : test d'un outil de gestion des demandes de rendez-vous, véhicules, devis et acceptation client.

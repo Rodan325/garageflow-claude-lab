@@ -1,44 +1,45 @@
 # GarageFlow — Checklist de préparation légale (pilote)
 
-> **Note interne** : Documents préparés pour le pilote. Relecture juridique recommandée avant commercialisation large, signature de contrats payants importants ou traitement à grande échelle.
+> **Note interne** : Relecture juridique recommandée avant commercialisation large, contrat payant important, traitement à grande échelle ou ajout de documents sensibles.
 
-Source unique des informations publiques : `src/config/legal.ts` (test anti-placeholder : `src/config/legal.test.ts`).
+Source unique des informations publiques : `src/config/legal.ts` (versions : `legalVersions`, docs requis par rôle : `REQUIRED_LEGAL_DOCS`, test anti-placeholder : `src/config/legal.test.ts`).
 
 ## Pages légales publiques
-- [x] `/legal` — Mentions légales présente
-- [x] `/privacy` — Politique de confidentialité présente
-- [x] `/terms` — CGU présentes
-- [x] `/pilot-agreement` — Contrat pilote disponible
-- [x] `/dpa` — DPA disponible
-- [x] Footer légal (`LegalFooter`) présent partout : landing, login, signup, espace client, espace garage, devis public `/devis/:token`
-- [x] Liens légaux dans les formulaires : signup (CGU + confidentialité), réservation (consentement + confidentialité), devis public (confidentialité + CGU)
-- [x] Espace garage : liens Contrat pilote + DPA via le footer légal
+- [x] `/legal` — Mentions légales (version affichée)
+- [x] `/privacy` — Politique de confidentialité (résumé rapide + tableau des données, version affichée)
+- [x] `/terms` — CGU renforcées (définitions, acceptation, limitation de responsabilité raisonnable, preuve, version affichée)
+- [x] `/pilot-agreement` — Contrat pilote détaillé (acceptation, durée, périmètre inclus/exclu, financier, plafond 100 € / 3 mois, résiliation, non-référence)
+- [x] `/dpa` — DPA proche de l'article 28 RGPD (instructions documentées, sous-traitants, transferts, audit raisonnable, sort des données)
+- [x] Footer légal (`LegalFooter`) présent partout : landing, login, signup, espace client, espace garage, devis public
+- [x] Note publique assumée (« version pilote ») — la mention « à faire relire » reste **interne uniquement**
+
+## Acceptation obligatoire & traçable
+- [x] **Versionnement** des documents (`legalVersions`) — version affichée sur chaque page
+- [x] **Table `legal_acceptances`** (migration 0021) : user, rôle, document, version, horodatage, user-agent, contexte — **append-only** (pas de policy update/delete), jamais exposée à l'anon
+- [x] **Signup client** : case d'acceptation obligatoire non pré-cochée (CGU + confidentialité, versions affichées) + enregistrement automatique après inscription
+- [x] **LegalAcceptanceGate** : blocage post-connexion tant que les documents requis (version courante) ne sont pas acceptés — client : CGU + confidentialité ; garage : CGU + confidentialité + contrat pilote + DPA ; nouvelle version ⇒ nouvelle acceptation demandée
+- [x] **Acceptation différenciée client / garage** (`REQUIRED_LEGAL_DOCS`)
+- [x] **Page `/pro/legal-status`** : documents applicables, versions acceptées, dates, statut accepté/manquant, liens
+- [x] **Preuve devis** : acceptation horodatée + versions CGU/confidentialité stampées sur le devis (`accepted_terms_version`, `accepted_privacy_version`) + texte de confirmation avec liens
+- [x] Mode démo non bloqué (gate et journal désactivés sans Supabase)
 
 ## Informations éditeur (réelles, sans placeholder)
-- [x] Email professionnel présent (anas.rodriguez@rodanbtech.com)
-- [x] Téléphone professionnel présent (+33 7 81 18 93 65)
-- [x] SIREN présent (103 878 187) / SIRET présent (103 878 187 00014)
-- [x] Adresse du siège présente (47 RUE VIVIENNE, 75002 PARIS, France)
-- [x] Immatriculation RNE présente (17/04/2026)
-- [x] Hébergeur frontend indiqué (Vercel Inc.)
-- [x] Prestataire technique indiqué (Supabase, Inc. — base de données, auth, infrastructure)
-- [x] Test anti-placeholder vert (`npm run test` → `legal.test.ts`)
+- [x] Email professionnel (anas.rodriguez@rodanbtech.com) · Téléphone (+33 7 81 18 93 65)
+- [x] SIREN (103 878 187) / SIRET (103 878 187 00014) · Adresse (47 RUE VIVIENNE, 75002 PARIS, France) · RNE (17/04/2026)
+- [x] Hébergeur frontend (Vercel Inc.) · Prestataire technique (Supabase, Inc.)
+- [x] Test anti-placeholder + versions + docs requis verts (`npm run test` → `legal.test.ts`)
 
 ## Périmètre pilote (verrouillé)
-- [x] Pas de documents sensibles pendant le pilote (carte grise, assurance, CT, factures, identité, bancaire, santé)
-- [x] Pas d'analytics marketing pendant le pilote
-- [x] Pas de cookies publicitaires
-- [x] Pas de paiement en ligne dans l'app
+- [x] Pas de documents sensibles · pas d'analytics marketing · pas de cookies publicitaires · pas de paiement en ligne
 
 ## Sécurité & données
-- [x] Données cloisonnées client/garage (RLS par garage, véhicule client partagé par consentement révocable)
-- [x] RLS 60/60 (`npm run test:rls`)
-- [x] Security scan OK (`npm run security:scan` — aucun secret frontend)
-- [x] Politique de mot de passe renforcée ; erreurs de connexion génériques
+- [x] Données cloisonnées client/garage (RLS) ; véhicule client partagé par consentement révocable
+- [x] RLS **68/68** (`npm run test:rls`) — dont 8 tests `legal_acceptances` (insert/lecture strictement personnels, anon exclu)
+- [x] Security scan OK (`npm run security:scan`)
 
 ## Avant commercialisation large (à faire)
 - [ ] **Validation juridique** des 5 documents par un professionnel du droit
-- [ ] Politique de conservation détaillée par catégorie de données
-- [ ] Vérification région UE Supabase + garanties de transfert (clauses contractuelles types)
-- [ ] DPA signé avec chaque garage payant ; traçage horodaté de l'acceptation des CGU
+- [ ] DPA signé bilatéralement avec chaque garage payant
+- [ ] Politique de conservation détaillée par catégorie ; vérification région UE Supabase + garanties de transfert
 - [ ] Numéro de TVA intracommunautaire une fois obtenu → mettre à jour `src/config/legal.ts`
+- [ ] À chaque évolution substantielle d'un document : incrémenter sa version dans `legalVersions` (la gate redemandera l'acceptation)

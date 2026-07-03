@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, Settings, Tags, Users, Wrench, X,
+  CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, ScrollText, Settings, Tags, Users, Wrench, X,
 } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
@@ -79,6 +79,10 @@ export function ProShell() {
         <NavLink to="/pro/settings" onClick={() => setOpen(false)} className={cn(itemClass, 'mt-1')}>
           <Settings className="h-[18px] w-[18px]" />
           <span className="flex-1">Paramètres</span>
+        </NavLink>
+        <NavLink to="/pro/legal-status" onClick={() => setOpen(false)} className={itemClass}>
+          <ScrollText className="h-[18px] w-[18px]" />
+          <span className="flex-1">Statut légal</span>
         </NavLink>
       </nav>
 

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { legalConfig } from './legal'
+import {
+  legalConfig,
+  legalVersions,
+  LEGAL_DOCUMENT_VERSIONS,
+  LEGAL_DOCUMENT_META,
+  REQUIRED_LEGAL_DOCS,
+} from './legal'
 
 /** Termes qui ne doivent JAMAIS apparaître dans une valeur légale publique. */
 const FORBIDDEN = [
@@ -52,6 +58,27 @@ describe('legalConfig — informations réelles RODANBTECH', () => {
       }
       expect(value.trim().length, `"${path}" est vide`).toBeGreaterThan(0)
     }
+  })
+
+  it('les versions légales sont renseignées et cohérentes', () => {
+    for (const [key, version] of Object.entries(legalVersions)) {
+      expect(version.trim().length, `legalVersions.${key} est vide`).toBeGreaterThan(0)
+      expect(version, `legalVersions.${key} doit être une date AAAA-MM-JJ`).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    }
+    // Chaque type de document connu a une version courante et des métadonnées d'affichage.
+    for (const doc of ['terms', 'privacy', 'pilot_agreement', 'dpa', 'legal_notice'] as const) {
+      expect(LEGAL_DOCUMENT_VERSIONS[doc]?.trim().length).toBeGreaterThan(0)
+      expect(LEGAL_DOCUMENT_META[doc].label.trim().length).toBeGreaterThan(0)
+      expect(LEGAL_DOCUMENT_META[doc].route.startsWith('/')).toBe(true)
+    }
+  })
+
+  it('les documents requis par rôle sont corrects', () => {
+    expect(REQUIRED_LEGAL_DOCS.client).toEqual(['terms', 'privacy'])
+    expect(REQUIRED_LEGAL_DOCS.garage).toEqual(['terms', 'privacy', 'pilot_agreement', 'dpa'])
+    expect(REQUIRED_LEGAL_DOCS.admin).toEqual(['terms', 'privacy'])
+    // le garage doit toujours accepter AU MOINS ce que le client accepte
+    for (const doc of REQUIRED_LEGAL_DOCS.client) expect(REQUIRED_LEGAL_DOCS.garage).toContain(doc)
   })
 
   it('le périmètre pilote est verrouillé (pas de paiement, pas de documents sensibles)', () => {

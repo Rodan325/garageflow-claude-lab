@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,6 +10,8 @@ import { Logo } from '@/components/common/Logo'
 import { LegalFooter } from '@/components/common/LegalFooter'
 import { useToast } from '@/components/ui/toast'
 import { passwordIssue, passwordStrength } from '@/lib/password'
+import { legalVersions } from '@/config/legal'
+import { recordMultipleLegalAcceptances } from '@/features/legal/legalAcceptance'
 import { useAuth } from './AuthProvider'
 
 const schema = z.object({
@@ -21,6 +23,7 @@ const schema = z.object({
     if (issue) ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue })
   }),
   consent: z.literal(true, { errorMap: () => ({ message: 'Le consentement est requis' }) }),
+  legalConsent: z.literal(true, { errorMap: () => ({ message: 'L’acceptation des conditions est requise' }) }),
 })
 type Form = z.infer<typeof schema>
 
@@ -37,9 +40,30 @@ export function SignupPage() {
   const pw = watch('password') ?? ''
   const strength = passwordStrength(pw)
 
+  // After a successful signup, record the legal acceptances (terms + privacy,
+  // versioned + timestamped) BEFORE entering the app. If recording fails, the
+  // LegalAcceptanceGate still blocks the app until acceptance succeeds.
+  const recorded = useRef(false)
   useEffect(() => {
-    if (done && ready && session && accountType === 'client') navigate(redirect || '/app', { replace: true })
-  }, [done, ready, session, accountType, redirect, navigate])
+    if (!(done && ready && session && accountType === 'client')) return
+    if (recorded.current) return
+    recorded.current = true
+    recordMultipleLegalAcceptances(
+      [
+        { documentType: 'terms', version: legalVersions.terms },
+        { documentType: 'privacy', version: legalVersions.privacy },
+      ],
+      'client',
+      'signup',
+    )
+      .catch(() => {
+        toast.error(
+          'Acceptation à confirmer',
+          'Votre acceptation des conditions n’a pas pu être enregistrée — elle vous sera redemandée.',
+        )
+      })
+      .finally(() => navigate(redirect || '/app', { replace: true }))
+  }, [done, ready, session, accountType, redirect, navigate, toast])
 
   const onSubmit = async (data: Form) => {
     setSubmitting(true)
@@ -107,13 +131,22 @@ export function SignupPage() {
             </span>
           </label>
 
+          <label className="flex items-start gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-input" {...register('legalConsent')} />
+            <span>
+              J’accepte les{' '}
+              <Link to="/terms" target="_blank" className="font-medium text-primary hover:underline">Conditions d’utilisation</Link>{' '}
+              (version {legalVersions.terms}) et je reconnais avoir pris connaissance de la{' '}
+              <Link to="/privacy" target="_blank" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>{' '}
+              (version {legalVersions.privacy}).{' '}
+              {errors.legalConsent && <span className="font-medium text-danger">{errors.legalConsent.message}</span>}
+            </span>
+          </label>
+
           <Button type="submit" className="w-full" loading={submitting}>Créer mon compte</Button>
 
           <p className="text-center text-xs text-muted-foreground">
-            En créant un compte, vous acceptez les{' '}
-            <Link to="/terms" className="font-medium text-primary hover:underline">Conditions d’utilisation</Link>{' '}
-            et vous reconnaissez avoir pris connaissance de la{' '}
-            <Link to="/privacy" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>.
+            Votre acceptation est horodatée et conservée dans un journal d’acceptation.
           </p>
         </form>
 

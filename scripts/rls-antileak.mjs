@@ -333,6 +333,66 @@ async function main() {
     }
   }
 
+  // 9) LEGAL ACCEPTANCES — journal d'acceptation strictement personnel
+  console.log('\nAcceptations légales — journal personnel (RLS)')
+  {
+    const cl = await clientFor('client@demo.fr', 'Demo1234!')
+    const gA = await clientFor('owner@demo-garage.fr', 'Demo1234!')
+    const anonC = createClient(url, anon, { auth: { persistSession: false } })
+    const { data: clMe } = await cl.auth.getUser()
+    const { data: gaMe } = await gA.auth.getUser()
+    const clUid = clMe?.user?.id
+    const gaUid = gaMe?.user?.id
+    const VERSION = '2026-07-02'
+
+    // Insertion idempotente : une acceptation légitime pour les comptes de démo
+    // (le journal est append-only, ces lignes restent — elles servent aussi à la gate).
+    const ensureOwn = async (client, uid, role, doc) => {
+      const { data: exist } = await client.from('legal_acceptances')
+        .select('id').eq('user_id', uid).eq('document_type', doc).eq('document_version', VERSION).limit(1)
+      if ((exist ?? []).length > 0) return { error: null }
+      return client.from('legal_acceptances').insert({
+        user_id: uid, role, document_type: doc, document_version: VERSION,
+        acceptance_context: 'legal_gate', user_agent: 'rls-antileak-test',
+      })
+    }
+
+    const insCl = await ensureOwn(cl, clUid, 'client', 'terms')
+    await ensureOwn(cl, clUid, 'client', 'privacy')
+    check('client insère SA propre acceptation', !insCl.error, insCl.error?.message)
+
+    const forged = await cl.from('legal_acceptances').insert({
+      user_id: gaUid, role: 'client', document_type: 'terms', document_version: VERSION,
+      acceptance_context: 'legal_gate',
+    }).select()
+    check('client ne peut PAS insérer une acceptation pour un autre user', !!forged.error || (forged.data ?? []).length === 0)
+
+    const clRead = await cl.from('legal_acceptances').select('*')
+    check('client lit ses propres acceptations', (clRead.data ?? []).length >= 1
+      && (clRead.data ?? []).every((r) => r.user_id === clUid))
+
+    const insGa = await ensureOwn(gA, gaUid, 'garage', 'terms')
+    await ensureOwn(gA, gaUid, 'garage', 'privacy')
+    await ensureOwn(gA, gaUid, 'garage', 'pilot_agreement')
+    await ensureOwn(gA, gaUid, 'garage', 'dpa')
+    check('garage insère SES propres acceptations', !insGa.error, insGa.error?.message)
+
+    const gaRead = await gA.from('legal_acceptances').select('*')
+    check('garage lit ses propres acceptations', (gaRead.data ?? []).length >= 1
+      && (gaRead.data ?? []).every((r) => r.user_id === gaUid))
+
+    const gaCross = await gA.from('legal_acceptances').select('*').eq('user_id', clUid)
+    check('garage ne lit PAS les acceptations d’un autre user', (gaCross.data ?? []).length === 0)
+
+    const anonRead = await anonC.from('legal_acceptances').select('*')
+    check('anon ne lit pas la table des acceptations', (anonRead.data ?? []).length === 0)
+
+    const anonIns = await anonC.from('legal_acceptances').insert({
+      user_id: clUid, role: 'client', document_type: 'terms', document_version: VERSION,
+    }).select()
+    check('anon ne peut pas insérer d’acceptation', !!anonIns.error || (anonIns.data ?? []).length === 0)
+  }
+
   console.log(`\nRésultat : ${pass} réussis, ${fail} échoués\n`)
   process.exit(fail === 0 ? 0 : 1)
 }

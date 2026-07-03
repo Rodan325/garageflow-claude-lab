@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
 import { Spinner } from '@/components/ui/feedback'
+import { LegalAcceptanceGate } from '@/features/legal/LegalAcceptanceGate'
 
 function FullScreen() {
   return (
@@ -10,22 +11,24 @@ function FullScreen() {
   )
 }
 
-/** Gate for the Pro back-office: authenticated garage staff OR garage demo. */
+/** Gate for the Pro back-office: authenticated garage staff OR garage demo.
+ *  A staff user must also have accepted the current legal documents. */
 export function RequireStaff({ children }: { children: React.ReactNode }) {
   const { ready, authed, isStaff } = useAuth()
   const loc = useLocation()
   if (!ready) return <FullScreen />
   if (!authed) return <Navigate to={`/login?redirect=${encodeURIComponent(loc.pathname)}`} replace />
   if (!isStaff) return <Navigate to="/app" replace />
-  return <>{children}</>
+  return <LegalAcceptanceGate role="garage">{children}</LegalAcceptanceGate>
 }
 
-/** Gate for client-only pages: authenticated client OR client demo. */
+/** Gate for client-only pages: authenticated client OR client demo.
+ *  A client must also have accepted the current legal documents. */
 export function RequireClientAuth({ children }: { children: React.ReactNode }) {
   const { ready, authed, isStaff } = useAuth()
   const loc = useLocation()
   if (!ready) return <FullScreen />
   if (!authed) return <Navigate to={`/login?redirect=${encodeURIComponent(loc.pathname)}`} replace />
   if (isStaff) return <Navigate to="/pro" replace />
-  return <>{children}</>
+  return <LegalAcceptanceGate role="client">{children}</LegalAcceptanceGate>
 }

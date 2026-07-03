@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
-import { legalConfig as c } from '@/config/legal'
+import { legalConfig as c, legalVersions } from '@/config/legal'
 import { LegalLayout, H2, P, UL, MailLink, ExtLink } from './LegalLayout'
 
 export function LegalPage() {
   return (
-    <LegalLayout title="Mentions légales">
+    <LegalLayout title="Mentions légales" version={legalVersions.legalNotice}>
       <H2>Éditeur du site</H2>
       <P>{c.appName} est édité par :</P>
       <UL

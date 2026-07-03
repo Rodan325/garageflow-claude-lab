@@ -681,6 +681,42 @@ export type Database = {
         }
         Relationships: []
       }
+      legal_acceptances: {
+        Row: {
+          acceptance_context: string
+          accepted_at: string
+          created_at: string
+          document_type: string
+          document_version: string
+          id: string
+          role: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          acceptance_context?: string
+          accepted_at?: string
+          created_at?: string
+          document_type: string
+          document_version: string
+          id?: string
+          role: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          acceptance_context?: string
+          accepted_at?: string
+          created_at?: string
+          document_type?: string
+          document_version?: string
+          id?: string
+          role?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           account_type: string
@@ -778,6 +814,8 @@ export type Database = {
       quotes: {
         Row: {
           accepted_at: string | null
+          accepted_privacy_version: string | null
+          accepted_terms_version: string | null
           client_email: string | null
           client_name: string | null
           client_phone: string | null
@@ -807,6 +845,8 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          accepted_privacy_version?: string | null
+          accepted_terms_version?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
@@ -836,6 +876,8 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          accepted_privacy_version?: string | null
+          accepted_terms_version?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
@@ -1286,7 +1328,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_quote_public: { Args: { p_token: string }; Returns: Json }
+      accept_quote_public: {
+        Args: { p_token: string; p_terms_version?: string; p_privacy_version?: string }
+        Returns: Json
+      }
       create_quote_with_lines: {
         Args: { p_lines: Json; p_quote: Json }
         Returns: {

@@ -65,3 +65,45 @@ export const legalConfig = {
     sensitiveDocumentsEnabled: false,
   },
 }
+
+/**
+ * Versions des documents légaux. Toute page légale affiche sa version ;
+ * chaque acceptation est enregistrée AVEC la version acceptée. Incrémenter
+ * une version (nouvelle date) redemande l'acceptation aux utilisateurs
+ * concernés via la LegalAcceptanceGate.
+ */
+export const legalVersions = {
+  terms: '2026-07-02',
+  privacy: '2026-07-02',
+  pilotAgreement: '2026-07-02',
+  dpa: '2026-07-02',
+  legalNotice: '2026-07-02',
+}
+
+export type LegalDocumentType = 'terms' | 'privacy' | 'pilot_agreement' | 'dpa' | 'legal_notice'
+export type LegalRole = 'client' | 'garage' | 'admin'
+
+/** Version courante d'un document (clé table → clé legalVersions). */
+export const LEGAL_DOCUMENT_VERSIONS: Record<LegalDocumentType, string> = {
+  terms: legalVersions.terms,
+  privacy: legalVersions.privacy,
+  pilot_agreement: legalVersions.pilotAgreement,
+  dpa: legalVersions.dpa,
+  legal_notice: legalVersions.legalNotice,
+}
+
+/** Documents dont l'acceptation est OBLIGATOIRE selon le rôle. */
+export const REQUIRED_LEGAL_DOCS: Record<LegalRole, LegalDocumentType[]> = {
+  client: ['terms', 'privacy'],
+  garage: ['terms', 'privacy', 'pilot_agreement', 'dpa'],
+  admin: ['terms', 'privacy'],
+}
+
+/** Métadonnées d'affichage des documents (gate, page de statut, footer). */
+export const LEGAL_DOCUMENT_META: Record<LegalDocumentType, { label: string; route: string }> = {
+  terms: { label: 'Conditions d’utilisation', route: '/terms' },
+  privacy: { label: 'Politique de confidentialité', route: '/privacy' },
+  pilot_agreement: { label: 'Conditions du pilote garage', route: '/pilot-agreement' },
+  dpa: { label: 'Accord de sous-traitance RGPD', route: '/dpa' },
+  legal_notice: { label: 'Mentions légales', route: '/legal' },
+}

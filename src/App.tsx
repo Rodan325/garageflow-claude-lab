@@ -40,6 +40,7 @@ import { PrivacyPage } from '@/features/legal/PrivacyPage'
 import { TermsPage } from '@/features/legal/TermsPage'
 import { PilotAgreementPage } from '@/features/legal/PilotAgreementPage'
 import { DpaPage } from '@/features/legal/DpaPage'
+import { LegalStatusPage } from '@/features/legal/LegalStatusPage'
 import { NotFoundPage } from '@/features/marketing/NotFoundPage'
 
 export function App() {
@@ -67,6 +68,7 @@ export function App() {
           <Route path="quotes/:id" element={<QuoteEditorPage />} />
           <Route path="team" element={<TeamPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="legal-status" element={<LegalStatusPage />} />
         </Route>
 
         <Route path="/print/quote/:id" element={<RequireStaff><QuotePrintPage /></RequireStaff>} />
