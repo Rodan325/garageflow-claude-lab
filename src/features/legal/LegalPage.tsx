@@ -27,23 +27,31 @@ export function LegalPage() {
         ]}
       />
 
-      <H2>Hébergement</H2>
-      <P><strong>Frontend :</strong></P>
+      <H2>Domaine et email</H2>
       <UL
         items={[
-          c.frontendHostName,
-          c.frontendHostAddress,
-          <ExtLink href={c.frontendHostWebsite} />,
-          <>Téléphone / contact hébergeur : {c.frontendHostContact}</>,
+          <>Gestion du domaine : {c.domainProviderName}</>,
+          <>Email professionnel : {c.emailProviderName}</>,
         ]}
       />
-      <P><strong>Infrastructure technique :</strong></P>
+
+      <H2>Hébergement de l’application</H2>
+      <UL
+        items={[
+          <>Application {c.appName} : {c.frontendHostName}</>,
+          <>Adresse : {c.frontendHostAddress}</>,
+          <>Site : <ExtLink href={c.frontendHostWebsite} /></>,
+          <>Contact légal : {c.frontendHostContact}</>,
+        ]}
+      />
+
+      <H2>Infrastructure technique</H2>
       <UL
         items={[
           c.backendProviderName,
           <ExtLink href={c.backendProviderWebsite} />,
           <>Usage : {c.backendPurpose}.</>,
-          <>Région des données : {c.backendDataRegionPublic}</>,
+          <>Région : {c.backendDataRegion}</>,
         ]}
       />
 

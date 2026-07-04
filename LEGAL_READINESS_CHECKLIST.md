@@ -37,8 +37,10 @@ Source unique des informations publiques : `src/config/legal.ts` (versions : `le
 - [x] RLS **68/68** (`npm run test:rls`) — dont 8 tests `legal_acceptances` (insert/lecture strictement personnels, anon exclu)
 - [x] Security scan OK (`npm run security:scan`)
 
-## Avant collecte de vraies données client (à faire)
-- [ ] **Vérifier et documenter la région Supabase exacte** (dashboard → Project Settings → Region) avant toute collecte de vraies données client ; reporter le résultat dans `src/config/legal.ts` (`backendDataRegion`) et confirmer l'adéquation UE / garanties de transfert.
+## Setup d'hébergement (vérifié)
+- [x] **Région Supabase vérifiée : eu-west-3 — West EU (Paris)** (dashboard → Project Settings → Region ; région européenne) — reportée dans `src/config/legal.ts` (`backendDataRegion`)
+- [x] **Hébergement application : Vercel** (Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA)
+- [x] **Domaine / email : Squarespace / Google Workspace selon configuration** (Squarespace gère le domaine ; il n'héberge pas l'application)
 
 ## Avant commercialisation large (à faire)
 - [ ] **Validation juridique** des 5 documents par un professionnel du droit

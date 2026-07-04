@@ -39,6 +39,12 @@ export const legalConfig = {
 
   employees: 'Unité non employeuse',
 
+  // Squarespace gère le domaine (et l'email selon la config) ; il N'héberge PAS
+  // l'application GarageFlow — celle-ci est déployée sur Vercel.
+  domainProviderName: 'Squarespace',
+  domainProviderPurpose: 'Gestion du domaine et, le cas échéant, configuration de l’email professionnel',
+  emailProviderName: 'Google Workspace / Squarespace, selon la configuration du domaine',
+
   frontendHostName: 'Vercel Inc.',
   frontendHostAddress: '440 N Barranca Ave #4133, Covina, CA 91723, États-Unis',
   frontendHostWebsite: 'https://vercel.com',
@@ -47,11 +53,10 @@ export const legalConfig = {
   backendProviderName: 'Supabase, Inc.',
   backendProviderWebsite: 'https://supabase.com',
   backendPurpose: 'Base de données, authentification et infrastructure technique',
-  // Valeur interne (jamais affichée telle quelle) — les pages publiques affichent
-  // une formulation propre ; la région exacte se vérifie dans le dashboard Supabase.
-  backendDataRegion: 'Région Supabase du projet pilote à renseigner selon le dashboard Supabase',
+  // Région réelle du projet Supabase pilote (vérifiée dans le dashboard : eu-west-3).
+  backendDataRegion: 'eu-west-3 — West EU (Paris)',
   backendDataRegionPublic:
-    'Région configurée dans le dashboard Supabase du projet pilote. Avant toute ouverture publique large, RODANBTECH vérifie que le choix de région et les garanties applicables sont adaptés au traitement.',
+    'Région Supabase du projet pilote : eu-west-3 — West EU (Paris). Les données du projet pilote sont hébergées dans une région européenne Supabase.',
 
   dpo: 'Aucun délégué à la protection des données désigné à ce stade',
   cnilWebsite: 'https://www.cnil.fr',
