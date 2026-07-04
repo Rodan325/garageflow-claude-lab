@@ -34,6 +34,7 @@ export function LegalPage() {
           c.frontendHostName,
           c.frontendHostAddress,
           <ExtLink href={c.frontendHostWebsite} />,
+          <>Téléphone / contact hébergeur : {c.frontendHostContact}</>,
         ]}
       />
       <P><strong>Infrastructure technique :</strong></P>
@@ -42,7 +43,7 @@ export function LegalPage() {
           c.backendProviderName,
           <ExtLink href={c.backendProviderWebsite} />,
           <>Usage : {c.backendPurpose}.</>,
-          <>Région : {c.backendDataRegion}</>,
+          <>Région des données : {c.backendDataRegionPublic}</>,
         ]}
       />
 

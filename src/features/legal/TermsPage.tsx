@@ -211,6 +211,10 @@ export function TermsPage() {
         Cette limitation ne s’applique pas en cas de faute lourde ou dolosive de {c.tradingName}, ni aux obligations
         légales impératives, ni aux droits qui ne peuvent être exclus par la loi.
       </P>
+      <P>
+        Lorsque l’utilisateur agit en qualité de consommateur, les présentes limitations ne privent pas l’utilisateur
+        des droits impératifs dont il bénéficie en vertu de la loi applicable.
+      </P>
 
       <H2>15. Preuve</H2>
       <P>

@@ -6,8 +6,12 @@ export function DpaPage() {
     <LegalLayout title="Accord de sous-traitance RGPD" version={legalVersions.dpa}>
       <H2>1. Objet</H2>
       <P>
-        Le présent accord encadre le traitement de données personnelles réalisé par {c.tradingName} pour le compte du
-        garage participant dans le cadre de la fourniture de {c.appName} pendant le pilote.
+        Le présent accord vise à encadrer les traitements réalisés par {c.tradingName} en qualité de sous-traitant
+        conformément à l’article 28 du Règlement général sur la protection des données (RGPD).
+      </P>
+      <P>
+        Il encadre le traitement de données personnelles réalisé par {c.tradingName} pour le compte du garage
+        participant dans le cadre de la fourniture de {c.appName} pendant le pilote.
       </P>
 
       <H2>2. Qualification des parties</H2>

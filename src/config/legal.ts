@@ -42,11 +42,16 @@ export const legalConfig = {
   frontendHostName: 'Vercel Inc.',
   frontendHostAddress: '440 N Barranca Ave #4133, Covina, CA 91723, États-Unis',
   frontendHostWebsite: 'https://vercel.com',
+  frontendHostContact: 'Contact légal disponible via https://vercel.com',
 
   backendProviderName: 'Supabase, Inc.',
   backendProviderWebsite: 'https://supabase.com',
   backendPurpose: 'Base de données, authentification et infrastructure technique',
-  backendDataRegion: 'Union européenne pour l’environnement pilote lorsque le projet Supabase est configuré en région UE. Le choix de région doit être vérifié avant toute ouverture publique large.',
+  // Valeur interne (jamais affichée telle quelle) — les pages publiques affichent
+  // une formulation propre ; la région exacte se vérifie dans le dashboard Supabase.
+  backendDataRegion: 'Région Supabase du projet pilote à renseigner selon le dashboard Supabase',
+  backendDataRegionPublic:
+    'Région configurée dans le dashboard Supabase du projet pilote. Avant toute ouverture publique large, RODANBTECH vérifie que le choix de région et les garanties applicables sont adaptés au traitement.',
 
   dpo: 'Aucun délégué à la protection des données désigné à ce stade',
   cnilWebsite: 'https://www.cnil.fr',

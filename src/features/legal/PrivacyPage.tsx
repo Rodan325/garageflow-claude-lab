@@ -11,13 +11,13 @@ const SUMMARY: { label: string; value: string }[] = [
 ]
 
 const DATA_TABLE: { data: string; nature: string; base: string; dest: string; duration: string }[] = [
-  { data: 'Identité & coordonnées (nom, email, téléphone)', nature: 'Obligatoire (compte / demande)', base: 'Exécution du service', dest: 'Garage concerné, RODANBTECH', duration: 'Durée du compte / pilote' },
-  { data: 'Informations de compte (authentification)', nature: 'Obligatoire', base: 'Exécution du service', dest: 'RODANBTECH (via Supabase Auth)', duration: 'Durée du compte' },
+  { data: 'Identité & coordonnées (nom, email, téléphone)', nature: 'Obligatoire (compte / demande)', base: 'Exécution du service', dest: 'Garage concerné, RODANBTECH', duration: 'Durée du compte, puis archivage limité ≤ 12 mois' },
+  { data: 'Informations de compte (authentification)', nature: 'Obligatoire', base: 'Exécution du service', dest: 'RODANBTECH (via Supabase Auth)', duration: 'Durée du compte, puis ≤ 12 mois après clôture' },
   { data: 'Véhicule (marque, modèle, année, carburant, km, plaque)', nature: 'Plaque et détails facultatifs', base: 'Consentement (partage avec le garage)', dest: 'Garage destinataire de la demande uniquement', duration: 'Durée du compte / pilote' },
-  { data: 'Demandes & messages', nature: 'Obligatoire pour le service', base: 'Exécution du service', dest: 'Garage concerné, RODANBTECH', duration: 'Durée du pilote' },
-  { data: 'Devis & statuts (acceptation/refus horodatés)', nature: 'Obligatoire pour le service', base: 'Exécution du service / mesures précontractuelles', dest: 'Garage émetteur, client destinataire', duration: 'Durée du pilote' },
-  { data: 'Acceptations légales (document, version, date)', nature: 'Obligatoire (preuve)', base: 'Intérêt légitime / obligation de preuve', dest: 'RODANBTECH', duration: 'Durée du compte + preuve' },
-  { data: 'Logs techniques limités', nature: 'Automatique', base: 'Intérêt légitime (sécurité)', dest: 'RODANBTECH', duration: 'Durée limitée (diagnostic/sécurité)' },
+  { data: 'Demandes & messages', nature: 'Obligatoire pour le service', base: 'Exécution du service', dest: 'Garage concerné, RODANBTECH', duration: 'Pilote, puis ≤ 12 mois sauf preuve' },
+  { data: 'Devis & statuts (acceptation/refus horodatés)', nature: 'Obligatoire pour le service', base: 'Exécution du service / mesures précontractuelles', dest: 'Garage émetteur, client destinataire', duration: 'Pilote ; ≤ 5 ans si accepté/refusé (preuve)' },
+  { data: 'Acceptations légales (document, version, date)', nature: 'Obligatoire (preuve)', base: 'Intérêt légitime / obligation de preuve', dest: 'RODANBTECH', duration: 'Durée du compte, puis ≤ 5 ans (preuve)' },
+  { data: 'Logs techniques limités', nature: 'Automatique', base: 'Intérêt légitime (sécurité)', dest: 'RODANBTECH', duration: '≤ 90 jours sauf incident de sécurité' },
 ]
 
 export function PrivacyPage() {
@@ -196,18 +196,19 @@ export function PrivacyPage() {
       <P>{c.appName} ne revend pas les données personnelles.</P>
 
       <H2>8. Durée de conservation</H2>
-      <P>Pendant le pilote :</P>
+      <P>Durées indicatives appliquées pendant le pilote :</P>
       <UL
         items={[
-          'les données de compte sont conservées pendant la durée du compte ou du pilote ;',
-          'les demandes et devis sont conservés pendant la durée du pilote ;',
-          'à la fin du pilote, le garage peut demander l’export ou la suppression des données ;',
-          'les données supprimées peuvent subsister temporairement dans des sauvegardes techniques avant suppression définitive ;',
-          'les logs techniques sont conservés pour une durée limitée nécessaire à la sécurité et au diagnostic.',
+          <><strong>Données de compte</strong> : durée du compte, puis suppression ou archivage limité sous 12 mois maximum après clôture, sauf obligation légale ou preuve nécessaire.</>,
+          <><strong>Demandes et messages du pilote</strong> : durée du pilote, puis export ou suppression sur demande du garage ; conservation maximale indicative de 12 mois après la fin du pilote, sauf accord contraire ou nécessité de preuve.</>,
+          <><strong>Devis et statuts</strong> : durée du pilote ; si un devis est accepté ou refusé, conservation possible jusqu’à 5 ans comme élément de preuve, sauf suppression compatible avec les obligations applicables.</>,
+          <><strong>Acceptations légales</strong> : durée du compte, puis jusqu’à 5 ans comme preuve de l’acceptation des documents applicables.</>,
+          <><strong>Logs techniques</strong> : 90 jours maximum, sauf incident de sécurité nécessitant une conservation plus longue.</>,
+          <><strong>Sauvegardes techniques</strong> : rotation/suppression technique sous 90 jours maximum lorsque le prestataire le permet.</>,
         ]}
       />
       <P>
-        Pour une commercialisation large, une politique de conservation plus détaillée pourra être établie selon les
+        Ces durées sont indicatives pour le pilote et pourront être ajustées avant commercialisation large selon les
         obligations légales, comptables et contractuelles applicables.
       </P>
 
