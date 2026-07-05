@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { normEmail, normPhone, normPlate } from '@/lib/normalize'
 import { computeQuoteTotals } from '@/lib/quoteTotals'
 import { clientQuoteLink, effectiveQuoteStatus, quoteSendBlockReason } from '@/lib/quoteStatus'
+import { isDemo, DEMO_QUOTE_LINK_HINT } from '@/lib/demo'
 import { QUOTE_STATUS_META } from '@/types/domain'
 import type { Customer, DefaultLine, Vehicle } from '@/types/domain'
 
@@ -286,7 +287,7 @@ export function QuoteEditorPage() {
       const row = await sendQuote.mutateAsync({ id: savedId, garageId: gid })
       const link = clientQuoteLink(row.client_token)
       if (link) await navigator.clipboard.writeText(link).catch(() => {})
-      toast.success('Devis envoyé au client', 'Lien de consultation copié dans le presse-papier')
+      toast.success('Devis envoyé au client', isDemo() ? DEMO_QUOTE_LINK_HINT : 'Lien de consultation copié dans le presse-papier')
       navigate('/pro/quotes')
     } catch (e) {
       toast.error('Envoi impossible', (e as Error).message)
@@ -328,7 +329,7 @@ export function QuoteEditorPage() {
               {existingQuote.client_token && (
                 <Button variant="outline" onClick={async () => {
                   const link = clientQuoteLink(existingQuote.client_token)
-                  if (link) { await navigator.clipboard.writeText(link).catch(() => {}); toast.success('Lien client copié') }
+                  if (link) { await navigator.clipboard.writeText(link).catch(() => {}); toast.success('Lien client copié', isDemo() ? DEMO_QUOTE_LINK_HINT : undefined) }
                 }}><Send className="h-4 w-4" /> Copier le lien client</Button>
               )}
               <Button onClick={revise} loading={reviseQuote.isPending}><RotateCcw className="h-4 w-4" /> Créer une révision du devis</Button>

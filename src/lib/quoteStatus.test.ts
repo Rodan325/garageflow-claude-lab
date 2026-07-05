@@ -6,6 +6,7 @@ import {
   canReviseQuote,
   clientCanRespond,
   quoteSendBlockReason,
+  clientQuoteLink,
 } from './quoteStatus'
 
 const NOW = new Date('2026-06-17T10:00:00Z')
@@ -72,5 +73,20 @@ describe('quoteSendBlockReason', () => {
   it('allows today or a future validity date', () => {
     expect(quoteSendBlockReason('2026-06-17', NOW)).toBeNull() // today
     expect(quoteSendBlockReason('2026-07-01', NOW)).toBeNull()
+  })
+})
+
+describe('clientQuoteLink', () => {
+  it('builds a HashRouter-safe share link from a token', () => {
+    const link = clientQuoteLink('demotoken123')
+    expect(link).not.toBeNull()
+    expect(link).toContain('#/devis/demotoken123')
+    expect(link!.startsWith(window.location.origin)).toBe(true)
+  })
+
+  it('returns null without a token', () => {
+    expect(clientQuoteLink(null)).toBeNull()
+    expect(clientQuoteLink(undefined)).toBeNull()
+    expect(clientQuoteLink('')).toBeNull()
   })
 })

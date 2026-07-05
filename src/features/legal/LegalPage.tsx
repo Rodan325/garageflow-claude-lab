@@ -60,8 +60,8 @@ export function LegalPage() {
 
       <H2>Version pilote</H2>
       <P>
-        {c.appName} est actuellement proposé en version pilote. Le service est susceptible d’évoluer avant une
-        commercialisation large.
+        Le service est actuellement en phase de test : son périmètre est volontairement limité et ses fonctionnalités
+        peuvent évoluer, être suspendues ou complétées avant une commercialisation plus large.
       </P>
 
       <H2>Propriété intellectuelle</H2>

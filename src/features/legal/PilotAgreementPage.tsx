@@ -41,6 +41,7 @@ export function PilotAgreementPage() {
       </P>
 
       <H2>5. Périmètre inclus</H2>
+      <P>Le pilote couvre les usages suivants :</P>
       <UL
         items={[
           'la réception et le suivi de demandes de rendez-vous ;',
@@ -52,6 +53,7 @@ export function PilotAgreementPage() {
       />
 
       <H2>6. Périmètre exclu</H2>
+      <P>À l’inverse, le pilote ne couvre pas, notamment :</P>
       <UL
         items={[
           'les documents sensibles (carte grise, assurance, contrôle technique, factures, identité, RIB…) ;',

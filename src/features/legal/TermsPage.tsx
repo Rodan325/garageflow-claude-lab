@@ -36,12 +36,13 @@ export function TermsPage() {
       />
 
       <H2>3. Acceptation des CGU</H2>
+      <P>L’acceptation des CGU est explicite et traçable :</P>
       <UL
         items={[
-          `l’utilisation de ${c.appName} implique l’acceptation des présentes CGU ;`,
-          'lors de la création de compte, l’utilisateur doit cocher une case d’acceptation explicite (aucune case n’est pré-cochée) ;',
-          'l’acceptation est horodatée et conservée dans un journal d’acceptation, avec la version du document acceptée ;',
-          'en cas de nouvelle version importante des CGU, une nouvelle acceptation pourra être demandée avant de poursuivre l’utilisation.',
+          `L’utilisation de ${c.appName} vaut acceptation des présentes CGU.`,
+          'Lors de la création d’un compte, l’utilisateur coche une case d’acceptation explicite ; aucune case n’est pré-cochée.',
+          'Chaque acceptation est horodatée et conservée dans un journal, avec la version du document accepté.',
+          'En cas de nouvelle version importante des CGU, une nouvelle acceptation peut être demandée avant de poursuivre.',
         ]}
       />
 
@@ -114,14 +115,17 @@ export function TermsPage() {
       />
 
       <H2>9. Devis et acceptation</H2>
+      <P>
+        {c.appName} sert à transmettre un devis entre un garage et son client. Le devis lui-même reste établi et chiffré
+        sous la seule responsabilité du garage.
+      </P>
       <UL
         items={[
-          `${c.appName} permet de transmettre un devis, mais le devis reste établi sous la responsabilité du garage ;`,
-          'le garage doit vérifier le devis avant envoi ;',
-          'le client doit lire le devis avant acceptation ;',
-          'l’acceptation du devis est horodatée, avec la version des documents applicables au moment de l’acceptation ;',
-          'l’acceptation ne remplace pas les obligations légales ou commerciales du garage ;',
-          `en cas de contradiction entre ${c.appName} et un document contractuel signé séparément, le document contractuel signé séparément peut prévaloir selon le contexte.`,
+          'Le garage vérifie le devis avant de l’envoyer.',
+          'Le client lit le devis avant de l’accepter ou de le refuser.',
+          'L’acceptation est horodatée et conserve la version des documents applicables à ce moment-là.',
+          'Cette acceptation ne remplace pas les obligations légales ou commerciales du garage.',
+          `Si ${c.appName} et un contrat signé séparément se contredisent, le contrat signé séparément peut prévaloir selon le contexte.`,
         ]}
       />
 
@@ -188,8 +192,9 @@ export function TermsPage() {
 
       <H2>14. Limitation de responsabilité</H2>
       <P>
-        Dans la limite permise par le droit applicable, {c.tradingName} ne pourra être responsable que des dommages
-        directs prouvés résultant d’un manquement imputable à {c.tradingName}.
+        {c.appName} est un outil technique fourni en version pilote. Dans la limite permise par le droit applicable, la
+        responsabilité de {c.tradingName} se limite aux dommages directs et prouvés résultant d’un manquement qui lui
+        est imputable.
       </P>
       <P>Sont notamment exclus :</P>
       <UL
@@ -208,8 +213,8 @@ export function TermsPage() {
         ]}
       />
       <P>
-        Cette limitation ne s’applique pas en cas de faute lourde ou dolosive de {c.tradingName}, ni aux obligations
-        légales impératives, ni aux droits qui ne peuvent être exclus par la loi.
+        Cette limitation ne joue pas en cas de faute lourde ou dolosive de {c.tradingName}, ni pour les obligations
+        légales impératives ou les droits qui ne peuvent être écartés par la loi.
       </P>
       <P>
         Lorsque l’utilisateur agit en qualité de consommateur, les présentes limitations ne privent pas l’utilisateur

@@ -5,6 +5,7 @@ import { ClientShell } from '@/components/shells/ClientShell'
 import { RequireClientAuth, RequireStaff } from '@/features/auth/guards'
 import { ConfigBanner } from '@/components/common/ConfigBanner'
 import { DemoBanner } from '@/components/common/DemoBanner'
+import { ScrollToTop } from '@/components/common/ScrollToTop'
 
 // Marketing
 import { HomePage } from '@/features/marketing/HomePage'
@@ -46,6 +47,7 @@ import { NotFoundPage } from '@/features/marketing/NotFoundPage'
 export function App() {
   return (
     <>
+      <ScrollToTop />
       <ConfigBanner />
       <DemoBanner />
       <Routes>

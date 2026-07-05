@@ -2,12 +2,13 @@ import { legalConfig as c, legalVersions } from '@/config/legal'
 import { LegalLayout, H2, P, UL, MailLink, ExtLink } from './LegalLayout'
 
 const SUMMARY: { label: string; value: string }[] = [
-  { label: 'Données collectées', value: 'Identité, coordonnées, compte, véhicule, demandes, messages, devis et statuts, logs techniques limités.' },
-  { label: 'Pourquoi', value: 'Permettre les demandes de rendez-vous, les devis et leur acceptation, le support et la sécurité du service.' },
+  { label: 'Données collectées', value: 'Identité, coordonnées, compte, véhicule, demandes, messages, devis et statuts, ainsi que des logs techniques limités.' },
+  { label: 'Pourquoi', value: 'Permettre les demandes de rendez-vous, les devis et leur acceptation, tout en assurant le support et la sécurité du service.' },
   { label: 'Qui y accède', value: 'Vous, le garage concerné par votre demande uniquement, RODANBTECH pour l’exploitation technique, et les prestataires strictement nécessaires (Supabase, Vercel).' },
-  { label: 'Combien de temps', value: 'Pendant la durée du compte ou du pilote, puis export ou suppression sur demande (sauvegardes techniques temporaires).' },
-  { label: 'Vos droits', value: 'Accès, rectification, suppression, limitation, opposition, portabilité, retrait du consentement.' },
-  { label: 'Contact', value: 'anas.rodriguez@rodanbtech.com — réclamation possible auprès de la CNIL.' },
+  { label: 'Durées principales', value: 'Les données de compte sont conservées pendant la durée du compte puis, le cas échéant, archivées de façon limitée jusqu’à 12 mois. Les devis acceptés ou refusés et les acceptations légales peuvent être conservés plus longtemps comme éléments de preuve, dans les limites indiquées ci-dessous.' },
+  { label: 'Vos droits', value: 'Accès, rectification, suppression, limitation, opposition, portabilité et retrait du consentement.' },
+  { label: 'Contact', value: 'anas.rodriguez@rodanbtech.com — une réclamation reste possible auprès de la CNIL.' },
+  { label: 'Ce qui est exclu pendant le pilote', value: 'Aucun document sensible, aucun paiement en ligne, aucun cookie publicitaire ni traceur marketing.' },
 ]
 
 const DATA_TABLE: { data: string; nature: string; base: string; dest: string; duration: string }[] = [
@@ -263,13 +264,14 @@ export function PrivacyPage() {
 
       <H2>12. Transferts hors Union européenne</H2>
       <P>
-        {c.appName} utilise des prestataires techniques pouvant être établis hors Union européenne, notamment{' '}
-        {c.frontendHostName} pour l’hébergement frontend et {c.backendProviderName} pour l’infrastructure technique.
+        Le projet Supabase utilisé pour le pilote est configuré en région {c.backendDataRegion} : les données du
+        pilote sont donc hébergées dans une région européenne.
       </P>
       <P>
-        Le projet Supabase de production doit être configuré en région Union européenne lorsque cela est disponible et
-        adapté au service. Avant une commercialisation large, les garanties contractuelles des prestataires, le choix
-        de région et les éventuels transferts hors Union européenne devront être vérifiés.
+        Certains prestataires techniques, notamment {c.frontendHostName} (hébergement de l’application) ou{' '}
+        {c.backendProviderName}, peuvent néanmoins être établis hors Union européenne. Avant toute commercialisation
+        large, {c.tradingName} vérifiera les garanties contractuelles applicables, le choix de région et les mesures
+        complémentaires éventuelles.
       </P>
 
       <H2>13. Modification de la politique</H2>

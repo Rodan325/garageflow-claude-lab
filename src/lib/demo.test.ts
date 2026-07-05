@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ensureStoreShape } from './demo'
+import { ensureStoreShape, isDemoQuoteToken, canResolveDemoPublicQuote, STORE_KEY } from './demo'
 
 describe('ensureStoreShape — demo store migration', () => {
   it('backfills missing array keys + quoteSeq from a legacy store (no quotes)', () => {
@@ -42,5 +42,27 @@ describe('ensureStoreShape — demo store migration', () => {
     // a full reseed carries the seed's demo quotes, so quoteSeq matches their count
     expect(typeof s.quoteSeq).toBe('number')
     expect(s.quoteSeq).toBe(s.quotes.length)
+  })
+})
+
+describe('demo quote token detection', () => {
+  it('detects demo tokens by the "demo" prefix', () => {
+    expect(isDemoQuoteToken('demoquoteacc123')).toBe(true)
+    expect(isDemoQuoteToken('demo' + 'abcdef')).toBe(true)
+    expect(isDemoQuoteToken(null)).toBe(false)
+    expect(isDemoQuoteToken(undefined)).toBe(false)
+    expect(isDemoQuoteToken('')).toBe(false)
+    // a real 64-hex Supabase token can never start with "demo" (no 'm'/'o' in hex)
+    expect(isDemoQuoteToken('a1b2c3d4e5f6a7b8c9d0')).toBe(false)
+  })
+
+  it('resolves a demo token only when a local store exists in this browser', () => {
+    localStorage.removeItem(STORE_KEY)
+    expect(canResolveDemoPublicQuote('demoquotesent123')).toBe(false)
+    localStorage.setItem(STORE_KEY, JSON.stringify({ quotes: [] }))
+    expect(canResolveDemoPublicQuote('demoquotesent123')).toBe(true)
+    // real tokens never resolve locally, even with a store present
+    expect(canResolveDemoPublicQuote('a1b2c3d4e5f6a7b8c9d0')).toBe(false)
+    localStorage.removeItem(STORE_KEY)
   })
 })

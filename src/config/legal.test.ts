@@ -47,6 +47,11 @@ describe('legalConfig — informations réelles RODANBTECH', () => {
     expect(legalConfig.privacyContactEmail).toBe(legalConfig.contactEmail)
   })
 
+  it('la région backend reflète la vraie région Supabase (eu-west-3)', () => {
+    expect(legalConfig.backendDataRegion).toContain('eu-west-3')
+    expect(legalConfig.backendDataRegionPublic).toContain('eu-west-3')
+  })
+
   it('aucune valeur publique ne contient de placeholder', () => {
     const strings: { path: string; value: string }[] = []
     collectStrings(legalConfig, '', strings)

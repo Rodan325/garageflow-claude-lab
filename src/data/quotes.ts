@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { isDemo, demo } from '@/lib/demo'
+import { isDemo, demo, canResolveDemoPublicQuote } from '@/lib/demo'
 import { legalVersions } from '@/config/legal'
 import type { Quote, QuoteLine } from '@/types/domain'
 import type { TablesInsert } from '@/types/database.types'
@@ -146,6 +146,12 @@ export function usePublicQuote(token?: string) {
     enabled: !!token,
     queryFn: async (): Promise<PublicQuoteView | null> => {
       if (isDemo()) return demo.getPublicQuote(token!)
+      // A demo link opened in a fresh tab (no active demo role): resolve it
+      // from the local store instead of asking Supabase for a token it can't have.
+      if (canResolveDemoPublicQuote(token)) {
+        const local = demo.getPublicQuote(token!)
+        if (local) return local
+      }
       const { data, error } = await supabase.rpc('get_quote_public', { p_token: token! })
       if (error) throw error
       return (data as unknown as PublicQuoteView | null) ?? null
@@ -158,6 +164,7 @@ export function useAcceptPublicQuote() {
   return useMutation({
     mutationFn: async ({ token }: { token: string }): Promise<PublicQuoteView> => {
       if (isDemo()) return demo.acceptPublicQuote(token)
+      if (canResolveDemoPublicQuote(token) && demo.getPublicQuote(token)) return demo.acceptPublicQuote(token)
       // Proof: stamp the CGU/privacy versions displayed at acceptance time.
       const { data, error } = await supabase.rpc('accept_quote_public', {
         p_token: token,
@@ -176,6 +183,7 @@ export function useDeclinePublicQuote() {
   return useMutation({
     mutationFn: async ({ token, reason }: { token: string; reason?: string | null }): Promise<PublicQuoteView> => {
       if (isDemo()) return demo.declinePublicQuote(token, reason ?? null)
+      if (canResolveDemoPublicQuote(token) && demo.getPublicQuote(token)) return demo.declinePublicQuote(token, reason ?? null)
       const { data, error } = await supabase.rpc('decline_quote_public', { p_token: token, p_reason: reason ?? undefined })
       if (error) throw error
       return data as unknown as PublicQuoteView

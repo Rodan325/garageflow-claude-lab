@@ -11,7 +11,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useQuotes } from '@/data/proData'
 import { useSendQuote, useReviseQuote } from '@/data/quotes'
 import { supabase } from '@/lib/supabase'
-import { isDemo, demo } from '@/lib/demo'
+import { isDemo, demo, DEMO_QUOTE_LINK_HINT } from '@/lib/demo'
 import { QUOTE_STATUS_META } from '@/types/domain'
 import { effectiveQuoteStatus, canSendQuote, canReviseQuote, clientQuoteLink, quoteSendBlockReason } from '@/lib/quoteStatus'
 import { euro, shortDate } from '@/lib/format'
@@ -29,7 +29,7 @@ export function QuotesPage() {
   async function copyLink(token: string | null) {
     const link = clientQuoteLink(token)
     if (!link) { toast.error('Lien indisponible'); return }
-    try { await navigator.clipboard.writeText(link); toast.success('Lien client copié') }
+    try { await navigator.clipboard.writeText(link); toast.success('Lien client copié', isDemo() ? DEMO_QUOTE_LINK_HINT : undefined) }
     catch { toast.error('Copie impossible', link) }
   }
 
@@ -47,7 +47,7 @@ export function QuotesPage() {
       const row = await sendQuote.mutateAsync({ id: q.id, garageId: garage.id })
       const link = clientQuoteLink(row.client_token)
       if (link) await navigator.clipboard.writeText(link).catch(() => {})
-      toast.success('Devis envoyé', 'Lien de consultation copié dans le presse-papier')
+      toast.success('Devis envoyé', isDemo() ? DEMO_QUOTE_LINK_HINT : 'Lien de consultation copié dans le presse-papier')
     } catch (e) {
       toast.error('Envoi impossible', (e as Error).message)
     } finally { setBusyId(null) }

@@ -45,6 +45,27 @@ export function clearDemo() {
   window.dispatchEvent(new Event('gf-demo-role'))
 }
 
+/**
+ * A demo quote share-link may be opened in a NEW tab that hasn't entered demo
+ * mode (the active role lives in sessionStorage, per-tab). Demo tokens always
+ * start with "demo"; a real Supabase token is 64 hex chars and can never start
+ * with "demo" (it contains no 'm'/'o'), so this never shadows a real link.
+ */
+export function isDemoQuoteToken(token?: string | null): boolean {
+  return !!token && token.startsWith('demo')
+}
+
+/** True when a demo token can be resolved from THIS browser's local store. */
+export function canResolveDemoPublicQuote(token?: string | null): boolean {
+  if (!isDemoQuoteToken(token)) return false
+  if (typeof window === 'undefined') return false
+  return !!localStorage.getItem(STORE_KEY)
+}
+
+/** Discreet note shown when a demo garage copies a client quote link. */
+export const DEMO_QUOTE_LINK_HINT =
+  'En mode démo, ce lien fonctionne dans ce navigateur. Pour une démo sur téléphone ou un autre appareil, utilisez un vrai compte Supabase.'
+
 const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 const today = () => new Date()
 const isoIn = (days: number) => {
