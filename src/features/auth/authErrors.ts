@@ -20,7 +20,18 @@ export function mapAuthError(error: unknown): string {
     return 'Un compte existe peut-être déjà avec cette adresse. Essayez de vous connecter ou de réinitialiser votre mot de passe.'
   }
 
-  if (m.includes('failed to fetch') || m.includes('network') || m.includes('load failed')) {
+  if (m.includes('email not confirmed') || m.includes('not confirmed') || m.includes('email_not_confirmed')) {
+    return 'Vérifiez votre email avant de vous connecter.'
+  }
+
+  if (
+    m.includes('failed to fetch') ||
+    m.includes('network') ||
+    m.includes('load failed') ||
+    m.includes('invalid api key') ||
+    m.includes('api key') ||
+    m.includes('apikey')
+  ) {
     return 'Connexion au service impossible. Réessayez dans quelques instants.'
   }
 

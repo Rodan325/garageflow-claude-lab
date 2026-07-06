@@ -7,11 +7,18 @@ describe('mapAuthError', () => {
     expect(mapAuthError({ message: 'Email address has already been registered' })).toMatch(/compte existe peut-être déjà/i)
   })
 
-  it('maps a network error to a retry message (never raw "Failed to fetch")', () => {
-    const msg = mapAuthError({ message: 'Failed to fetch' })
-    expect(msg).toMatch(/Connexion au service impossible/i)
-    expect(msg).not.toMatch(/failed to fetch/i)
+  it('maps a network / api-key error to a retry message (never raw technical text)', () => {
+    const net = mapAuthError({ message: 'Failed to fetch' })
+    expect(net).toMatch(/Connexion au service impossible/i)
+    expect(net).not.toMatch(/failed to fetch/i)
     expect(mapAuthError(new TypeError('NetworkError when attempting to fetch resource'))).toMatch(/Connexion au service impossible/i)
+    const key = mapAuthError({ message: 'Invalid API key' })
+    expect(key).toMatch(/Connexion au service impossible/i)
+    expect(key).not.toMatch(/api key/i)
+  })
+
+  it('maps an unconfirmed-email error to a clear instruction', () => {
+    expect(mapAuthError({ message: 'Email not confirmed' })).toMatch(/Vérifiez votre email avant de vous connecter/i)
   })
 
   it('passes through unknown messages and falls back when empty', () => {

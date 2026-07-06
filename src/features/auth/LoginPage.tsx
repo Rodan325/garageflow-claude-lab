@@ -7,9 +7,11 @@ import { Building2, FlaskConical, Smartphone, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Field, Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Logo } from '@/components/common/Logo'
 import { LegalFooter } from '@/components/common/LegalFooter'
 import { useToast } from '@/components/ui/toast'
+import { mapAuthError } from './authErrors'
 import { useAuth } from './AuthProvider'
 
 const schema = z.object({
@@ -40,8 +42,14 @@ export function LoginPage() {
     const { error } = await signIn(data.email, data.password)
     setSubmitting(false)
     if (error) {
-      // Generic message on purpose: never reveal whether the email exists.
-      toast.error('Connexion impossible', 'Email ou mot de passe incorrect.')
+      const low = error.toLowerCase()
+      if (low.includes('invalid login credentials') || low.includes('invalid credentials')) {
+        // Generic on purpose: never reveal whether the email exists.
+        toast.error('Connexion impossible', 'Email ou mot de passe incorrect.')
+      } else {
+        // Unconfirmed email, network, API-key… → a clear, non-technical message.
+        toast.error('Connexion impossible', mapAuthError(error))
+      }
       return
     }
     setJustLoggedIn(true)
@@ -122,7 +130,7 @@ export function LoginPage() {
               <Input id="email" type="email" autoComplete="email" placeholder="vous@garage.fr" {...register('email')} />
             </Field>
             <Field label="Mot de passe" htmlFor="password" error={errors.password?.message}>
-              <Input id="password" type="password" autoComplete="current-password" placeholder="••••••••" {...register('password')} />
+              <PasswordInput id="password" autoComplete="current-password" placeholder="••••••••" {...register('password')} />
             </Field>
             <Button type="submit" className="w-full" loading={submitting} disabled={!configured}>
               Se connecter

@@ -2,30 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Field, Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Logo } from '@/components/common/Logo'
 import { LegalFooter } from '@/components/common/LegalFooter'
 import { useToast } from '@/components/ui/toast'
-import { passwordIssue, passwordStrength } from '@/lib/password'
+import { passwordStrength } from '@/lib/password'
 import { legalVersions } from '@/config/legal'
 import { recordMultipleLegalAcceptances } from '@/features/legal/legalAcceptance'
+import { signupSchema, type SignupForm } from './signupSchema'
 import { useAuth } from './AuthProvider'
-
-const schema = z.object({
-  fullName: z.string().min(2, 'Indiquez votre nom complet'),
-  email: z.string().email('Adresse email invalide'),
-  phone: z.string().optional(),
-  password: z.string().superRefine((val, ctx) => {
-    const issue = passwordIssue(val)
-    if (issue) ctx.addIssue({ code: z.ZodIssueCode.custom, message: issue })
-  }),
-  consent: z.literal(true, { errorMap: () => ({ message: 'Le consentement est requis' }) }),
-  legalConsent: z.literal(true, { errorMap: () => ({ message: 'L’acceptation des conditions est requise' }) }),
-})
-type Form = z.infer<typeof schema>
 
 export function SignupPage() {
   const { signUp, ready, session, accountType } = useAuth()
@@ -36,7 +24,7 @@ export function SignupPage() {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<Form>({ resolver: zodResolver(schema) })
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupForm>({ resolver: zodResolver(signupSchema) })
   const pw = watch('password') ?? ''
   const strength = passwordStrength(pw)
 
@@ -78,7 +66,7 @@ export function SignupPage() {
     return () => clearTimeout(t)
   }, [done, session, navigate, toast])
 
-  const onSubmit = async (data: Form) => {
+  const onSubmit = async (data: SignupForm) => {
     setSubmitting(true)
     const res = await signUp({
       email: data.email,
@@ -114,14 +102,23 @@ export function SignupPage() {
           <Field label="Nom complet" htmlFor="fullName" error={errors.fullName?.message} required>
             <Input id="fullName" autoComplete="name" placeholder="Julie Durand" {...register('fullName')} />
           </Field>
+          {/* Honeypot — invisible to humans, tempting to bots. Must stay empty. */}
+          <div aria-hidden="true" className="pointer-events-none absolute left-[-9999px] top-[-9999px] h-0 w-0 overflow-hidden">
+            <label htmlFor="website">Ne pas remplir ce champ</label>
+            <input id="website" type="text" tabIndex={-1} autoComplete="off" {...register('website')} />
+          </div>
+
           <Field label="Email" htmlFor="email" error={errors.email?.message} required>
             <Input id="email" type="email" autoComplete="email" placeholder="vous@email.fr" {...register('email')} />
+          </Field>
+          <Field label="Confirmer l’email" htmlFor="emailConfirm" error={errors.emailConfirm?.message} required>
+            <Input id="emailConfirm" type="email" autoComplete="email" placeholder="vous@email.fr" {...register('emailConfirm')} />
           </Field>
           <Field label="Téléphone" htmlFor="phone" hint="Facultatif — utile pour vous joindre au sujet d’un rendez-vous." error={errors.phone?.message}>
             <Input id="phone" type="tel" autoComplete="tel" placeholder="06 12 34 56 78" {...register('phone')} />
           </Field>
-          <Field label="Mot de passe" htmlFor="password" error={errors.password?.message} required hint="12 caractères minimum — une phrase de passe longue est idéale.">
-            <Input id="password" type="password" autoComplete="new-password" placeholder="Une phrase de passe que vous retenez" {...register('password')} />
+          <Field label="Mot de passe" htmlFor="password" error={errors.password?.message} required hint="Utilisez au moins 12 caractères. Une phrase de passe longue est idéale.">
+            <PasswordInput id="password" autoComplete="new-password" placeholder="Une phrase de passe que vous retenez" {...register('password')} />
           </Field>
           {pw && !errors.password && (
             <div className="flex items-center gap-2 text-xs">
@@ -139,6 +136,9 @@ export function SignupPage() {
               </span>
             </div>
           )}
+          <Field label="Confirmer le mot de passe" htmlFor="passwordConfirm" error={errors.passwordConfirm?.message} required>
+            <PasswordInput id="passwordConfirm" autoComplete="new-password" placeholder="Ressaisissez votre mot de passe" {...register('passwordConfirm')} />
+          </Field>
 
           <label className="flex items-start gap-2 text-sm text-muted-foreground">
             <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-input" {...register('consent')} />
