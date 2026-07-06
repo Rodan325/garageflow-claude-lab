@@ -76,7 +76,7 @@ export function ProShell() {
           </>
         )}
 
-        <NavLink to="/pro/settings" onClick={() => setOpen(false)} className={cn(itemClass, 'mt-1')}>
+        <NavLink to="/pro/settings" onClick={() => setOpen(false)} className={(state) => cn(itemClass(state), 'mt-1')}>
           <Settings className="h-[18px] w-[18px]" />
           <span className="flex-1">Paramètres</span>
         </NavLink>
