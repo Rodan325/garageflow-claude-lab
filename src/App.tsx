@@ -13,6 +13,7 @@ import { PilotPage } from '@/features/marketing/PilotPage'
 // Auth
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
+import { VerifyEmailPage } from '@/features/auth/VerifyEmailPage'
 // Pro
 import { DashboardPage } from '@/features/pro/DashboardPage'
 import { BookingsPage } from '@/features/pro/BookingsPage'
@@ -56,6 +57,7 @@ export function App() {
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
 
         <Route path="/pro" element={<RequireStaff><ProShell /></RequireStaff>}>
           <Route index element={<DashboardPage />} />

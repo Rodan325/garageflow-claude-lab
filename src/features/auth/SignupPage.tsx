@@ -65,9 +65,22 @@ export function SignupPage() {
       .finally(() => navigate(redirect || '/app', { replace: true }))
   }, [done, ready, session, accountType, redirect, navigate, toast])
 
+  // Safety net: when Supabase returns a session we normally land in /app via the
+  // effect above. If the session never materialises, don't hang on /signup —
+  // send the user to /login with a clear message.
+  useEffect(() => {
+    if (!done || session) return
+    const t = setTimeout(() => {
+      if (recorded.current) return
+      toast.success('Compte créé', 'Connectez-vous pour accéder à votre espace.')
+      navigate('/login', { replace: true })
+    }, 8000)
+    return () => clearTimeout(t)
+  }, [done, session, navigate, toast])
+
   const onSubmit = async (data: Form) => {
     setSubmitting(true)
-    const { error } = await signUp({
+    const res = await signUp({
       email: data.email,
       password: data.password,
       fullName: data.fullName,
@@ -75,8 +88,13 @@ export function SignupPage() {
       accountType: 'client',
     })
     setSubmitting(false)
-    if (error) {
-      toast.error('Création impossible', error)
+    if (res.error) {
+      toast.error('Création impossible', res.error)
+      return
+    }
+    // Email confirmation required → no session yet: route to the verification page.
+    if (res.needsEmailConfirmation) {
+      navigate(`/verify-email?email=${encodeURIComponent(res.email ?? data.email)}`, { replace: true })
       return
     }
     toast.success('Compte créé', 'Bienvenue sur GarageFlow.')

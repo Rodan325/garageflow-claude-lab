@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import type { Garage, GarageMember, GarageRole, Profile } from '@/types/domain'
 import { queryClient } from '@/lib/queryClient'
+import { mapAuthError } from './authErrors'
 import {
   clearDemo,
   demoGarage,
@@ -24,6 +25,13 @@ interface SignUpInput {
   accountType: 'staff' | 'client'
 }
 
+export type SignUpResult = {
+  error: string | null
+  /** True when Supabase created the user but requires email confirmation (no session yet). */
+  needsEmailConfirmation?: boolean
+  email?: string
+}
+
 interface AuthContextValue {
   ready: boolean
   configured: boolean
@@ -42,7 +50,7 @@ interface AuthContextValue {
   isClient: boolean
   enterDemo: (kind: DemoKind) => void
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
-  signUp: (input: SignUpInput) => Promise<{ error: string | null }>
+  signUp: (input: SignUpInput) => Promise<SignUpResult>
   signOut: () => Promise<void>
   refresh: () => Promise<void>
 }
@@ -144,12 +152,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signUp = useCallback<AuthContextValue['signUp']>(async (input) => {
-    const { error } = await supabase.auth.signUp({
-      email: input.email.trim(),
-      password: input.password,
-      options: { data: { full_name: input.fullName, phone: input.phone ?? '', account_type: input.accountType } },
-    })
-    return { error: error?.message ?? null }
+    const email = input.email.trim()
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: input.password,
+        options: { data: { full_name: input.fullName, phone: input.phone ?? '', account_type: input.accountType } },
+      })
+      if (error) return { error: mapAuthError(error) }
+      // Session present → auto sign-in (email confirmation disabled).
+      if (data.session) return { error: null, needsEmailConfirmation: false, email }
+      // User created but no session → Supabase awaits email confirmation.
+      return { error: null, needsEmailConfirmation: true, email }
+    } catch (e) {
+      // Network / unexpected failures are thrown rather than returned.
+      return { error: mapAuthError(e) }
+    }
   }, [])
 
   const signOut = useCallback(async () => {
