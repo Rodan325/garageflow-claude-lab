@@ -26,13 +26,13 @@ function Kpi({
   to?: string
 }) {
   const inner = (
-    <Card className="h-full min-w-0 p-4 transition-colors hover:bg-muted/30">
+    <Card className="h-full min-w-0 p-3 transition-colors hover:bg-muted/30 sm:p-4">
       <div className="flex items-center gap-3">
         <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', accent ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
           <Icon className="h-5 w-5" />
         </div>
-        <div className="min-w-0">
-          {loading ? <Skeleton className="h-7 w-8" /> : <p className="text-2xl font-bold leading-none tracking-tight">{value}</p>}
+        <div className="min-w-0 flex-1">
+          {loading ? <Skeleton className="h-7 w-8" /> : <p className="text-xl font-bold leading-none tracking-tight sm:text-2xl">{value}</p>}
           <p className="mt-1 text-xs font-medium leading-tight text-muted-foreground">{label}</p>
         </div>
       </div>
@@ -60,13 +60,13 @@ export function DashboardPage() {
     <div>
       <PageHeader title={`Bonjour ${profile?.full_name?.split(' ')[0] ?? ''}`} subtitle="Voici ce qui demande votre attention." />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Kpi icon={Inbox} label="Demandes" value={stats?.pendingRequests ?? 0} loading={isLoading} accent to="/pro/bookings" />
         <Kpi icon={CalendarClock} label="RDV du jour" value={stats?.todayAppointments ?? 0} loading={isLoading} to="/pro/calendar" />
         <Kpi icon={CheckSquare} label="Tâches" value={stats?.openTasks ?? 0} loading={isLoading} />
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-5 sm:gap-5 lg:grid-cols-3">
         {/* Demandes à traiter */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
@@ -131,7 +131,7 @@ export function DashboardPage() {
       </div>
 
       {/* Rendez-vous du jour */}
-      <Card className="mt-5">
+      <Card className="mt-4 sm:mt-5">
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle>Rendez-vous du jour</CardTitle>
           <Link to="/pro/calendar" className="text-sm font-medium text-primary hover:underline">Agenda</Link>
