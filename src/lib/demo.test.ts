@@ -45,6 +45,25 @@ describe('ensureStoreShape — demo store migration', () => {
   })
 })
 
+describe('demo centers — multi-center foundation', () => {
+  it('backfills a centers array on a legacy store that predates centers', () => {
+    const legacy = { garages: [{ id: 'g' }], requests: [] }
+    const s = ensureStoreShape(legacy)
+    expect(Array.isArray(s.centers)).toBe(true)
+  })
+
+  it('seeds centers and links the demo request to a center + client stage', () => {
+    const s = ensureStoreShape('force-reseed')
+    expect(s.centers.length).toBe(3)
+    expect(s.centers.every((c) => c.garage_id && c.slug && c.name)).toBe(true)
+    const req = s.requests[0]
+    expect(req.center_id).toBeTruthy()
+    // the linked center actually exists in the store (referential integrity)
+    expect(s.centers.some((c) => c.id === req.center_id)).toBe(true)
+    expect(req.client_stage).toBe('request_sent')
+  })
+})
+
 describe('demo quote token detection', () => {
   it('detects demo tokens by the "demo" prefix', () => {
     expect(isDemoQuoteToken('demoquoteacc123')).toBe(true)

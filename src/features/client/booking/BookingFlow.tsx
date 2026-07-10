@@ -13,18 +13,21 @@ import { EmptyState, LoadingState } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useGarages, useGarageServices, useGarageHours } from '@/data/garagePublic'
+import { useGarageCenters } from '@/data/centers'
 import { useClientVehicles, useUpsertClientVehicle } from '@/data/clientData'
 import { useCreateRequest } from '@/data/requests'
+import { centersEnabled } from '@/lib/features'
 import { useSelectedGarage } from '../useSelectedGarage'
+import { useSelectedCenter } from '../useSelectedCenter'
 import { BOOK_SERVICE_KEY } from '../ClientHomePage'
 import { openDays, slotsForDate } from '@/lib/slots'
 import { euro } from '@/lib/format'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { GarageService } from '@/types/domain'
 
-type Step = 'service' | 'slot' | 'identify' | 'done'
-const STEPS: Step[] = ['service', 'slot', 'identify']
+type Step = 'center' | 'service' | 'slot' | 'identify' | 'done'
 const STEP_LABEL: Record<Step, string> = {
+  center: 'Centre',
   service: 'Prestation',
   slot: 'Créneau',
   identify: 'Vos informations',
@@ -44,11 +47,22 @@ export function BookingFlow() {
   const toast = useToast()
   const { userId, profile, email, authed } = useAuth()
   const { selectedGarageId } = useSelectedGarage()
+  const { selectedCenterId, select: selectCenter } = useSelectedCenter()
   const reduced = usePrefersReducedMotion()
 
+  const centersOn = centersEnabled()
+  const { data: centers } = useGarageCenters(selectedGarageId ?? undefined)
   const { data: services, isLoading: servicesLoading } = useGarageServices(selectedGarageId ?? undefined)
   const { data: hours } = useGarageHours(selectedGarageId ?? undefined)
   const { data: garages } = useGarages()
+
+  // The center step only appears when the feature is on AND the garage exposes
+  // centers. Otherwise the flow is byte-for-byte the legacy 3-step flow.
+  const showCenterStep = centersOn && (centers?.length ?? 0) > 0
+  const STEPS = useMemo<Step[]>(
+    () => (showCenterStep ? ['center', 'service', 'slot', 'identify'] : ['service', 'slot', 'identify']),
+    [showCenterStep],
+  )
   const { data: vehicles } = useClientVehicles(userId)
   const addVehicle = useUpsertClientVehicle()
   const createRequest = useCreateRequest()
@@ -71,9 +85,12 @@ export function BookingFlow() {
   const days = useMemo(() => openDays(hours, 8), [hours])
   const slots = useMemo(() => (date ? slotsForDate(hours, date) : []), [date, hours])
 
-  // Restore a deep-linked service or a saved draft (e.g. after a login round-trip).
+  // Restore a deep-linked service or a saved draft (e.g. after a login round-trip),
+  // then land on the correct first step. Wait for centers to load (when the
+  // feature is on) so we never flash the wrong entry step.
   useEffect(() => {
     if (restored.current || !services) return
+    if (centersOn && centers === undefined) return
     const pre = sessionStorage.getItem(BOOK_SERVICE_KEY)
     if (pre) {
       const found = services.find((s) => s.id === pre)
@@ -98,13 +115,16 @@ export function BookingFlow() {
         if (d.contactPhone) setContactPhone(d.contactPhone)
         if (d.newVehicle) { setVehicleMode('new'); setNewVehicle(d.newVehicle) }
         if (d.vehicleId) { setVehicleMode('existing'); setSelectedVehicleId(d.vehicleId) }
-        if (f && d.date && d.time) setStep('identify')
+        if (d.centerId && centers?.some((c) => c.id === d.centerId)) selectCenter(d.centerId)
+        if (f && d.date && d.time) { setStep('identify'); restored.current = true; return }
       } catch {
         /* ignore malformed draft */
       }
     }
+    // Fresh entry: pick the center first when it applies, else the service step.
+    setStep(showCenterStep ? 'center' : 'service')
     restored.current = true
-  }, [services])
+  }, [services, centers, centersOn, showCenterStep, selectCenter])
 
   // Only non-archived vehicles are reusable in a booking.
   const myVehicles = useMemo(() => (vehicles ?? []).filter((v) => !v.archived), [vehicles])
@@ -121,6 +141,7 @@ export function BookingFlow() {
     sessionStorage.setItem(
       DRAFT_KEY,
       JSON.stringify({
+        centerId: selectedCenterId,
         serviceId: service?.id,
         date,
         time,
@@ -150,12 +171,22 @@ export function BookingFlow() {
     )
   }
 
+  // Hold the first paint until centers are known (feature on) so we land on the
+  // right entry step without a flash. Legacy flow (feature off) is unaffected.
+  if (centersOn && centers === undefined) {
+    return <div className="p-4"><LoadingState /></div>
+  }
+
   const stepIndex = STEPS.indexOf(step)
   const back = () => setStep(STEPS[Math.max(0, stepIndex - 1)])
 
   async function submit() {
     if (!service || !date || !time || !contactName.trim()) {
       toast.error('Informations incomplètes')
+      return
+    }
+    if (showCenterStep && !selectedCenterId) {
+      toast.error('Choisissez un centre')
       return
     }
     try {
@@ -188,6 +219,9 @@ export function BookingFlow() {
 
       const row = await createRequest.mutateAsync({
         garage_id: selectedGarageId!,
+        // Only sent when the feature is active AND a center is chosen — never to
+        // a schema that lacks the column (prod with the flag off).
+        ...(centersOn && selectedCenterId ? { center_id: selectedCenterId } : {}),
         client_id: userId!,
         service_id: service.id,
         service_name: service.name,
@@ -231,7 +265,7 @@ export function BookingFlow() {
           <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= stepIndex ? 'bg-primary' : 'bg-muted'}`} />
         ))}
       </div>
-      <p className="mb-3 text-sm font-medium text-muted-foreground">Étape {stepIndex + 1}/3 · {STEP_LABEL[step]}</p>
+      <p className="mb-3 text-sm font-medium text-muted-foreground">Étape {stepIndex + 1}/{STEPS.length} · {STEP_LABEL[step]}</p>
 
         <motion.div
           key={step}
@@ -240,9 +274,35 @@ export function BookingFlow() {
           transition={transition}
           className="flex-1"
         >
+          {step === 'center' && (
+            <div>
+              <h1 className="mb-3 text-lg font-bold">Quel centre ?</h1>
+              <div className="space-y-2">
+                {(centers ?? []).map((c) => (
+                  <button key={c.id} className="w-full text-left" onClick={() => { selectCenter(c.id); setStep('service') }}>
+                    <Card className={`flex items-center justify-between p-4 transition-colors hover:bg-muted/40 ${selectedCenterId === c.id ? 'ring-2 ring-primary' : ''}`}>
+                      <div className="min-w-0">
+                        <p className="font-medium">{c.name}</p>
+                        {(c.postal_code || c.city) && (
+                          <p className="text-xs text-muted-foreground">{[c.postal_code, c.city].filter(Boolean).join(' ')}</p>
+                        )}
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </Card>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {step === 'service' && (
             <div>
-              <h1 className="mb-3 text-lg font-bold">Quelle prestation ?</h1>
+              <div className="mb-3 flex items-center gap-2">
+                {stepIndex > 0 && (
+                  <Button variant="outline" size="sm" onClick={back} aria-label="Retour"><ArrowLeft className="h-4 w-4" /></Button>
+                )}
+                <h1 className="text-lg font-bold">Quelle prestation ?</h1>
+              </div>
               {servicesLoading ? (
                 <LoadingState />
               ) : (

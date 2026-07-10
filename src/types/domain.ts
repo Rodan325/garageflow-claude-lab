@@ -2,6 +2,7 @@ import type { Tables } from './database.types'
 
 // Semantic row aliases used across the app.
 export type Garage = Tables<'garages'>
+export type GarageCenter = Tables<'garage_centers'>
 export type Profile = Tables<'profiles'>
 export type GarageMember = Tables<'garage_members'>
 export type ClientProfile = Tables<'client_profiles'>
@@ -65,6 +66,45 @@ export const REQUEST_STATUS_META: Record<RequestStatus, { label: string; tone: T
   completed: { label: 'Terminée', tone: 'neutral' },
   declined: { label: 'Refusée', tone: 'danger' },
   cancelled: { label: 'Annulée', tone: 'neutral' },
+}
+
+/**
+ * Unified, client-facing after-sales timeline (service_requests.client_stage).
+ * Client-readable (unlike repairs/quotes), advanced by the garage. Ordered.
+ */
+export type ClientStage =
+  | 'request_sent'
+  | 'request_received'
+  | 'appointment_proposed'
+  | 'appointment_confirmed'
+  | 'quote_sent'
+  | 'quote_accepted'
+  | 'in_progress'
+  | 'ready'
+  | 'done'
+
+export const CLIENT_STAGE_ORDER: ClientStage[] = [
+  'request_sent',
+  'request_received',
+  'appointment_proposed',
+  'appointment_confirmed',
+  'quote_sent',
+  'quote_accepted',
+  'in_progress',
+  'ready',
+  'done',
+]
+
+export const CLIENT_STAGE_META: Record<ClientStage, { label: string; tone: Tone }> = {
+  request_sent: { label: 'Demande envoyée', tone: 'info' },
+  request_received: { label: 'Demande reçue', tone: 'info' },
+  appointment_proposed: { label: 'Rendez-vous proposé', tone: 'primary' },
+  appointment_confirmed: { label: 'Rendez-vous confirmé', tone: 'success' },
+  quote_sent: { label: 'Devis envoyé', tone: 'info' },
+  quote_accepted: { label: 'Devis accepté', tone: 'success' },
+  in_progress: { label: 'Intervention en cours', tone: 'primary' },
+  ready: { label: 'Véhicule prêt', tone: 'success' },
+  done: { label: 'Terminé', tone: 'neutral' },
 }
 
 export const REPAIR_STATUS_META: Record<RepairStatus, { label: string; tone: Tone }> = {
