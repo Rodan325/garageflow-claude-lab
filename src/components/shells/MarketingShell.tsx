@@ -3,10 +3,12 @@ import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { LegalFooter } from '@/components/common/LegalFooter'
 import { Button } from '@/components/ui/button'
+import { useBrand } from '@/branding'
 
 export function MarketingShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { brand } = useBrand()
 
   // HashRouter-safe section scroll (never changes the route to a 404).
   // We scroll, then re-align once after in-view animations settle so we land
@@ -52,7 +54,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
         <div className="container flex flex-col items-center justify-between gap-4 py-8 text-sm text-muted-foreground sm:flex-row">
           <div className="flex items-center gap-2">
             <Logo compact />
-            <span>© {new Date().getFullYear()} GarageFlow — Démo pilote</span>
+            <span>© {new Date().getFullYear()} {brand.companyDisplayName} — Démo pilote</span>
           </div>
           <div className="flex gap-5">
             <Link to="/pilote" className="hover:text-foreground">Offre pilote</Link>

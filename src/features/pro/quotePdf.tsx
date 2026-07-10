@@ -1,6 +1,7 @@
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
 import type { Garage, Quote, QuoteLine } from '@/types/domain'
 import { euro, shortDate } from '@/lib/format'
+import { getActiveBrand } from '@/branding'
 
 export interface QuotePdfData {
   quote: Quote
@@ -127,7 +128,7 @@ function QuoteDoc({ quote, lines, garage, customer }: QuotePdfData) {
             <Text style={[s.muted, { marginTop: 24 }]}>Date et signature</Text>
           </View>
         </View>
-        <Text fixed style={s.genFooter}>Document généré par GarageFlow</Text>
+        <Text fixed style={s.genFooter}>{getActiveBrand().quoteFooterBranding}</Text>
       </Page>
     </Document>
   )

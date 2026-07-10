@@ -8,6 +8,7 @@ import { LoadingState, EmptyState } from '@/components/ui/feedback'
 import { useToast } from '@/components/ui/toast'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { LegalFooter } from '@/components/common/LegalFooter'
+import { useBrand } from '@/branding'
 import { usePublicQuote, useAcceptPublicQuote, useDeclinePublicQuote } from '@/data/quotes'
 import { effectiveQuoteStatus, clientCanRespond } from '@/lib/quoteStatus'
 import { euro, shortDate } from '@/lib/format'
@@ -20,6 +21,7 @@ import type { Garage, Quote, QuoteLine } from '@/types/domain'
  */
 export function ClientQuotePage() {
   const { token } = useParams()
+  const { brand } = useBrand()
   const toast = useToast()
   const { data: view, isLoading } = usePublicQuote(token)
   const accept = useAcceptPublicQuote()
@@ -206,7 +208,7 @@ export function ClientQuotePage() {
         )}
       </div>
 
-      <p className="mt-6 text-center text-xs text-muted-foreground">Devis émis par {garage.name} via GarageFlow.</p>
+      <p className="mt-6 text-center text-xs text-muted-foreground">Devis émis par {garage.name} via {brand.appName}.</p>
       <p className="mt-2 text-center text-xs text-muted-foreground">
         Données personnelles, confidentialité et conditions d’utilisation :{' '}
         <Link to="/privacy" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>
@@ -218,10 +220,11 @@ export function ClientQuotePage() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
+  const { brand } = useBrand()
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur">
-        <span className="text-sm font-semibold">GarageFlow</span>
+        <span className="text-sm font-semibold">{brand.appName}</span>
         <ThemeToggle />
       </header>
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">{children}</main>

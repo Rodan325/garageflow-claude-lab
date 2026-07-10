@@ -5,7 +5,9 @@ import { ClientShell } from '@/components/shells/ClientShell'
 import { RequireClientAuth, RequireStaff } from '@/features/auth/guards'
 import { ConfigBanner } from '@/components/common/ConfigBanner'
 import { DemoBanner } from '@/components/common/DemoBanner'
+import { DemoNotice } from '@/components/common/DemoNotice'
 import { ScrollToTop } from '@/components/common/ScrollToTop'
+import { BrandDemoEntry } from '@/features/demo/BrandDemoEntry'
 
 // Marketing
 import { HomePage } from '@/features/marketing/HomePage'
@@ -49,9 +51,11 @@ export function App() {
   return (
     <>
       <ScrollToTop />
+      <DemoNotice />
       <ConfigBanner />
       <DemoBanner />
       <Routes>
+        <Route path="/demo/:brand" element={<BrandDemoEntry />} />
         <Route path="/" element={<MarketingShell><HomePage /></MarketingShell>} />
         <Route path="/pilote" element={<MarketingShell><PilotPage /></MarketingShell>} />
 
