@@ -52,8 +52,15 @@ describe('demo centers — multi-center foundation', () => {
     expect(Array.isArray(s.centers)).toBe(true)
   })
 
-  it('seeds centers and links the demo request to a center + client stage', () => {
-    const s = ensureStoreShape('force-reseed')
+  it('the DEFAULT demo seeds NO centers (plain GarageFlow demo unchanged)', () => {
+    const s = ensureStoreShape('force-reseed') // default brand
+    expect(s.centers.length).toBe(0)
+    expect(s.requests[0].center_id).toBeNull()
+    expect(s.requests[0].client_stage).toBeNull()
+  })
+
+  it('the SPEEDY demo seeds centers and links the request to a center + client stage', () => {
+    const s = ensureStoreShape('force-reseed', 'speedy')
     expect(s.centers.length).toBe(3)
     expect(s.centers.every((c) => c.garage_id && c.slug && c.name)).toBe(true)
     const req = s.requests[0]

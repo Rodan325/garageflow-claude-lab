@@ -1,21 +1,23 @@
 import { env } from '@/lib/env'
-import { isDemo } from '@/lib/demo'
+import { getActiveBrand } from '@/branding'
 
 /**
- * Whether the multi-center feature is active in the CURRENT mode.
+ * Whether the multi-center feature is active in the CURRENT context.
  *
- * - Demo mode: always on — centers live in the in-memory demo store, so there
- *   is no Supabase schema to depend on.
- * - Real Supabase mode: only when VITE_ENABLE_CENTERS='true'. This gates BOTH
- *   reads (garage_centers) AND writes (center_id / client_stage on
- *   service_requests) so a production DB without migrations 0022/0023 is never
- *   queried with columns/tables it does not have.
+ * Enabled ONLY when:
+ *  - the active brand is `speedy` (the multi-center demo skin), OR
+ *  - VITE_ENABLE_CENTERS='true' (a real deployment where 0022/0023 are applied).
+ *
+ * The plain GarageFlow demo is therefore UNCHANGED: no center step, no forced
+ * car-service catalog. This gates BOTH reads (garage_centers) AND writes
+ * (center_id / client_stage on service_requests), so a production DB without
+ * the migrations is never queried with columns/tables it does not have.
  *
  * Belt-and-suspenders: read hooks additionally swallow "relation/column does
  * not exist" errors (see isMissingSchemaError) and degrade to empty results.
  */
 export function centersEnabled(): boolean {
-  return isDemo() || env.enableCenters
+  return getActiveBrand().id === 'speedy' || env.enableCenters
 }
 
 /**

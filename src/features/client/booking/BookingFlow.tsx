@@ -19,6 +19,7 @@ import { useCreateRequest } from '@/data/requests'
 import { centersEnabled } from '@/lib/features'
 import { useSelectedGarage } from '../useSelectedGarage'
 import { useSelectedCenter } from '../useSelectedCenter'
+import { pickValidCenter } from './centerSelection'
 import { BOOK_SERVICE_KEY } from '../ClientHomePage'
 import { openDays, slotsForDate } from '@/lib/slots'
 import { euro } from '@/lib/format'
@@ -47,7 +48,7 @@ export function BookingFlow() {
   const toast = useToast()
   const { userId, profile, email, authed } = useAuth()
   const { selectedGarageId } = useSelectedGarage()
-  const { selectedCenterId, select: selectCenter } = useSelectedCenter()
+  const { selectedCenterId, select: selectCenter, clear: clearCenter } = useSelectedCenter()
   const reduced = usePrefersReducedMotion()
 
   const centersOn = centersEnabled()
@@ -59,6 +60,19 @@ export function BookingFlow() {
   // The center step only appears when the feature is on AND the garage exposes
   // centers. Otherwise the flow is byte-for-byte the legacy 3-step flow.
   const showCenterStep = centersOn && (centers?.length ?? 0) > 0
+  // A center is usable only if it exists, is active and belongs to THIS garage.
+  const validCenter = useMemo(
+    () => pickValidCenter(centers, selectedCenterId, selectedGarageId),
+    [centers, selectedCenterId, selectedGarageId],
+  )
+  const validCenterId = validCenter?.id ?? null
+
+  // Drop a persisted center that no longer belongs to the current garage /
+  // brand (e.g. after switching garage), so it can never be reused or sent.
+  useEffect(() => {
+    if (!centersOn || centers === undefined) return
+    if (selectedCenterId && !pickValidCenter(centers, selectedCenterId, selectedGarageId)) clearCenter()
+  }, [centersOn, centers, selectedCenterId, selectedGarageId, clearCenter])
   const STEPS = useMemo<Step[]>(
     () => (showCenterStep ? ['center', 'service', 'slot', 'identify'] : ['service', 'slot', 'identify']),
     [showCenterStep],
@@ -97,7 +111,8 @@ export function BookingFlow() {
       sessionStorage.removeItem(BOOK_SERVICE_KEY)
       if (found) {
         setService(found)
-        setStep('slot')
+        // A deep-linked service still requires a valid center first when centers apply.
+        setStep(showCenterStep && !validCenterId ? 'center' : 'slot')
         restored.current = true
         return
       }
@@ -115,16 +130,22 @@ export function BookingFlow() {
         if (d.contactPhone) setContactPhone(d.contactPhone)
         if (d.newVehicle) { setVehicleMode('new'); setNewVehicle(d.newVehicle) }
         if (d.vehicleId) { setVehicleMode('existing'); setSelectedVehicleId(d.vehicleId) }
-        if (d.centerId && centers?.some((c) => c.id === d.centerId)) selectCenter(d.centerId)
-        if (f && d.date && d.time) { setStep('identify'); restored.current = true; return }
+        // Only restore a center that is valid for the current garage.
+        const restoredCenterId = d.centerId && pickValidCenter(centers, d.centerId, selectedGarageId) ? d.centerId : null
+        if (restoredCenterId) selectCenter(restoredCenterId)
+        if (f && d.date && d.time) {
+          setStep(showCenterStep && !restoredCenterId ? 'center' : 'identify')
+          restored.current = true
+          return
+        }
       } catch {
         /* ignore malformed draft */
       }
     }
-    // Fresh entry: pick the center first when it applies, else the service step.
-    setStep(showCenterStep ? 'center' : 'service')
+    // Fresh entry: pick the center first when it applies and none is valid yet.
+    setStep(showCenterStep && !validCenterId ? 'center' : 'service')
     restored.current = true
-  }, [services, centers, centersOn, showCenterStep, selectCenter])
+  }, [services, centers, centersOn, showCenterStep, validCenterId, selectedGarageId, selectCenter])
 
   // Only non-archived vehicles are reusable in a booking.
   const myVehicles = useMemo(() => (vehicles ?? []).filter((v) => !v.archived), [vehicles])
@@ -185,7 +206,7 @@ export function BookingFlow() {
       toast.error('Informations incomplètes')
       return
     }
-    if (showCenterStep && !selectedCenterId) {
+    if (showCenterStep && !validCenterId) {
       toast.error('Choisissez un centre')
       return
     }
@@ -219,9 +240,9 @@ export function BookingFlow() {
 
       const row = await createRequest.mutateAsync({
         garage_id: selectedGarageId!,
-        // Only sent when the feature is active AND a center is chosen — never to
-        // a schema that lacks the column (prod with the flag off).
-        ...(centersOn && selectedCenterId ? { center_id: selectedCenterId } : {}),
+        // Only sent when the feature is active AND a VALID center is chosen —
+        // never a stale/foreign center, never to a schema without the column.
+        ...(centersOn && validCenterId ? { center_id: validCenterId } : {}),
         client_id: userId!,
         service_id: service.id,
         service_name: service.name,
@@ -279,7 +300,7 @@ export function BookingFlow() {
               <h1 className="mb-3 text-lg font-bold">Quel centre ?</h1>
               <div className="space-y-2">
                 {(centers ?? []).map((c) => (
-                  <button key={c.id} className="w-full text-left" onClick={() => { selectCenter(c.id); setStep('service') }}>
+                  <button key={c.id} className="w-full text-left" onClick={() => { selectCenter(c.id); setStep(service ? 'slot' : 'service') }}>
                     <Card className={`flex items-center justify-between p-4 transition-colors hover:bg-muted/40 ${selectedCenterId === c.id ? 'ring-2 ring-primary' : ''}`}>
                       <div className="min-w-0">
                         <p className="font-medium">{c.name}</p>

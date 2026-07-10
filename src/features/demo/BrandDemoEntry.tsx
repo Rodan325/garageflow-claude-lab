@@ -2,20 +2,25 @@ import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useBrand, type BrandId } from '@/branding'
 
-// Dedicated demo activation routes:
-//   /demo/speedy  → activate the Speedy demo brand
-//   /demo/reset   → back to the default product brand
-const TARGETS: Record<string, BrandId> = { speedy: 'speedy', reset: 'default', default: 'default' }
-
+// Dedicated demo activation routes (the app uses HashRouter, so the real URLs
+// carry the # fragment):
+//   /#/demo/speedy → activate the Speedy demo brand
+//   /#/demo/reset  → leave the demo, back to the default GarageFlow brand
 export function BrandDemoEntry() {
   const { brand } = useParams()
-  const { setBrand } = useBrand()
+  const { setBrand, exitDemo } = useBrand()
   const navigate = useNavigate()
 
   useEffect(() => {
-    setBrand(TARGETS[(brand ?? '').toLowerCase()] ?? 'default')
+    const key = (brand ?? '').toLowerCase()
+    if (key === 'speedy') {
+      setBrand('speedy' as BrandId)
+    } else {
+      // reset / default / anything unknown → centralized exit.
+      exitDemo()
+    }
     navigate('/', { replace: true })
-  }, [brand, setBrand, navigate])
+  }, [brand, setBrand, exitDemo, navigate])
 
   return null
 }

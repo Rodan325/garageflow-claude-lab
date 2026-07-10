@@ -2,7 +2,10 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { centersEnabled, isMissingSchemaError } from './features'
 import { setDemoKind, clearDemo } from './demo'
 
-afterEach(() => clearDemo())
+afterEach(() => {
+  clearDemo()
+  localStorage.clear()
+})
 
 describe('isMissingSchemaError', () => {
   it('treats missing table / column errors as soft (true)', () => {
@@ -14,23 +17,27 @@ describe('isMissingSchemaError', () => {
     expect(isMissingSchemaError({ message: "Could not find the table 'public.garage_centers'" })).toBe(true)
   })
 
-  it('does not swallow unrelated errors (false)', () => {
+  it('does NOT swallow a permission error (42501 stays a real error)', () => {
+    expect(isMissingSchemaError({ code: '42501', message: 'permission denied for table garage_centers' })).toBe(false)
     expect(isMissingSchemaError({ code: '23505', message: 'duplicate key' })).toBe(false)
-    expect(isMissingSchemaError({ message: 'permission denied for table service_requests' })).toBe(false)
     expect(isMissingSchemaError(null)).toBe(false)
     expect(isMissingSchemaError('boom')).toBe(false)
   })
 })
 
 describe('centersEnabled', () => {
-  it('is off by default in real mode (flag unset)', () => {
-    // No demo kind + VITE_ENABLE_CENTERS unset in the test env → feature off,
-    // so prod without migrations is never queried.
+  it('is off with the default brand and no flag', () => {
     expect(centersEnabled()).toBe(false)
   })
 
-  it('is always on in demo mode (in-memory store, no Supabase schema)', () => {
+  it('stays off in the plain GarageFlow demo (default brand)', () => {
+    // Entering demo mode must NOT enable centers on its own anymore.
     setDemoKind('client')
+    expect(centersEnabled()).toBe(false)
+  })
+
+  it('is on under the Speedy brand', () => {
+    localStorage.setItem('gf-brand', 'speedy')
     expect(centersEnabled()).toBe(true)
   })
 })

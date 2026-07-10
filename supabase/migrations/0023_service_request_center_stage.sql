@@ -6,11 +6,26 @@
 -- valid. A default "principal" center is backfilled per garage.
 -- =====================================================================
 alter table public.service_requests
-  add column center_id uuid references public.garage_centers(id) on delete set null,
+  add column center_id uuid,
   add column client_stage text;
 
 alter table public.garage_members
-  add column center_id uuid references public.garage_centers(id) on delete set null;
+  add column center_id uuid;
+
+-- Composite foreign keys → a center_id can ONLY reference a center of the SAME
+-- garage as the row (garage integrity). center_id stays nullable for backward
+-- compatibility (a NULL composite key is not enforced, so legacy rows are fine).
+-- ON DELETE SET NULL (center_id) nulls only center_id, never the NOT NULL
+-- garage_id (requires PostgreSQL 15+; the project runs PG17).
+alter table public.service_requests
+  add constraint service_requests_center_garage_fk
+  foreign key (center_id, garage_id) references public.garage_centers (id, garage_id)
+  on delete set null (center_id);
+
+alter table public.garage_members
+  add constraint garage_members_center_garage_fk
+  foreign key (center_id, garage_id) references public.garage_centers (id, garage_id)
+  on delete set null (center_id);
 
 create index idx_requests_center on public.service_requests (center_id, created_at desc);
 create index idx_members_center on public.garage_members (center_id);
