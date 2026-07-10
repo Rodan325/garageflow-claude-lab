@@ -8,16 +8,19 @@ import { Field, Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Logo } from '@/components/common/Logo'
 import { LegalFooter } from '@/components/common/LegalFooter'
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { useToast } from '@/components/ui/toast'
 import { passwordStrength } from '@/lib/password'
 import { legalVersions } from '@/config/legal'
 import { recordMultipleLegalAcceptances } from '@/features/legal/legalAcceptance'
+import { useT } from '@/i18n'
 import { signupSchema, type SignupForm } from './signupSchema'
 import { useAuth } from './AuthProvider'
 
 export function SignupPage() {
   const { signUp, ready, session, accountType } = useAuth()
   const toast = useToast()
+  const t = useT()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const redirect = params.get('redirect')
@@ -77,7 +80,7 @@ export function SignupPage() {
     })
     setSubmitting(false)
     if (res.error) {
-      toast.error('Création impossible', res.error)
+      toast.error(t.signup.errorTitle, res.error)
       return
     }
     // Email confirmation required → no session yet: route to the verification page.
@@ -85,22 +88,23 @@ export function SignupPage() {
       navigate(`/verify-email?email=${encodeURIComponent(res.email ?? data.email)}`, { replace: true })
       return
     }
-    toast.success('Compte créé', 'Bienvenue sur GarageFlow.')
+    toast.success(t.signup.createdTitle, t.signup.createdBody)
     setDone(true)
   }
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md p-7">
-        <Link to="/" className="mb-6 inline-flex"><Logo /></Link>
-        <h1 className="text-2xl font-bold">Créer un compte client</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pour réserver et suivre vos rendez-vous au garage.
-        </p>
+        <div className="mb-6 flex items-center justify-between">
+          <Link to="/" className="inline-flex"><Logo /></Link>
+          <LanguageSwitcher />
+        </div>
+        <h1 className="text-2xl font-bold">{t.signup.title}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t.signup.subtitle}</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4">
-          <Field label="Nom complet" htmlFor="fullName" error={errors.fullName?.message} required>
-            <Input id="fullName" autoComplete="name" placeholder="Julie Durand" {...register('fullName')} />
+          <Field label={t.signup.fullName} htmlFor="fullName" error={errors.fullName?.message} required>
+            <Input id="fullName" autoComplete="name" placeholder={t.signup.fullNamePlaceholder} {...register('fullName')} />
           </Field>
           {/* Honeypot — invisible to humans, tempting to bots. Must stay empty. */}
           <div aria-hidden="true" className="pointer-events-none absolute left-[-9999px] top-[-9999px] h-0 w-0 overflow-hidden">
@@ -108,17 +112,17 @@ export function SignupPage() {
             <input id="website" type="text" tabIndex={-1} autoComplete="off" {...register('website')} />
           </div>
 
-          <Field label="Email" htmlFor="email" error={errors.email?.message} required>
-            <Input id="email" type="email" autoComplete="email" placeholder="vous@email.fr" {...register('email')} />
+          <Field label={t.common.email} htmlFor="email" error={errors.email?.message} required>
+            <Input id="email" type="email" autoComplete="email" placeholder={t.signup.emailPlaceholder} {...register('email')} />
           </Field>
-          <Field label="Confirmer l’email" htmlFor="emailConfirm" error={errors.emailConfirm?.message} required>
-            <Input id="emailConfirm" type="email" autoComplete="email" placeholder="vous@email.fr" {...register('emailConfirm')} />
+          <Field label={t.signup.emailConfirm} htmlFor="emailConfirm" error={errors.emailConfirm?.message} required>
+            <Input id="emailConfirm" type="email" autoComplete="email" placeholder={t.signup.emailPlaceholder} {...register('emailConfirm')} />
           </Field>
-          <Field label="Téléphone" htmlFor="phone" hint="Facultatif — utile pour vous joindre au sujet d’un rendez-vous." error={errors.phone?.message}>
-            <Input id="phone" type="tel" autoComplete="tel" placeholder="06 12 34 56 78" {...register('phone')} />
+          <Field label={t.signup.phone} htmlFor="phone" hint={t.signup.phoneHint} error={errors.phone?.message}>
+            <Input id="phone" type="tel" autoComplete="tel" placeholder={t.signup.phonePlaceholder} {...register('phone')} />
           </Field>
-          <Field label="Mot de passe" htmlFor="password" error={errors.password?.message} required hint="Utilisez au moins 12 caractères. Une phrase de passe longue est idéale.">
-            <PasswordInput id="password" autoComplete="new-password" placeholder="Une phrase de passe que vous retenez" {...register('password')} />
+          <Field label={t.common.password} htmlFor="password" error={errors.password?.message} required hint={t.signup.passwordHint}>
+            <PasswordInput id="password" autoComplete="new-password" placeholder={t.signup.passwordPlaceholder} {...register('password')} />
           </Field>
           {pw && !errors.password && (
             <div className="flex items-center gap-2 text-xs">
@@ -132,12 +136,12 @@ export function SignupPage() {
                 />
               </div>
               <span className="text-muted-foreground">
-                {strength === 'fort' ? 'Fort' : strength === 'moyen' ? 'Moyen' : 'Faible'}
+                {strength === 'fort' ? t.signup.strengthStrong : strength === 'moyen' ? t.signup.strengthMedium : t.signup.strengthWeak}
               </span>
             </div>
           )}
-          <Field label="Confirmer le mot de passe" htmlFor="passwordConfirm" error={errors.passwordConfirm?.message} required>
-            <PasswordInput id="passwordConfirm" autoComplete="new-password" placeholder="Ressaisissez votre mot de passe" {...register('passwordConfirm')} />
+          <Field label={t.signup.passwordConfirm} htmlFor="passwordConfirm" error={errors.passwordConfirm?.message} required>
+            <PasswordInput id="passwordConfirm" autoComplete="new-password" placeholder={t.signup.passwordConfirmPlaceholder} {...register('passwordConfirm')} />
           </Field>
 
           <label className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -161,16 +165,16 @@ export function SignupPage() {
             </span>
           </label>
 
-          <Button type="submit" className="w-full" loading={submitting}>Créer mon compte</Button>
+          <Button type="submit" className="w-full" loading={submitting}>{t.signup.submit}</Button>
 
           <p className="text-center text-xs text-muted-foreground">
-            Votre acceptation est horodatée et conservée dans un journal d’acceptation.
+            {t.signup.horodatage}
           </p>
         </form>
 
         <p className="mt-5 text-center text-sm text-muted-foreground">
-          Déjà inscrit ?{' '}
-          <Link to="/login" className="font-medium text-primary hover:underline">Se connecter</Link>
+          {t.signup.alreadyMember}{' '}
+          <Link to="/login" className="font-medium text-primary hover:underline">{t.signup.loginLink}</Link>
         </p>
       </Card>
 

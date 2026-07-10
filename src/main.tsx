@@ -6,21 +6,24 @@ import { App } from './App'
 import { ThemeProvider } from '@/lib/theme'
 import { ToastProvider } from '@/components/ui/toast'
 import { AuthProvider } from '@/features/auth/AuthProvider'
+import { LanguageProvider } from '@/i18n'
 import { queryClient } from '@/lib/queryClient'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider>
-      <ToastProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <HashRouter>
-              <App />
-            </HashRouter>
-          </AuthProvider>
-        </QueryClientProvider>
-      </ToastProvider>
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <HashRouter>
+                <App />
+              </HashRouter>
+            </AuthProvider>
+          </QueryClientProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </LanguageProvider>
   </StrictMode>,
 )

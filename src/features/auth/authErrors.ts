@@ -1,8 +1,12 @@
+import { messagesFor, type Lang } from '@/i18n'
+
 /**
- * Map a Supabase auth error (returned OR thrown) to a clear, user-facing French
- * message. Never surfaces raw technical strings like "Failed to fetch" to users.
+ * Map a Supabase auth error (returned OR thrown) to a clear, user-facing
+ * message in the given language (French by default). Never surfaces raw
+ * technical strings like "Failed to fetch" to users.
  */
-export function mapAuthError(error: unknown): string {
+export function mapAuthError(error: unknown, lang: Lang = 'fr'): string {
+  const a = messagesFor(lang).authErrors
   const message =
     typeof error === 'object' && error !== null && 'message' in error
       ? String((error as { message?: unknown }).message ?? '')
@@ -17,11 +21,11 @@ export function mapAuthError(error: unknown): string {
     m.includes('already exists') ||
     m.includes('user already')
   ) {
-    return 'Un compte existe peut-être déjà avec cette adresse. Essayez de vous connecter ou de réinitialiser votre mot de passe.'
+    return a.emailInUse
   }
 
   if (m.includes('email not confirmed') || m.includes('not confirmed') || m.includes('email_not_confirmed')) {
-    return 'Vérifiez votre email avant de vous connecter.'
+    return a.emailNotConfirmed
   }
 
   if (
@@ -32,8 +36,8 @@ export function mapAuthError(error: unknown): string {
     m.includes('api key') ||
     m.includes('apikey')
   ) {
-    return 'Connexion au service impossible. Réessayez dans quelques instants.'
+    return a.network
   }
 
-  return message || 'Une erreur est survenue. Réessayez dans quelques instants.'
+  return message || a.generic
 }
