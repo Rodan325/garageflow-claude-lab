@@ -426,6 +426,56 @@ export type Database = {
           },
         ]
       }
+      garage_centers: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          garage_id: string
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          postal_code: string | null
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          garage_id: string
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          postal_code?: string | null
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          garage_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          postal_code?: string | null
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "garage_centers_garage_id_fkey"
+            columns: ["garage_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       garage_hours: {
         Row: {
           close_time: string | null
@@ -463,6 +513,7 @@ export type Database = {
       }
       garage_members: {
         Row: {
+          center_id: string | null
           created_at: string
           garage_id: string
           id: string
@@ -472,6 +523,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          center_id?: string | null
           created_at?: string
           garage_id: string
           id?: string
@@ -481,6 +533,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          center_id?: string | null
           created_at?: string
           garage_id?: string
           id?: string
@@ -1082,7 +1135,9 @@ export type Database = {
       service_requests: {
         Row: {
           appointment_id: string | null
+          center_id: string | null
           client_id: string
+          client_stage: string | null
           client_vehicle_id: string | null
           contact_email: string | null
           contact_name: string | null
@@ -1105,7 +1160,9 @@ export type Database = {
         }
         Insert: {
           appointment_id?: string | null
+          center_id?: string | null
           client_id: string
+          client_stage?: string | null
           client_vehicle_id?: string | null
           contact_email?: string | null
           contact_name?: string | null
@@ -1128,7 +1185,9 @@ export type Database = {
         }
         Update: {
           appointment_id?: string | null
+          center_id?: string | null
           client_id?: string
+          client_stage?: string | null
           client_vehicle_id?: string | null
           contact_email?: string | null
           contact_name?: string | null

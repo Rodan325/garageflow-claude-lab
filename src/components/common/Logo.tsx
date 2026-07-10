@@ -1,6 +1,14 @@
 import { cn } from '@/lib/utils'
+import { useBrand } from '@/branding'
 
 export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
+  // A branded logo (e.g. Speedy demo) replaces the wordmark; the default brand
+  // has none, so the GarageFlow mark below renders exactly as before.
+  const { brand } = useBrand()
+  if (brand.logoComponent) {
+    const BrandLogo = brand.logoComponent
+    return <BrandLogo className={className} compact={compact} />
+  }
   return (
     <span className={cn('inline-flex items-center gap-2 font-bold', className)}>
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">

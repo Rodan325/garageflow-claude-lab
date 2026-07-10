@@ -3,6 +3,7 @@ import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useBrand } from '@/branding'
 
 const included = [
   'Réservation en ligne pour vos clients',
@@ -21,11 +22,12 @@ const steps = [
 ]
 
 export function PilotPage() {
+  const { brand } = useBrand()
   return (
     <div className="container max-w-5xl py-16">
       <div className="text-center">
         <Badge tone="primary">Programme pilote</Badge>
-        <h1 className="mt-4 text-3xl font-bold sm:text-4xl">Testez GarageFlow dans votre garage</h1>
+        <h1 className="mt-4 text-3xl font-bold sm:text-4xl">Testez {brand.appName} dans votre garage</h1>
         <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
           Un cadre simple pour valider sur le terrain : moins d’appels, des réservations centralisées, un agenda clair.
           Sans engagement.

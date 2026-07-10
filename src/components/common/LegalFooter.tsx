@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { legalConfig } from '@/config/legal'
+import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
 
 const LINKS = [
@@ -16,6 +17,7 @@ const LINKS = [
  * shell can place it inside its own footer/main without nesting <footer>s.
  */
 export function LegalFooter({ className }: { className?: string }) {
+  const { brand } = useBrand()
   return (
     <div
       className={cn(
@@ -23,7 +25,7 @@ export function LegalFooter({ className }: { className?: string }) {
         className,
       )}
     >
-      <span className="font-medium">{legalConfig.appName} — {legalConfig.pilotVersion}</span>
+      <span className="font-medium">{brand.legalDisplayName} — {legalConfig.pilotVersion}</span>
       {LINKS.map(({ to, label }) => (
         <span key={to} className="inline-flex items-center gap-x-2">
           <span aria-hidden>·</span>

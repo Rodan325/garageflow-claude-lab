@@ -12,6 +12,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useGarageRequests } from '@/data/requests'
 import { useProMode } from '@/features/pro/useProMode'
 import { ROLE_LABEL, type GarageRole } from '@/types/domain'
+import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
 
 const essentiel = [
@@ -30,6 +31,7 @@ const avance = [
 
 export function ProShell() {
   const { garage, profile, role, signOut } = useAuth()
+  const { brand } = useBrand()
   const navigate = useNavigate()
   const { data: requests } = useGarageRequests(garage?.id)
   const pending = (requests ?? []).filter((r) => r.status === 'pending').length
@@ -141,7 +143,7 @@ export function ProShell() {
               <Menu className="h-5 w-5" />
             </button>
             <div>
-              <p className="text-sm font-semibold leading-tight">{garage?.name ?? 'GarageFlow Pro'}</p>
+              <p className="text-sm font-semibold leading-tight">{garage?.name ?? `${brand.shortName} Pro`}</p>
               <p className="text-xs text-muted-foreground">{garage?.city ? `${garage.city} · ` : ''}Espace garage</p>
             </div>
           </div>

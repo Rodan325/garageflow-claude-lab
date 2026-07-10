@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import { FlaskConical } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { useBrand } from '@/branding'
 import { resetDemoData } from '@/lib/demo'
 
 /** Visible strip shown whenever the app runs in local demo mode. */
 export function DemoBanner() {
   const { demo, signOut } = useAuth()
+  const { exitDemo } = useBrand()
   const navigate = useNavigate()
   if (!demo) return null
   return (
@@ -17,6 +19,8 @@ export function DemoBanner() {
       </span>
       <button
         onClick={() => {
+          // Centralized brand exit first, then reseed the (now default) data.
+          exitDemo()
           resetDemoData()
           navigate(0)
         }}
@@ -26,6 +30,7 @@ export function DemoBanner() {
       </button>
       <button
         onClick={async () => {
+          exitDemo()
           await signOut()
           navigate('/')
         }}

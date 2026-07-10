@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, CalendarCheck, CheckCircle2, Inbox, PhoneOff, ShieldCheck, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useBrand } from '@/branding'
 import { fadeSlideUp, listItem, listStagger } from '@/lib/motion'
 
 const problems = [
@@ -21,6 +22,7 @@ const benefits = [
 ]
 
 export function HomePage() {
+  const { brand } = useBrand()
   return (
     <div>
       {/* Hero */}
@@ -33,7 +35,7 @@ export function HomePage() {
             Recevez vos demandes de rendez-vous en ligne et gérez-les en quelques clics.
           </h1>
           <p className="mt-4 max-w-lg text-lg text-muted-foreground">
-            GarageFlow réunit l’espace garage et l’application client. Moins d’appels, des demandes centralisées,
+            {brand.appName} réunit l’espace garage et l’application client. Moins d’appels, des demandes centralisées,
             un agenda propre.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">

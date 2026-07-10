@@ -5,10 +5,12 @@
  * real Supabase mode: it only activates when explicitly entered.
  */
 import type {
-  Appointment, ClientProfile, ClientVehicle, Customer, Garage, GarageHours,
+  Appointment, ClientProfile, ClientVehicle, Customer, Garage, GarageCenter, GarageHours,
   GarageNews, GarageService, Quote, QuoteLine, Repair, ServiceRequest, ServiceRequestMessage, Task,
 } from '@/types/domain'
 import type { DashboardStats, TeamMember } from '@/data/proData'
+import { DEFAULT_AUTO_SERVICES } from '@/data/defaultAutoServices'
+import { resolveBrandId } from '@/branding'
 import { computeQuoteTotals, lineTotal } from '@/lib/quoteTotals'
 import { quoteSendBlockReason } from '@/lib/quoteStatus'
 import { legalVersions } from '@/config/legal'
@@ -23,9 +25,21 @@ export const DEMO_CLIENT_ID = 'demo-client'
 // Active role is PER-TAB (sessionStorage) so two tabs can run different roles
 // (client + garage) side by side; the demo DATA is shared (localStorage).
 const KIND_KEY = 'gf-demo'
-export const STORE_KEY = 'gf-demo-store-v4'
+// Base key; brand-scoped at runtime (see storeKey()) so the default GarageFlow
+// demo and the Speedy demo keep completely separate data.
+// v6: brand-scoped store; default brand reverts to the original catalog.
+export const STORE_KEY = 'gf-demo-store-v6'
 
 export type DemoKind = 'garage' | 'client'
+
+/** Which demo dataset to use: 'speedy' (car-service network) or 'default'. */
+type DemoBrand = 'default' | 'speedy'
+function demoBrand(): DemoBrand {
+  return resolveBrandId() === 'speedy' ? 'speedy' : 'default'
+}
+function storeKey(brand: DemoBrand = demoBrand()): string {
+  return brand === 'speedy' ? `${STORE_KEY}-speedy` : STORE_KEY
+}
 
 export function getDemoKind(): DemoKind | null {
   if (typeof window === 'undefined') return null
@@ -76,6 +90,7 @@ const isoIn = (days: number) => {
 
 interface Store {
   garages: Garage[]
+  centers: GarageCenter[]
   services: GarageService[]
   news: GarageNews[]
   hours: GarageHours[]
@@ -95,9 +110,22 @@ interface Store {
 }
 type Vehicle = Customer extends never ? never : import('@/types/domain').Vehicle
 
-function seed(): Store {
+// Original GarageFlow demo catalog — kept for the DEFAULT brand so its demo is
+// unchanged. The Speedy demo uses DEFAULT_AUTO_SERVICES (car-service catalog).
+const ORIGINAL_SERVICES = [
+  { name: 'Révision constructeur', description: 'Vidange, filtres et points de contrôle complets.', category: 'Entretien', duration_minutes: 90, price_from: 149 },
+  { name: 'Vidange + filtre', description: 'Vidange huile et remplacement du filtre à huile.', category: 'Entretien', duration_minutes: 45, price_from: 79 },
+  { name: 'Plaquettes de frein', description: 'Contrôle et remplacement des plaquettes avant.', category: 'Freinage', duration_minutes: 60, price_from: 119 },
+  { name: 'Diagnostic électronique', description: 'Lecture des défauts et diagnostic moteur.', category: 'Diagnostic', duration_minutes: 30, price_from: 49 },
+  { name: 'Recharge climatisation', description: 'Recharge et contrôle du circuit de climatisation.', category: 'Confort', duration_minutes: 60, price_from: 89 },
+  { name: 'Pneu monté (unité)', description: 'Montage, équilibrage et valve neuve.', category: 'Pneumatiques', duration_minutes: 20, price_from: 25 },
+]
+
+function seed(brand: DemoBrand = 'default'): Store {
+  const isSpeedy = brand === 'speedy'
   const g: Garage = {
-    id: DEMO_GARAGE_ID, slug: 'garage-central-lyon', name: 'Garage Central Lyon',
+    id: DEMO_GARAGE_ID, slug: 'garage-central-lyon',
+    name: isSpeedy ? 'Speedy Lyon' : 'Garage Central Lyon',
     legal_name: 'Garage Central SARL', siret: null, vat_number: null,
     phone: '+33 4 78 00 00 00', email: 'contact@garage-central.fr', website: null,
     address: '12 rue de la Mécanique', city: 'Lyon', postal_code: '69003', country: 'FR',
@@ -106,19 +134,31 @@ function seed(): Store {
     logo_url: null, accent_color: null, legal_info: null, maps_url: null,
     is_public: true, settings: {}, created_at: today().toISOString(),
   }
+  const ctr = (slug: string, name: string, city: string, postal_code: string, sort_order: number): GarageCenter => ({
+    id: uid(), garage_id: DEMO_GARAGE_ID, slug, name,
+    address: null, city, postal_code, phone: g.phone,
+    is_active: true, sort_order, created_at: today().toISOString(),
+  })
+  // Centers exist ONLY in the multi-center (Speedy) demo. The plain GarageFlow
+  // demo has none → the booking flow stays the legacy 3-step flow.
+  const centers: GarageCenter[] = isSpeedy
+    ? [
+        ctr('lyon-part-dieu', 'Centre Part-Dieu', 'Lyon', '69003', 1),
+        ctr('villeurbanne', 'Centre Villeurbanne', 'Villeurbanne', '69100', 2),
+        ctr('lyon-gerland', 'Centre Gerland', 'Lyon', '69007', 3),
+      ]
+    : []
   const svc = (name: string, description: string, category: string, duration_minutes: number, price_from: number, sort_order: number): GarageService => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, name, description, category, duration_minutes,
     price_from, is_active: true, sort_order, created_at: today().toISOString(),
     tax_rate: 20, labor_hours: null, price_type: 'from', default_lines: [],
   })
-  const services = [
-    svc('Révision constructeur', 'Vidange, filtres et points de contrôle complets.', 'Entretien', 90, 149, 1),
-    svc('Vidange + filtre', 'Vidange huile et remplacement du filtre à huile.', 'Entretien', 45, 79, 2),
-    svc('Plaquettes de frein', 'Contrôle et remplacement des plaquettes avant.', 'Freinage', 60, 119, 3),
-    svc('Diagnostic électronique', 'Lecture des défauts et diagnostic moteur.', 'Diagnostic', 30, 49, 4),
-    svc('Recharge climatisation', 'Recharge et contrôle du circuit de climatisation.', 'Confort', 60, 89, 5),
-    svc('Pneu monté (unité)', 'Montage, équilibrage et valve neuve.', 'Pneumatiques', 20, 25, 6),
-  ]
+  // Speedy demo → car-service catalog; default demo → the original catalog.
+  const serviceDefs = isSpeedy ? DEFAULT_AUTO_SERVICES : ORIGINAL_SERVICES
+  const services = serviceDefs.map((s, i) =>
+    svc(s.name, s.description, s.category, s.duration_minutes, s.price_from, i + 1),
+  )
+  const freinage = services.find((s) => s.category === 'Freinage') ?? services[0]
   const cust = (first_name: string, last_name: string, city: string): Customer => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, linked_user_id: null, first_name, last_name,
     company_name: null, phone: '+33 6 12 34 56 78', email: `${first_name.toLowerCase()}@example.fr`,
@@ -141,7 +181,8 @@ function seed(): Store {
   const requests: ServiceRequest[] = [
     {
       id: uid(), reference: 'GF-00001', garage_id: DEMO_GARAGE_ID, client_id: DEMO_CLIENT_ID,
-      service_id: services[2].id, service_name: 'Plaquettes de frein',
+      center_id: isSpeedy ? centers[0].id : null, client_stage: isSpeedy ? 'request_sent' : null,
+      service_id: freinage.id, service_name: freinage.name,
       client_vehicle_id: 'demo-cv-1', vehicle_label: 'Volkswagen Golf 7 · IJ-789-KL',
       requested_date: isoIn(3), requested_time: '09:00', proposed_date: null, proposed_time: null,
       note: 'Bruit au freinage côté avant droit.', contact_name: 'Julie Durand',
@@ -237,7 +278,7 @@ function seed(): Store {
     lines: [{ label: 'Recharge climatisation (offre revue)', quantity: 1, unit_price: 75, tax_rate: 20 }] })
 
   return {
-    garages: [g], services, news, hours, customers, vehicles, clientVehicles, requests,
+    garages: [g], centers, services, news, hours, customers, vehicles, clientVehicles, requests,
     messages: [], appointments: [], repairs, tasks, quotes, quoteLines,
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
     reqSeq: 1, quoteSeq: qseq,
@@ -257,9 +298,9 @@ const QUOTE_LIFECYCLE_DEFAULTS = {
  * with a fresh seed so arrays/sequences always exist and never crash the UI.
  * A corrupt / non-object payload falls back to a full reseed.
  */
-export function ensureStoreShape(raw: unknown): Store {
-  if (!raw || typeof raw !== 'object') return seed()
-  const base = seed()
+export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): Store {
+  if (!raw || typeof raw !== 'object') return seed(brand)
+  const base = seed(brand)
   const r = raw as Record<string, unknown>
   // Missing arrays default to [] and missing sequences to 0 (predictable, never
   // inherits seed rows that could reference entities the stored data lacks).
@@ -270,6 +311,7 @@ export function ensureStoreShape(raw: unknown): Store {
 
   const store: Store = {
     garages: arr('garages'),
+    centers: arr('centers'),
     services: arr('services'),
     news: arr('news'),
     hours: arr('hours'),
@@ -294,40 +336,49 @@ export function ensureStoreShape(raw: unknown): Store {
 }
 
 let cache: Store | null = null
+let cacheBrand: DemoBrand | null = null
 function load(): Store {
-  if (cache) return cache
+  const brand = demoBrand()
+  // Re-hydrate when the active brand changed (the store is brand-scoped).
+  if (cache && cacheBrand === brand) return cache
+  cacheBrand = brand
   try {
-    const raw = localStorage.getItem(STORE_KEY)
+    const raw = localStorage.getItem(storeKey(brand))
     if (raw) {
-      cache = ensureStoreShape(JSON.parse(raw))
+      cache = ensureStoreShape(JSON.parse(raw), brand)
       // Persist the upgraded shape so the on-disk store is migrated once.
-      localStorage.setItem(STORE_KEY, JSON.stringify(cache))
+      localStorage.setItem(storeKey(brand), JSON.stringify(cache))
     } else {
-      cache = seed()
+      cache = seed(brand)
     }
   } catch {
-    cache = seed()
+    cache = seed(brand)
   }
   return cache!
 }
 function save() {
-  if (cache) localStorage.setItem(STORE_KEY, JSON.stringify(cache))
+  if (cache && cacheBrand) localStorage.setItem(storeKey(cacheBrand), JSON.stringify(cache))
 }
 function ensureStore() {
-  if (!localStorage.getItem(STORE_KEY)) {
-    cache = seed()
+  const brand = demoBrand()
+  if (!localStorage.getItem(storeKey(brand))) {
+    cache = seed(brand)
+    cacheBrand = brand
     save()
   }
 }
 export function resetDemoData() {
-  cache = seed()
+  const brand = demoBrand()
+  cache = seed(brand)
+  cacheBrand = brand
   save()
   window.dispatchEvent(new Event('gf-demo-data'))
 }
 /** Drop the in-memory store so the next read re-hydrates from localStorage —
- *  used when another tab changed the shared demo data (cross-tab sync). */
+ *  used when another tab changed the shared demo data, or the brand changed. */
 export function reloadDemoCache() {
   cache = null
+  cacheBrand = null
 }
 
 /** Return fresh copies so React Query's structural sharing detects changes
@@ -376,6 +427,8 @@ function buildPublicQuote(s: Store, token: string) {
 export const demo = {
   garages: () => clone(load().garages),
   garageById: (id: string) => clone(load().garages.find((g) => g.id === id) ?? null),
+  centers: () => clone([...load().centers].filter((c) => c.is_active).sort((a, b) => a.sort_order - b.sort_order)),
+  allCenters: () => clone([...load().centers].sort((a, b) => a.sort_order - b.sort_order)),
   services: () => clone(load().services.filter((s) => s.is_active).sort((a, b) => a.sort_order - b.sort_order)),
   allServices: () => clone([...load().services].sort((a, b) => a.sort_order - b.sort_order)),
   news: () => clone(load().news),
@@ -394,8 +447,8 @@ export const demo = {
   quote: (id: string) => clone(load().quotes.find((q) => q.id === id) ?? null),
   quoteLines: (quoteId: string) => clone(load().quoteLines.filter((l) => l.quote_id === quoteId).sort((a, b) => a.sort_order - b.sort_order)),
   team: (): TeamMember[] => [
-    { id: 't1', garage_id: DEMO_GARAGE_ID, user_id: DEMO_STAFF_ID, role: 'owner', status: 'active', invited_at: null, created_at: today().toISOString(), profile: demoProfile('garage') as never },
-    { id: 't2', garage_id: DEMO_GARAGE_ID, user_id: 'demo-mecano', role: 'mechanic', status: 'active', invited_at: null, created_at: today().toISOString(), profile: { ...demoProfile('garage'), id: 'demo-mecano', full_name: 'Karim Benali' } as never },
+    { id: 't1', garage_id: DEMO_GARAGE_ID, center_id: null, user_id: DEMO_STAFF_ID, role: 'owner', status: 'active', invited_at: null, created_at: today().toISOString(), profile: demoProfile('garage') as never },
+    { id: 't2', garage_id: DEMO_GARAGE_ID, center_id: null, user_id: 'demo-mecano', role: 'mechanic', status: 'active', invited_at: null, created_at: today().toISOString(), profile: { ...demoProfile('garage'), id: 'demo-mecano', full_name: 'Karim Benali' } as never },
   ],
   dashboardStats: (): DashboardStats => {
     const s = load()
@@ -416,7 +469,8 @@ export const demo = {
     s.reqSeq += 1
     const row: ServiceRequest = {
       id: uid(), reference: 'GF-' + String(s.reqSeq).padStart(5, '0'),
-      garage_id: DEMO_GARAGE_ID, client_id: DEMO_CLIENT_ID, service_id: input.service_id ?? null,
+      garage_id: DEMO_GARAGE_ID, center_id: input.center_id ?? null, client_id: DEMO_CLIENT_ID,
+      client_stage: 'request_sent', service_id: input.service_id ?? null,
       service_name: input.service_name ?? 'Prestation', client_vehicle_id: input.client_vehicle_id ?? null,
       vehicle_label: input.vehicle_label ?? null, requested_date: input.requested_date ?? null,
       requested_time: input.requested_time ?? null, proposed_date: null, proposed_time: null,

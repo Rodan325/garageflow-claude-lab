@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const onRole = () => setDemo(getDemoKind())
     const onData = () => { reloadDemoCache(); if (getDemoKind()) queryClient.invalidateQueries() }
-    const onStorage = (e: StorageEvent) => { if (e.key === STORE_KEY || e.key === null) onData() }
+    const onStorage = (e: StorageEvent) => { if (!e.key || e.key.startsWith(STORE_KEY)) onData() }
     window.addEventListener('gf-demo-role', onRole)
     window.addEventListener('gf-demo-data', onData)
     window.addEventListener('storage', onStorage)
