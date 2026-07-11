@@ -1,5 +1,12 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { demo, reloadDemoCache } from './demo'
+import { exitBrandDemo } from '@/branding'
+import {
+  demo,
+  reloadDemoCache,
+  resetDemoData,
+  SPEEDY_STORE_KEY,
+  STORE_KEY,
+} from './demo'
 
 afterEach(() => {
   localStorage.clear()
@@ -37,5 +44,70 @@ describe('demo data is brand-scoped', () => {
     withBrand('default', () => {
       expect(demo.centers()).toHaveLength(0) // default store untouched by speedy
     })
+  })
+})
+
+describe('brand-scoped demo reset', () => {
+  it('resets the Speedy store without clearing the GarageFlow store', () => {
+    withBrand('default', () => {
+      demo.createService({ name: 'GarageFlow custom service' })
+    })
+    const defaultBefore = localStorage.getItem(STORE_KEY)
+
+    withBrand('speedy', () => {
+      demo.createService({ name: 'Speedy custom service' })
+      expect(demo.services().some((service) => service.name === 'Speedy custom service')).toBe(true)
+    })
+
+    resetDemoData('speedy')
+
+    expect(localStorage.getItem(STORE_KEY)).toBe(defaultBefore)
+    expect(localStorage.getItem(SPEEDY_STORE_KEY)).not.toContain('Speedy custom service')
+  })
+
+  it('reloads the initial Speedy seeds after reset and reactivation', () => {
+    withBrand('speedy', () => {
+      demo.createService({ name: 'Temporary Speedy service' })
+      expect(demo.centers()).toHaveLength(3)
+    })
+
+    resetDemoData('speedy')
+    exitBrandDemo()
+    expect(localStorage.getItem('gf-brand')).toBeNull()
+
+    withBrand('speedy', () => {
+      const names = demo.services().map((service) => service.name)
+      expect(names).toContain('Amortisseurs')
+      expect(names).not.toContain('Temporary Speedy service')
+      expect(demo.centers()).toHaveLength(3)
+    })
+  })
+
+  it('leaves the Speedy store untouched when merely leaving the demo', () => {
+    withBrand('speedy', () => {
+      demo.createService({ name: 'Persistent Speedy service' })
+    })
+    const speedyBefore = localStorage.getItem(SPEEDY_STORE_KEY)
+
+    exitBrandDemo()
+
+    expect(localStorage.getItem('gf-brand')).toBeNull()
+    expect(localStorage.getItem(SPEEDY_STORE_KEY)).toBe(speedyBefore)
+  })
+
+  it('keeps the existing GarageFlow reset behavior', () => {
+    withBrand('speedy', () => {
+      demo.createService({ name: 'Persistent Speedy service' })
+    })
+    const speedyBefore = localStorage.getItem(SPEEDY_STORE_KEY)
+
+    withBrand('default', () => {
+      demo.createService({ name: 'Temporary GarageFlow service' })
+      resetDemoData('default')
+      expect(demo.services().some((service) => service.name === 'Temporary GarageFlow service')).toBe(false)
+      expect(demo.services().map((service) => service.name)).toContain('Révision constructeur')
+    })
+
+    expect(localStorage.getItem(SPEEDY_STORE_KEY)).toBe(speedyBefore)
   })
 })

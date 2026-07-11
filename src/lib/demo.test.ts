@@ -1,5 +1,19 @@
-import { describe, it, expect } from 'vitest'
-import { ensureStoreShape, isDemoQuoteToken, canResolveDemoPublicQuote, STORE_KEY } from './demo'
+import { afterEach, describe, it, expect } from 'vitest'
+import {
+  canResolveDemoPublicQuote,
+  demo,
+  ensureStoreShape,
+  isDemoQuoteToken,
+  reloadDemoCache,
+  SPEEDY_STORE_KEY,
+  STORE_KEY,
+  type DemoBrand,
+} from './demo'
+
+afterEach(() => {
+  localStorage.clear()
+  reloadDemoCache()
+})
 
 describe('ensureStoreShape — demo store migration', () => {
   it('backfills missing array keys + quoteSeq from a legacy store (no quotes)', () => {
@@ -72,6 +86,13 @@ describe('demo centers — multi-center foundation', () => {
 })
 
 describe('demo quote token detection', () => {
+  function saveQuoteStore(brand: DemoBrand, key: string, token: string) {
+    const store = ensureStoreShape('force-reseed', brand)
+    store.quotes.forEach((quote) => { quote.client_token = null })
+    store.quotes[0].client_token = token
+    localStorage.setItem(key, JSON.stringify(store))
+  }
+
   it('detects demo tokens by the "demo" prefix', () => {
     expect(isDemoQuoteToken('demoquoteacc123')).toBe(true)
     expect(isDemoQuoteToken('demo' + 'abcdef')).toBe(true)
@@ -82,13 +103,56 @@ describe('demo quote token detection', () => {
     expect(isDemoQuoteToken('a1b2c3d4e5f6a7b8c9d0')).toBe(false)
   })
 
-  it('resolves a demo token only when a local store exists in this browser', () => {
-    localStorage.removeItem(STORE_KEY)
-    expect(canResolveDemoPublicQuote('demoquotesent123')).toBe(false)
-    localStorage.setItem(STORE_KEY, JSON.stringify({ quotes: [] }))
-    expect(canResolveDemoPublicQuote('demoquotesent123')).toBe(true)
-    // real tokens never resolve locally, even with a store present
+  it('finds a GarageFlow quote in the default store', () => {
+    const token = 'demogarageflowquote123'
+    saveQuoteStore('default', STORE_KEY, token)
+
+    expect(canResolveDemoPublicQuote(token)).toBe(true)
+    expect(demo.getPublicQuote(token)?.garage.name).toBe('Garage Central Lyon')
+  })
+
+  it('finds a Speedy quote without any active branding in the new tab', () => {
+    const token = 'demospeedyquote123'
+    saveQuoteStore('speedy', SPEEDY_STORE_KEY, token)
+    localStorage.removeItem('gf-brand')
+
+    expect(canResolveDemoPublicQuote(token)).toBe(true)
+    expect(demo.getPublicQuote(token)?.garage.name).toBe('Speedy Lyon')
+  })
+
+  it('does not resolve a token absent from both stores', () => {
+    saveQuoteStore('default', STORE_KEY, 'demodefaultonly')
+    saveQuoteStore('speedy', SPEEDY_STORE_KEY, 'demospeedyonly')
+
+    expect(canResolveDemoPublicQuote('demomissing')).toBe(false)
+    expect(demo.getPublicQuote('demomissing')).toBeNull()
+  })
+
+  it('keeps quote resolution isolated between the two stores', () => {
+    const defaultToken = 'demodefaultisolated'
+    const speedyToken = 'demospeedyisolated'
+    saveQuoteStore('default', STORE_KEY, defaultToken)
+    saveQuoteStore('speedy', SPEEDY_STORE_KEY, speedyToken)
+    const defaultBefore = localStorage.getItem(STORE_KEY)
+    const speedyBefore = localStorage.getItem(SPEEDY_STORE_KEY)
+
+    expect(demo.getPublicQuote(defaultToken)?.garage.name).toBe('Garage Central Lyon')
+    expect(demo.getPublicQuote(speedyToken)?.garage.name).toBe('Speedy Lyon')
+    expect(localStorage.getItem(STORE_KEY)).toBe(defaultBefore)
+    expect(localStorage.getItem(SPEEDY_STORE_KEY)).toBe(speedyBefore)
     expect(canResolveDemoPublicQuote('a1b2c3d4e5f6a7b8c9d0')).toBe(false)
-    localStorage.removeItem(STORE_KEY)
+  })
+
+  it('keeps seeded tokens compatible and unique across brands', () => {
+    const defaultTokens = ensureStoreShape('force-reseed', 'default').quotes
+      .map((quote) => quote.client_token)
+      .filter((token): token is string => token !== null)
+    const speedyTokens = ensureStoreShape('force-reseed', 'speedy').quotes
+      .map((quote) => quote.client_token)
+      .filter((token): token is string => token !== null)
+
+    expect(defaultTokens).toContain('demoquoteacca1b2c3d4e5f6a7b8')
+    expect(speedyTokens.every((token) => token.startsWith('demo'))).toBe(true)
+    expect(defaultTokens.filter((token) => speedyTokens.includes(token))).toHaveLength(0)
   })
 })
