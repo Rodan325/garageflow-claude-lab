@@ -39,5 +39,5 @@ export function mapAuthError(error: unknown, lang: Lang = 'fr'): string {
     return a.network
   }
 
-  return message || a.generic
+  return a.generic
 }

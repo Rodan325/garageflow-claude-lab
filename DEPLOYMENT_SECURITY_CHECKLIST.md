@@ -1,4 +1,4 @@
-# GarageFlow — Checklist de déploiement sécurisé
+# Clikarage — Checklist de déploiement sécurisé
 
 À dérouler avant d'exposer l'app avec de vraies données (Vercel / Netlify / hébergeur statique).
 

@@ -1,7 +1,7 @@
-# GarageFlow — Script de démonstration commerciale (7–10 min)
+# Clikarage — Script de démonstration commerciale (7–10 min)
 
 > Public : un garagiste indépendant (gérant ou chef d'atelier).
-> Objectif : montrer en moins de 10 minutes que GarageFlow **fait gagner du temps** et **donne une image pro**, puis proposer un pilote.
+> Objectif : montrer en moins de 10 minutes que Clikarage **fait gagner du temps** et **donne une image pro**, puis proposer un pilote.
 > Ton : simple, concret, pas technique. On parle de **demandes**, **rendez-vous** et **devis**, pas de « base de données » ni de « RLS ».
 
 ## Avant de commencer (30 s de préparation, hors démo)
@@ -15,7 +15,7 @@
 ## 1. Le problème du garage (45 s) — *parler, pas cliquer*
 > « Aujourd'hui, vos clients appellent, laissent des messages, repassent. Vous notez les rendez-vous sur un carnet ou un agenda, et les devis partent par SMS, par mail, ou à l'oral. Résultat : du temps perdu au téléphone, des oublis, et des devis qu'on ne retrouve plus. »
 
-**Transition :** « Je vais vous montrer comment ça se passe avec GarageFlow, côté client puis côté garage. »
+**Transition :** « Je vais vous montrer comment ça se passe avec Clikarage, côté client puis côté garage. »
 
 ## 2. La réservation côté client (90 s) — *fenêtre étroite*
 - Page d'accueil client → **Garage Central Lyon** (logo, prestations avec durée et prix).
@@ -77,7 +77,7 @@
 - **Une image sérieuse** : le client réserve et accepte en ligne, comme chez les grands.
 
 ## 10. La proposition de pilote (45 s)
-> « Je vous propose de tester GarageFlow gratuitement pendant 3 à 4 semaines, avec vos vraies prestations et vos vrais clients. On configure ensemble votre garage, votre logo et vos tarifs. Vous me dites au bout de 2 semaines si ça vous fait gagner du temps. »
+> « Je vous propose de tester Clikarage gratuitement pendant 3 à 4 semaines, avec vos vraies prestations et vos vrais clients. On configure ensemble votre garage, votre logo et vos tarifs. Vous me dites au bout de 2 semaines si ça vous fait gagner du temps. »
 
 → Remettre la fiche **PILOT_OFFER.md**.
 
@@ -89,7 +89,7 @@
 |---|---|
 | « Mes clients ne sont pas à l'aise avec internet. » | « Ils n'ont rien à installer : ils réservent depuis un lien, et le devis s'ouvre comme une page web. Vous pouvez aussi saisir une demande pour eux. » |
 | « Je n'ai pas le temps de configurer ça. » | « C'est moi qui configure votre garage, vos prestations et votre logo pendant le pilote. Vous n'avez qu'à utiliser. » |
-| « J'ai déjà un agenda / un logiciel. » | « GarageFlow ne remplace pas tout : il s'occupe surtout des **demandes en ligne** et des **devis**, là où on perd le plus de temps. On teste juste cette partie. » |
+| « J'ai déjà un agenda / un logiciel. » | « Clikarage ne remplace pas tout : il s'occupe surtout des **demandes en ligne** et des **devis**, là où on perd le plus de temps. On teste juste cette partie. » |
 | « Ça coûte combien ? » | « Le pilote est gratuit. On parle de tarif seulement si ça vous a fait gagner du temps. » |
 | « Et si je suis complet ? » | « Vous proposez un autre créneau en un clic, ou vous refusez poliment. Le client est prévenu tout de suite. » |
 | « Mes devis sont compliqués (pièces + main d'œuvre). » | « Le devis a autant de lignes que vous voulez, avec quantités, prix et TVA. Vous pouvez partir d'une prestation type et ajuster. » |

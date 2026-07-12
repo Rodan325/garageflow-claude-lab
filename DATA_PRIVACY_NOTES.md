@@ -1,6 +1,6 @@
-# GarageFlow — Données personnelles (notes simples, esprit RGPD)
+# Clikarage — Données personnelles (notes simples, esprit RGPD)
 
-Document de référence en **langage clair** sur les données traitées par GarageFlow et les droits du client. Ce n'est pas un avis juridique : le **pack légal RGPD complet** (politique de confidentialité, CGU, DPA, registre, durées exactes) reste à finaliser avant production commerciale.
+Document de référence en **langage clair** sur les données traitées par Clikarage et les droits du client. Ce n'est pas un avis juridique : le **pack légal RGPD complet** (politique de confidentialité, CGU, DPA, registre, durées exactes) reste à finaliser avant production commerciale.
 
 ---
 

@@ -21,9 +21,14 @@ describe('mapAuthError', () => {
     expect(mapAuthError({ message: 'Email not confirmed' })).toMatch(/Vérifiez votre email avant de vous connecter/i)
   })
 
-  it('passes through unknown messages and falls back when empty', () => {
-    expect(mapAuthError({ message: 'Something specific went wrong' })).toBe('Something specific went wrong')
+  it('never exposes unknown raw messages and falls back when empty', () => {
+    expect(mapAuthError({ message: 'Something specific went wrong' })).toMatch(/une erreur est survenue/i)
     expect(mapAuthError(null)).toMatch(/une erreur est survenue/i)
     expect(mapAuthError('')).toMatch(/une erreur est survenue/i)
+  })
+
+  it('returns localized English and Arabic fallbacks', () => {
+    expect(mapAuthError({ message: 'Something specific went wrong' }, 'en')).toMatch(/something went wrong/i)
+    expect(mapAuthError({ message: 'Something specific went wrong' }, 'ar')).toMatch(/حدث خطأ/)
   })
 })

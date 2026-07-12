@@ -30,7 +30,7 @@ describe('centersEnabled', () => {
     expect(centersEnabled()).toBe(false)
   })
 
-  it('stays off in the plain GarageFlow demo (default brand)', () => {
+  it('stays off in the plain Clikarage demo (default brand)', () => {
     // Entering demo mode must NOT enable centers on its own anymore.
     setDemoKind('client')
     expect(centersEnabled()).toBe(false)

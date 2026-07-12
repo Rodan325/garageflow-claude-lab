@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { signupSchema } from './signupSchema'
+import { ar } from '@/i18n/ar'
+import { en } from '@/i18n/en'
+import { createSignupSchema, signupSchema } from './signupSchema'
 
 const valid = {
   fullName: 'Julie Durand',
@@ -42,5 +44,14 @@ describe('signupSchema', () => {
   it('rejects a weak / obvious password', () => {
     expect(signupSchema.safeParse({ ...valid, password: 'password1234', passwordConfirm: 'password1234' }).success).toBe(false)
     expect(signupSchema.safeParse({ ...valid, password: 'short', passwordConfirm: 'short' }).success).toBe(false)
+  })
+
+  it('localizes validation messages in English and Arabic', () => {
+    const invalid = { ...valid, emailConfirm: 'other@example.com' }
+    const english = createSignupSchema(en.validation).safeParse(invalid)
+    const arabic = createSignupSchema(ar.validation).safeParse(invalid)
+
+    expect(english.success ? [] : english.error.issues.map((issue) => issue.message)).toContain(en.validation.emailMismatch)
+    expect(arabic.success ? [] : arabic.error.issues.map((issue) => issue.message)).toContain(ar.validation.emailMismatch)
   })
 })

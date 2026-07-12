@@ -1,4 +1,4 @@
-# GarageFlow — Checklist de préparation pilote
+# Clikarage — Checklist de préparation pilote
 
 ## ✅ Prêt pour un pilote garage
 

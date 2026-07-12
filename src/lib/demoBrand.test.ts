@@ -21,7 +21,7 @@ function withBrand(brand: 'default' | 'speedy', fn: () => void) {
 }
 
 describe('demo data is brand-scoped', () => {
-  it('the default GarageFlow demo has NO centers and the original catalog', () => {
+  it('the default Clikarage demo has NO centers and the original catalog', () => {
     withBrand('default', () => {
       expect(demo.centers()).toHaveLength(0)
       const names = demo.services().map((s) => s.name)
@@ -48,9 +48,9 @@ describe('demo data is brand-scoped', () => {
 })
 
 describe('brand-scoped demo reset', () => {
-  it('resets the Speedy store without clearing the GarageFlow store', () => {
+  it('resets the Speedy store without clearing the Clikarage store', () => {
     withBrand('default', () => {
-      demo.createService({ name: 'GarageFlow custom service' })
+      demo.createService({ name: 'Clikarage custom service' })
     })
     const defaultBefore = localStorage.getItem(STORE_KEY)
 
@@ -95,16 +95,16 @@ describe('brand-scoped demo reset', () => {
     expect(localStorage.getItem(SPEEDY_STORE_KEY)).toBe(speedyBefore)
   })
 
-  it('keeps the existing GarageFlow reset behavior', () => {
+  it('keeps the existing Clikarage reset behavior', () => {
     withBrand('speedy', () => {
       demo.createService({ name: 'Persistent Speedy service' })
     })
     const speedyBefore = localStorage.getItem(SPEEDY_STORE_KEY)
 
     withBrand('default', () => {
-      demo.createService({ name: 'Temporary GarageFlow service' })
+      demo.createService({ name: 'Temporary Clikarage service' })
       resetDemoData('default')
-      expect(demo.services().some((service) => service.name === 'Temporary GarageFlow service')).toBe(false)
+      expect(demo.services().some((service) => service.name === 'Temporary Clikarage service')).toBe(false)
       expect(demo.services().map((service) => service.name)).toContain('Révision constructeur')
     })
 

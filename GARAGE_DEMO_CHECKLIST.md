@@ -1,4 +1,4 @@
-# GarageFlow — Checklist de rendez-vous garage
+# Clikarage — Checklist de rendez-vous garage
 
 Aide-mémoire pour une démo réussie (sur place ou en visio), ~10 minutes. Objectif : montrer la valeur et **repartir avec un pilote accepté ou une date de décision**.
 
@@ -49,7 +49,7 @@ Aide-mémoire pour une démo réussie (sur place ou en visio), ~10 minutes. Obje
 - Niveau d'intérêt (1–5) : ______
 
 ## 6. Comment conclure
-- [ ] Reformuler : *« Si je résume, ce qui vous prend du temps c'est [X] et [Y] — c'est exactement là-dessus que GarageFlow aide. »*
+- [ ] Reformuler : *« Si je résume, ce qui vous prend du temps c'est [X] et [Y] — c'est exactement là-dessus que Clikarage aide. »*
 - [ ] Vérifier l'adhésion : *« Est-ce que vous voyez ça vous faire gagner du temps au quotidien ? »*
 - [ ] **Proposer le pilote tout de suite** (ne pas repartir sans une suite).
 

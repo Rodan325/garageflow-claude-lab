@@ -8,7 +8,7 @@ import { getActiveBrand } from '@/branding'
  *  - the active brand is `speedy` (the multi-center demo skin), OR
  *  - VITE_ENABLE_CENTERS='true' (a real deployment where 0022/0023 are applied).
  *
- * The plain GarageFlow demo is therefore UNCHANGED: no center step, no forced
+ * The plain Clikarage demo is therefore UNCHANGED: no center step, no forced
  * car-service catalog. This gates BOTH reads (garage_centers) AND writes
  * (center_id / client_stage on service_requests), so a production DB without
  * the migrations is never queried with columns/tables it does not have.

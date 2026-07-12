@@ -1,33 +1,96 @@
-/**
- * French dictionary — the source of truth. Its shape defines `Messages`
- * (see index.ts); `en.ts` and `ar.ts` must mirror these keys exactly.
- *
- * NOTE: strings that existing tests assert on (auth errors, VerifyEmail copy,
- * the signup submit label…) must stay byte-identical here — `fr` is the default
- * language, so those tests keep passing without a provider.
- */
 export const fr = {
-  lang: { label: 'Langue', fr: 'Français', en: 'English', ar: 'العربية' },
-
+  lang: { label: 'Langue', fr: 'Français', en: 'Anglais', ar: 'Arabe' },
   common: {
     email: 'Email',
     password: 'Mot de passe',
+    backToProduct: 'Revenir à Clikarage',
+    showPassword: 'Afficher le mot de passe',
+    hidePassword: 'Masquer le mot de passe',
+    toggleTheme: 'Basculer le thème',
   },
-
-  // Auth errors surfaced to users — never raw technical text (see mapAuthError).
+  nav: {
+    problems: 'Problèmes',
+    solution: 'Solution',
+    journey: 'Parcours',
+    pilotOffer: 'Offre pilote',
+    accessAccount: 'Accéder à votre espace',
+  },
+  footer: {
+    pilotDemo: 'Démo pilote',
+    pilotVersion: 'Version pilote',
+    legal: 'Mentions légales',
+    privacy: 'Confidentialité',
+    terms: 'CGU',
+    pilotAgreement: 'Contrat pilote',
+    dpa: 'DPA',
+    contact: 'Contact',
+    serviceEditor: 'Clikarage est un service édité par RODANBTECH.',
+  },
+  home: {
+    badge: 'Réservation en ligne pour garages indépendants',
+    title: 'Recevez vos demandes de rendez-vous en ligne et gérez-les en quelques clics.',
+    intro: 'réunit l’espace garage et l’application client. Moins d’appels, des demandes centralisées, un agenda propre.',
+    demoHint: 'Tester sans compte : « Démo garage » ou « Démo client » sur la page de connexion.',
+    previewTitle: 'Réservations reçues',
+    previewRows: [
+      { name: 'Julie Durand', service: 'Plaquettes de frein', status: 'En attente' },
+      { name: 'Marc Petit', service: 'Révision constructeur', status: 'Confirmée' },
+      { name: 'Inès Lefort', service: 'Diagnostic', status: 'Autre créneau' },
+    ],
+    problemsTitle: 'Ce qui ralentit un garage aujourd’hui',
+    problems: [
+      'Les rendez-vous se prennent au téléphone, entre deux réparations.',
+      'Les demandes se perdent entre SMS, appels et post-it.',
+      'Aucune vue claire sur l’atelier, les véhicules et les relances.',
+    ],
+    benefitsTitle: 'Ce que ça change au quotidien',
+    benefitsSubtitle: 'Des workflows réels, simples, immédiatement utiles.',
+    benefits: [
+      { title: 'Moins d’appels', text: 'Vos clients réservent en ligne. Vous reprenez la main sur le téléphone.' },
+      { title: 'Demandes centralisées', text: 'Toutes les demandes arrivent au même endroit, prêtes à traiter.' },
+      { title: 'Agenda propre', text: 'Une demande confirmée devient un rendez-vous, sans double saisie.' },
+      { title: 'Suivi client', text: 'Le client voit l’état de sa demande : acceptée, à confirmer, refusée.' },
+      { title: 'Simple à prendre en main', text: 'Pensé pour un garage, pas pour un informaticien. Opérationnel en quelques minutes.' },
+      { title: 'Vos données protégées', text: 'Chaque garage est isolé. Données client réduites au nécessaire.' },
+    ],
+    clientSide: 'Côté client',
+    clientTitle: 'Réserver en 1 minute',
+    clientSteps: ['Choisir le garage', 'Choisir une prestation', 'Renseigner le véhicule', 'Choisir un créneau', 'Envoyer et suivre la demande'],
+    garageSide: 'Côté garage',
+    garageTitle: 'Traiter en quelques clics',
+    garageSteps: ['Recevoir la demande', 'Confirmer, refuser ou proposer un créneau', 'Le rendez-vous se crée tout seul', 'Suivre l’agenda et les clients', 'Garder un historique clair'],
+    ctaTitle: 'Lancez un pilote dans votre garage',
+    ctaText: 'Installation rapide, formation courte, sans engagement. Vous gardez le contrôle.',
+    discoverPilot: 'Découvrir l’offre pilote',
+  },
   authErrors: {
-    emailInUse:
-      'Un compte existe peut-être déjà avec cette adresse. Essayez de vous connecter ou de réinitialiser votre mot de passe.',
+    emailInUse: 'Un compte existe peut-être déjà avec cette adresse. Essayez de vous connecter ou de réinitialiser votre mot de passe.',
     emailNotConfirmed: 'Vérifiez votre email avant de vous connecter.',
     network: 'Connexion au service impossible. Réessayez dans quelques instants.',
     generic: 'Une erreur est survenue. Réessayez dans quelques instants.',
   },
-
+  validation: {
+    fullNameRequired: 'Indiquez votre nom complet',
+    emailInvalid: 'Adresse email invalide',
+    passwordRequired: 'Mot de passe requis',
+    consentRequired: 'Le consentement est requis',
+    legalConsentRequired: 'L’acceptation des conditions est requise',
+    emailMismatch: 'Les adresses email ne correspondent pas.',
+    passwordMismatch: 'Les mots de passe ne correspondent pas.',
+    invalidSubmission: 'Soumission invalide.',
+    passwordTooShort: 'Utilisez au moins 12 caractères. Une phrase de passe longue est idéale.',
+    passwordCommon: 'Évitez les mots de passe trop courants.',
+    passwordContainsEmail: 'Votre mot de passe ne doit pas contenir votre adresse email.',
+    passwordComposition: 'Ajoutez majuscules, minuscules, chiffres ou symboles, ou allongez la phrase de passe.',
+  },
   login: {
     title: 'Se connecter',
-    subtitle: 'Espace garage ou compte client.',
+    subtitle: 'Votre espace s’ouvre automatiquement selon votre type de compte.',
     asideHeading: 'Recevez vos demandes de rendez-vous en ligne et gérez-les en quelques clics.',
     asideSubtitle: 'Demandes centralisées, agenda propre, suivi client.',
+    configTitle: 'Configuration Supabase manquante',
+    configBodyStart: 'La connexion réelle nécessite un fichier',
+    configBodyEnd: 'En attendant, explorez l’application en mode démo local ci-dessous.',
     demoGarage: 'Démo garage',
     demoClient: 'Démo client',
     withoutSupabase: 'sans Supabase',
@@ -41,7 +104,6 @@ export const fr = {
     errorTitle: 'Connexion impossible',
     invalidCredentials: 'Email ou mot de passe incorrect.',
   },
-
   signup: {
     title: 'Créer un compte client',
     subtitle: 'Pour réserver et suivre vos rendez-vous au garage.',
@@ -50,7 +112,7 @@ export const fr = {
     emailPlaceholder: 'vous@email.fr',
     emailConfirm: 'Confirmer l’email',
     phone: 'Téléphone',
-    phoneHint: 'Facultatif — utile pour vous joindre au sujet d’un rendez-vous.',
+    phoneHint: 'Facultatif, utile pour vous joindre au sujet d’un rendez-vous.',
     phonePlaceholder: '06 12 34 56 78',
     passwordHint: 'Utilisez au moins 12 caractères. Une phrase de passe longue est idéale.',
     passwordPlaceholder: 'Une phrase de passe que vous retenez',
@@ -59,15 +121,24 @@ export const fr = {
     strengthStrong: 'Fort',
     strengthMedium: 'Moyen',
     strengthWeak: 'Faible',
+    privacyConsent: 'J’accepte que mes données (nom, contact, véhicule) soient utilisées pour traiter mes demandes de rendez-vous.',
+    legalBeforeTerms: 'J’accepte les',
+    termsLink: 'Conditions d’utilisation',
+    legalBetween: 'et je reconnais avoir pris connaissance de la',
+    privacyLink: 'Politique de confidentialité',
+    version: 'version',
     submit: 'Créer mon compte',
     horodatage: 'Votre acceptation est horodatée et conservée dans un journal d’acceptation.',
     alreadyMember: 'Déjà inscrit ?',
     loginLink: 'Se connecter',
     createdTitle: 'Compte créé',
-    createdBody: 'Bienvenue sur GarageFlow.',
+    createdBody: 'Bienvenue sur Clikarage.',
+    createdLoginBody: 'Connectez-vous pour accéder à votre espace.',
+    acceptanceErrorTitle: 'Acceptation à confirmer',
+    acceptanceErrorBody: 'Votre acceptation des conditions n’a pas pu être enregistrée. Elle vous sera redemandée.',
     errorTitle: 'Création impossible',
+    honeypot: 'Ne pas remplir ce champ',
   },
-
   verifyEmail: {
     title: 'Vérifiez votre email',
     bodyPrefix: 'Nous avons envoyé un lien de confirmation à : ',
@@ -79,7 +150,7 @@ export const fr = {
     spamHint: 'Vous ne trouvez pas l’email ? Pensez à vérifier votre dossier spam.',
     resendErrorTitle: 'Envoi impossible',
     resendOkTitle: 'Email renvoyé',
-    resendOkBody: 'Vérifiez votre boîte de réception (et le dossier spam).',
+    resendOkBody: 'Vérifiez votre boîte de réception et le dossier spam.',
   },
 }
 

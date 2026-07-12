@@ -1,4 +1,4 @@
-# GarageFlow — Architecture technique
+# Clikarage — Architecture technique
 
 ## 1. Choix de stack (et pourquoi)
 

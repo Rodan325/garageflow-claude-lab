@@ -222,7 +222,7 @@ export function ClientQuotePage() {
 function Shell({ children }: { children: React.ReactNode }) {
   const { brand } = useBrand()
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    <div lang="fr" dir="ltr" className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur">
         <span className="text-sm font-semibold">{brand.appName}</span>
         <ThemeToggle />

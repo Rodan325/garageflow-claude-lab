@@ -1,4 +1,4 @@
-# GarageFlow — Sécurité des mots de passe
+# Clikarage — Sécurité des mots de passe
 
 ## Règles appliquées (frontend, au signup)
 Implémenté dans `src/lib/password.ts` (+ tests) et branché sur `SignupPage` :

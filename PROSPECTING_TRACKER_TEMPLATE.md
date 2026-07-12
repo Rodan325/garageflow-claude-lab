@@ -1,4 +1,4 @@
-# GarageFlow — Tableau de prospection (modèle)
+# Clikarage — Tableau de prospection (modèle)
 
 Copiez ce tableau dans un tableur (Google Sheets / Excel) ou tenez-le à jour ici. Une ligne par garage.
 

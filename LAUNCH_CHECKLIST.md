@@ -1,4 +1,4 @@
-# GarageFlow — Checklist de lancement pilote
+# Clikarage — Checklist de lancement pilote
 
 Runbook à dérouler **avant la première démo à un vrai garage**. Tout doit être ✅ avant de contacter le premier garage.
 

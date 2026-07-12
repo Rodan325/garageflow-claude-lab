@@ -1,4 +1,4 @@
-# GarageFlow — Architecture produit
+# Clikarage — Architecture produit
 
 ## 1. Vision
 
@@ -10,7 +10,7 @@ Permettre à un garage indépendant — même peu à l’aise avec l’informati
 - `#/` accueil : problèmes → solution → modules → parcours → CTA.
 - `#/pilote` : offre pilote (inclus, déroulé 4 semaines, prix).
 
-### GarageFlow Pro (membres du garage, authentifiés, par rôle)
+### Clikarage Pro (membres du garage, authentifiés, par rôle)
 - **Dashboard** : KPI (demandes en attente, RDV du jour, réparations, tâches, véhicules, clients) + priorités du jour.
 - **Réservations reçues** (inbox) : accepter / refuser / proposer un autre créneau / confirmer / messages.
 - **Agenda** : rendez-vous planifiés (issus des réservations confirmées ou créés manuellement).
@@ -21,7 +21,7 @@ Permettre à un garage indépendant — même peu à l’aise avec l’informati
 - **Équipe** : membres et rôles.
 - **Paramètres** : infos garage, prestations, horaires, **état du backend**, compte.
 
-### GarageFlow Client (automobilistes, mobile-first)
+### Clikarage Client (automobilistes, mobile-first)
 - **Accueil** : choisir / retrouver son garage, prestations, actualités.
 - **Réserver** : parcours guidé prestation → véhicule → créneau → coordonnées → confirmation.
 - **Demandes** : suivi des réservations + acceptation d’un créneau proposé + annulation + messages.

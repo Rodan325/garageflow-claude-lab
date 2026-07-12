@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -13,21 +13,24 @@ import { useToast } from '@/components/ui/toast'
 import { passwordStrength } from '@/lib/password'
 import { legalVersions } from '@/config/legal'
 import { recordMultipleLegalAcceptances } from '@/features/legal/legalAcceptance'
-import { useT } from '@/i18n'
-import { signupSchema, type SignupForm } from './signupSchema'
+import { useLang, useT } from '@/i18n'
+import { createSignupSchema, type SignupForm } from './signupSchema'
+import { mapAuthError } from './authErrors'
 import { useAuth } from './AuthProvider'
 
 export function SignupPage() {
   const { signUp, ready, session, accountType } = useAuth()
   const toast = useToast()
   const t = useT()
+  const { lang } = useLang()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const redirect = params.get('redirect')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupForm>({ resolver: zodResolver(signupSchema) })
+  const schema = useMemo(() => createSignupSchema(t.validation), [t])
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupForm>({ resolver: zodResolver(schema) })
   const pw = watch('password') ?? ''
   const strength = passwordStrength(pw)
 
@@ -49,25 +52,25 @@ export function SignupPage() {
     )
       .catch(() => {
         toast.error(
-          'Acceptation à confirmer',
-          'Votre acceptation des conditions n’a pas pu être enregistrée — elle vous sera redemandée.',
+          t.signup.acceptanceErrorTitle,
+          t.signup.acceptanceErrorBody,
         )
       })
       .finally(() => navigate(redirect || '/app', { replace: true }))
-  }, [done, ready, session, accountType, redirect, navigate, toast])
+  }, [done, ready, session, accountType, redirect, navigate, toast, t])
 
   // Safety net: when Supabase returns a session we normally land in /app via the
   // effect above. If the session never materialises, don't hang on /signup —
   // send the user to /login with a clear message.
   useEffect(() => {
     if (!done || session) return
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       if (recorded.current) return
-      toast.success('Compte créé', 'Connectez-vous pour accéder à votre espace.')
+      toast.success(t.signup.createdTitle, t.signup.createdLoginBody)
       navigate('/login', { replace: true })
     }, 8000)
-    return () => clearTimeout(t)
-  }, [done, session, navigate, toast])
+    return () => clearTimeout(timer)
+  }, [done, session, navigate, toast, t])
 
   const onSubmit = async (data: SignupForm) => {
     setSubmitting(true)
@@ -80,7 +83,7 @@ export function SignupPage() {
     })
     setSubmitting(false)
     if (res.error) {
-      toast.error(t.signup.errorTitle, res.error)
+      toast.error(t.signup.errorTitle, mapAuthError(res.error, lang))
       return
     }
     // Email confirmation required → no session yet: route to the verification page.
@@ -108,18 +111,18 @@ export function SignupPage() {
           </Field>
           {/* Honeypot — invisible to humans, tempting to bots. Must stay empty. */}
           <div aria-hidden="true" className="pointer-events-none absolute left-[-9999px] top-[-9999px] h-0 w-0 overflow-hidden">
-            <label htmlFor="website">Ne pas remplir ce champ</label>
+            <label htmlFor="website">{t.signup.honeypot}</label>
             <input id="website" type="text" tabIndex={-1} autoComplete="off" {...register('website')} />
           </div>
 
           <Field label={t.common.email} htmlFor="email" error={errors.email?.message} required>
-            <Input id="email" type="email" autoComplete="email" placeholder={t.signup.emailPlaceholder} {...register('email')} />
+            <Input id="email" dir="ltr" type="email" autoComplete="email" placeholder={t.signup.emailPlaceholder} {...register('email')} />
           </Field>
           <Field label={t.signup.emailConfirm} htmlFor="emailConfirm" error={errors.emailConfirm?.message} required>
-            <Input id="emailConfirm" type="email" autoComplete="email" placeholder={t.signup.emailPlaceholder} {...register('emailConfirm')} />
+            <Input id="emailConfirm" dir="ltr" type="email" autoComplete="email" placeholder={t.signup.emailPlaceholder} {...register('emailConfirm')} />
           </Field>
           <Field label={t.signup.phone} htmlFor="phone" hint={t.signup.phoneHint} error={errors.phone?.message}>
-            <Input id="phone" type="tel" autoComplete="tel" placeholder={t.signup.phonePlaceholder} {...register('phone')} />
+            <Input id="phone" dir="ltr" type="tel" autoComplete="tel" placeholder={t.signup.phonePlaceholder} {...register('phone')} />
           </Field>
           <Field label={t.common.password} htmlFor="password" error={errors.password?.message} required hint={t.signup.passwordHint}>
             <PasswordInput id="password" autoComplete="new-password" placeholder={t.signup.passwordPlaceholder} {...register('password')} />
@@ -147,8 +150,7 @@ export function SignupPage() {
           <label className="flex items-start gap-2 text-sm text-muted-foreground">
             <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-input" {...register('consent')} />
             <span>
-              J’accepte que mes données (nom, contact, véhicule) soient utilisées pour traiter mes demandes de
-              rendez-vous.{' '}
+              {t.signup.privacyConsent}{' '}
               {errors.consent && <span className="font-medium text-danger">{errors.consent.message}</span>}
             </span>
           </label>
@@ -156,11 +158,11 @@ export function SignupPage() {
           <label className="flex items-start gap-2 text-sm text-muted-foreground">
             <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-input" {...register('legalConsent')} />
             <span>
-              J’accepte les{' '}
-              <Link to="/terms" target="_blank" className="font-medium text-primary hover:underline">Conditions d’utilisation</Link>{' '}
-              (version {legalVersions.terms}) et je reconnais avoir pris connaissance de la{' '}
-              <Link to="/privacy" target="_blank" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>{' '}
-              (version {legalVersions.privacy}).{' '}
+              {t.signup.legalBeforeTerms}{' '}
+              <Link to="/terms" target="_blank" className="font-medium text-primary hover:underline">{t.signup.termsLink}</Link>{' '}
+              ({t.signup.version} {legalVersions.terms}) {t.signup.legalBetween}{' '}
+              <Link to="/privacy" target="_blank" className="font-medium text-primary hover:underline">{t.signup.privacyLink}</Link>{' '}
+              ({t.signup.version} {legalVersions.privacy}).{' '}
               {errors.legalConsent && <span className="font-medium text-danger">{errors.legalConsent.message}</span>}
             </span>
           </label>

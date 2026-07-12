@@ -1,4 +1,4 @@
-# GarageFlow — Porte de sécurité pilote (go / no-go)
+# Clikarage — Porte de sécurité pilote (go / no-go)
 
 Synthèse honnête de l'état de sécurité avant de brancher de **vraies données** de garage. Détails dans les fiches liées. Ce qui est **fait** vs **à activer dans Supabase** vs **limites assumées** est indiqué clairement — rien n'est présenté comme sécurisé s'il ne l'est pas.
 

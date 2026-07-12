@@ -1,4 +1,4 @@
-# GarageFlow — Documents véhicule (conception V2)
+# Clikarage — Documents véhicule (conception V2)
 
 > **État : NON implémenté en V1.** Aucun upload, aucun stockage de document n'existe encore. Ce document décrit la conception sécurisée à suivre **avant** d'activer cette fonctionnalité, parce qu'elle touche à des documents sensibles (carte grise, assurance…).
 

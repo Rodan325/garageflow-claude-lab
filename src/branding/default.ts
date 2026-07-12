@@ -1,22 +1,19 @@
 import { legalConfig } from '@/config/legal'
 import type { Brand } from './types'
 
-/**
- * Official GarageFlow brand = the app's CURRENT look & copy. It sets NO color
- * or favicon override, so under the default brand the UI is unchanged. Values
- * come from the existing legal config / index.html so nothing drifts.
- */
+/** Official Clikarage product brand. RODANBTECH remains the legal editor. */
 export const defaultBrand: Brand = {
   id: 'default',
   official: true,
-  appName: 'GarageFlow',
-  shortName: 'GarageFlow',
-  favicon: '/favicon.svg',
-  companyDisplayName: 'GarageFlow',
+  appName: 'Clikarage',
+  shortName: 'Clikarage',
+  logoUrl: '/branding/clikarage-logo.png',
+  favicon: '/branding/clikarage-logo.png',
+  companyDisplayName: 'RODANBTECH',
   supportEmail: legalConfig.contactEmail,
-  legalDisplayName: legalConfig.appName,
-  publicAppTitle: 'GarageFlow',
-  quoteFooterBranding: 'Document généré par GarageFlow',
+  legalDisplayName: 'Clikarage — service édité par RODANBTECH',
+  publicAppTitle: 'Clikarage',
+  quoteFooterBranding: 'Document généré par Clikarage, un service édité par RODANBTECH',
   bookingBranding: 'Réservez et suivez vos rendez-vous au garage.',
   loginBranding: 'Espace garage ou compte client.',
 }

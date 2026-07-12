@@ -72,6 +72,27 @@
     min-height: 100dvh;
   }
 
+  html[lang='ar'] body {
+    font-family: Tahoma, 'Segoe UI', sans-serif;
+  }
+
+  html[dir='rtl'] input,
+  html[dir='rtl'] textarea,
+  html[dir='rtl'] select {
+    text-align: right;
+  }
+
+  html[dir='rtl'] input[type='email'],
+  html[dir='rtl'] input[type='tel'],
+  html[dir='rtl'] input[type='password'],
+  html[dir='rtl'] input[type='url'],
+  html[dir='rtl'] input[type='number'],
+  html[dir='rtl'] input[autocomplete='one-time-code'],
+  html[dir='rtl'] .force-ltr {
+    direction: ltr;
+    text-align: left;
+  }
+
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }

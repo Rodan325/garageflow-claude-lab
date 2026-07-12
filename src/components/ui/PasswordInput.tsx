@@ -1,6 +1,7 @@
 import { forwardRef, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/i18n'
 
 // Kept in sync with Input's base style (src/components/ui/input.tsx).
 const base =
@@ -16,18 +17,20 @@ const base =
 export const PasswordInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className, ...props }, ref) => {
     const [show, setShow] = useState(false)
+    const t = useT()
     return (
       <div className="relative">
         <input
           ref={ref}
           type={show ? 'text' : 'password'}
-          className={cn(base, 'h-10 pr-10', className)}
+          dir="ltr"
+          className={cn(base, 'force-ltr h-10 pr-10', className)}
           {...props}
         />
         <button
           type="button"
           onClick={() => setShow((s) => !s)}
-          aria-label={show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+          aria-label={show ? t.common.hidePassword : t.common.showPassword}
           aria-pressed={show}
           className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >

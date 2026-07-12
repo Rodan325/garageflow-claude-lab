@@ -126,7 +126,7 @@ export function ProShell() {
   )
 
   return (
-    <div className="min-h-dvh bg-muted/20">
+    <div lang="fr" dir="ltr" className="min-h-dvh bg-muted/20">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-card lg:block">{Sidebar}</aside>
 
       {open && (

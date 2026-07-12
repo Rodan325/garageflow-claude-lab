@@ -114,7 +114,7 @@ function applyBrand(brand: Brand) {
 
 /**
  * THE single, centralized way to leave a demo brand. Used by BrandDemoEntry,
- * the /demo/reset route, the "Revenir à GarageFlow" button and the DemoBanner.
+ * the /demo/reset route, the "Revenir à Clikarage" button and the DemoBanner.
  * Removes gf-brand, strips the URL param, clears the selected center and
  * restores the default title/favicon/CSS/theme-color. Imperative (no React) so
  * it also works outside the provider; the context `exitDemo` additionally syncs
@@ -134,7 +134,7 @@ export function exitBrandDemo() {
 interface BrandContextValue {
   brand: Brand
   setBrand: (id: BrandId) => void
-  /** Centralized exit to the default GarageFlow brand (see exitBrandDemo). */
+  /** Centralized exit to the default Clikarage brand (see exitBrandDemo). */
   exitDemo: () => void
 }
 

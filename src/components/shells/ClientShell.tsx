@@ -22,7 +22,7 @@ const nav = [
 export function ClientShell() {
   const navigate = useNavigate()
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    <div lang="fr" dir="ltr" className="flex min-h-dvh flex-col bg-background">
       {/* Desktop top nav */}
       <header className="sticky top-0 z-30 hidden border-b border-border bg-background/90 backdrop-blur lg:block">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-6">

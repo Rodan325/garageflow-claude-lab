@@ -1,4 +1,4 @@
-import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, createElement, useCallback, useContext, useLayoutEffect, useMemo, useState } from 'react'
 import { fr, type Messages } from './fr'
 import { en } from './en'
 import { ar } from './ar'
@@ -35,10 +35,19 @@ export function getStoredLang(): Lang {
 }
 
 /** Reflect the active language on <html> (lang + dir) for a11y and RTL layout. */
-function applyDocumentLang(lang: Lang) {
+export function applyDocumentLang(lang: Lang) {
   if (typeof document === 'undefined') return
   document.documentElement.lang = lang
   document.documentElement.dir = isRtl(lang) ? 'rtl' : 'ltr'
+}
+
+function persistLang(lang: Lang) {
+  applyDocumentLang(lang)
+  try {
+    localStorage.setItem(STORAGE_KEY, lang)
+  } catch {
+    /* persistence best-effort */
+  }
 }
 
 interface LangContextValue {
@@ -52,17 +61,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => getStoredLang())
 
   // Keep <html lang/dir> and localStorage in sync with the active language.
-  useEffect(() => {
-    applyDocumentLang(lang)
-    try {
-      localStorage.setItem(STORAGE_KEY, lang)
-    } catch {
-      /* persistence best-effort */
-    }
+  useLayoutEffect(() => {
+    persistLang(lang)
   }, [lang])
 
   const setLang = useCallback((next: Lang) => {
-    if (isLang(next)) setLangState(next)
+    if (!isLang(next)) return
+    // Apply direction synchronously so no RTL frame leaks after switching.
+    persistLang(next)
+    setLangState(next)
   }, [])
 
   const value = useMemo<LangContextValue>(() => ({ lang, setLang }), [lang, setLang])

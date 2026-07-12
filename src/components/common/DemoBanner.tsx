@@ -11,7 +11,7 @@ export function DemoBanner() {
   const navigate = useNavigate()
   if (!demo) return null
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 bg-amber-500/15 px-3 py-1.5 text-center text-xs font-medium text-warning-foreground">
+    <div lang="fr" dir="ltr" className="flex flex-wrap items-center justify-center gap-2 bg-amber-500/15 px-3 py-1.5 text-center text-xs font-medium text-warning-foreground">
       <FlaskConical className="h-3.5 w-3.5" />
       <span>
         Mode démo local ({demo === 'garage' ? 'garage' : 'client'}) — données fictives stockées uniquement dans ce

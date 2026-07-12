@@ -1,6 +1,6 @@
-# GarageFlow — Argumentaire commercial
+# Clikarage — Argumentaire commercial
 
-Fiche de référence pour parler de GarageFlow à un garage : les problèmes, la réponse, les bénéfices, ce que le pilote teste, et les limites assumées.
+Fiche de référence pour parler de Clikarage à un garage : les problèmes, la réponse, les bénéfices, ce que le pilote teste, et les limites assumées.
 
 ---
 
@@ -13,8 +13,8 @@ Fiche de référence pour parler de GarageFlow à un garage : les problèmes, la
 - **Pas de suivi** : difficile de savoir quel devis est accepté, refusé ou en attente.
 - **Une image artisanale** alors que les clients sont habitués à réserver en ligne (médecin, restaurant…).
 
-## 2. Comment GarageFlow y répond
-| Problème | Réponse GarageFlow |
+## 2. Comment Clikarage y répond
+| Problème | Réponse Clikarage |
 |---|---|
 | Demandes éparpillées | Une **page de réservation** à votre nom + une **boîte de réception unique** |
 | Téléphone qui sonne sans arrêt | Le client **réserve en ligne**, même quand vous êtes fermé |

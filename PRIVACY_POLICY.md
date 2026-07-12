@@ -1,4 +1,4 @@
-# GarageFlow — Politique de confidentialité (référence interne)
+# Clikarage — Politique de confidentialité (référence interne)
 
 > **Note interne** : Relecture juridique recommandée avant commercialisation large, contrat payant important, traitement à grande échelle ou ajout de documents sensibles. La version publique fait foi : page **/privacy** (source : `src/features/legal/PrivacyPage.tsx`, valeurs dans `src/config/legal.ts`).
 

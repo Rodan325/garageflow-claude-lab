@@ -1,4 +1,4 @@
-# GarageFlow — MFA (double authentification) : roadmap
+# Clikarage — MFA (double authentification) : roadmap
 
 > **État : NON activée.** Ce document décrit un plan propre. Ne pas prétendre que la MFA est en place tant qu'elle ne l'est pas.
 
