@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { FlaskConical } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useBrand } from '@/branding'
-import { resetDemoData } from '@/lib/demo'
+import { getDemoBrand, resetDemoData } from '@/lib/demo'
 
 /** Visible strip shown whenever the app runs in local demo mode. */
 export function DemoBanner() {
@@ -19,9 +19,9 @@ export function DemoBanner() {
       </span>
       <button
         onClick={() => {
-          // Centralized brand exit first, then reseed the (now default) data.
+          // Reset the active dataset before removing the brand that selects it.
+          resetDemoData(getDemoBrand())
           exitDemo()
-          resetDemoData()
           navigate(0)
         }}
         className="ml-2 rounded-md bg-foreground/10 px-2 py-0.5 font-semibold hover:bg-foreground/20"

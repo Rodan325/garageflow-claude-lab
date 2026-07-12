@@ -29,16 +29,17 @@ const KIND_KEY = 'gf-demo'
 // demo and the Speedy demo keep completely separate data.
 // v6: brand-scoped store; default brand reverts to the original catalog.
 export const STORE_KEY = 'gf-demo-store-v6'
+export const SPEEDY_STORE_KEY = `${STORE_KEY}-speedy`
 
 export type DemoKind = 'garage' | 'client'
 
 /** Which demo dataset to use: 'speedy' (car-service network) or 'default'. */
-type DemoBrand = 'default' | 'speedy'
-function demoBrand(): DemoBrand {
+export type DemoBrand = 'default' | 'speedy'
+export function getDemoBrand(): DemoBrand {
   return resolveBrandId() === 'speedy' ? 'speedy' : 'default'
 }
-function storeKey(brand: DemoBrand = demoBrand()): string {
-  return brand === 'speedy' ? `${STORE_KEY}-speedy` : STORE_KEY
+function storeKey(brand: DemoBrand = getDemoBrand()): string {
+  return brand === 'speedy' ? SPEEDY_STORE_KEY : STORE_KEY
 }
 
 export function getDemoKind(): DemoKind | null {
@@ -71,9 +72,9 @@ export function isDemoQuoteToken(token?: string | null): boolean {
 
 /** True when a demo token can be resolved from THIS browser's local store. */
 export function canResolveDemoPublicQuote(token?: string | null): boolean {
-  if (!isDemoQuoteToken(token)) return false
+  if (!token || !isDemoQuoteToken(token)) return false
   if (typeof window === 'undefined') return false
-  return !!localStorage.getItem(STORE_KEY)
+  return findStoredQuote(token) !== null
 }
 
 /** Discreet note shown when a demo garage copies a client quote link. */
@@ -264,15 +265,19 @@ function seed(brand: DemoBrand = 'default'): Store {
     return q
   }
 
-  mkQuote({ status: 'accepted', customer: ines, vehicle: p308, title: 'Révision constructeur', createdAgo: 6, validIn: 24, token: 'demoquoteacc' + 'a1b2c3d4e5f6a7b8', sentAgo: 5, acceptedAgo: 4,
+  // Keep seeded public tokens unique across stores without changing the
+  // existing `demo...` format or any GarageFlow token.
+  const scopedToken = (token: string) => isSpeedy ? `${token}speedy` : token
+
+  mkQuote({ status: 'accepted', customer: ines, vehicle: p308, title: 'Révision constructeur', createdAgo: 6, validIn: 24, token: scopedToken('demoquoteacc' + 'a1b2c3d4e5f6a7b8'), sentAgo: 5, acceptedAgo: 4,
     lines: [{ label: 'Révision constructeur (vidange + filtres)', quantity: 1, unit_price: 149, tax_rate: 20 }, { label: 'Main-d’œuvre', quantity: 1, unit_price: 60, tax_rate: 20 }] })
-  mkQuote({ status: 'sent', customer: marc, vehicle: clio, title: 'Plaquettes de frein avant', createdAgo: 2, validIn: 28, token: 'demoquotesent' + 'b2c3d4e5f6a7b8c9', sentAgo: 1,
+  mkQuote({ status: 'sent', customer: marc, vehicle: clio, title: 'Plaquettes de frein avant', createdAgo: 2, validIn: 28, token: scopedToken('demoquotesent' + 'b2c3d4e5f6a7b8c9'), sentAgo: 1,
     lines: [{ label: 'Plaquettes de frein avant (jeu)', quantity: 1, unit_price: 119, tax_rate: 20 }, { label: 'Main-d’œuvre', quantity: 1, unit_price: 50, tax_rate: 20 }] })
   mkQuote({ status: 'draft', customer: marc, vehicle: clio, title: 'Diagnostic électronique', createdAgo: 0, validIn: null,
     lines: [{ label: 'Diagnostic électronique', quantity: 1, unit_price: 49, tax_rate: 20 }] })
-  const declined = mkQuote({ status: 'declined', customer: ines, vehicle: p308, title: 'Recharge climatisation', createdAgo: 9, validIn: 12, token: 'demoquotedec' + 'c3d4e5f6a7b8c9d0', sentAgo: 8, declinedAgo: 6, declineReason: 'Reporté à l’automne.',
+  const declined = mkQuote({ status: 'declined', customer: ines, vehicle: p308, title: 'Recharge climatisation', createdAgo: 9, validIn: 12, token: scopedToken('demoquotedec' + 'c3d4e5f6a7b8c9d0'), sentAgo: 8, declinedAgo: 6, declineReason: 'Reporté à l’automne.',
     lines: [{ label: 'Recharge climatisation', quantity: 1, unit_price: 89, tax_rate: 20 }] })
-  mkQuote({ status: 'sent', customer: marc, vehicle: clio, title: 'Pneus avant (x2) + montage', createdAgo: 40, validIn: -6, token: 'demoquoteexp' + 'd4e5f6a7b8c9d0e1', sentAgo: 39,
+  mkQuote({ status: 'sent', customer: marc, vehicle: clio, title: 'Pneus avant (x2) + montage', createdAgo: 40, validIn: -6, token: scopedToken('demoquoteexp' + 'd4e5f6a7b8c9d0e1'), sentAgo: 39,
     lines: [{ label: 'Pneu 205/55 R16 (monté)', quantity: 2, unit_price: 95, tax_rate: 20 }] })
   mkQuote({ status: 'draft', customer: ines, vehicle: p308, title: 'Recharge climatisation', createdAgo: 0, validIn: 30, revisedFrom: declined.id,
     lines: [{ label: 'Recharge climatisation (offre revue)', quantity: 1, unit_price: 75, tax_rate: 20 }] })
@@ -335,10 +340,36 @@ export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): St
   return store
 }
 
+/** Read one existing brand store without creating, seeding or changing another. */
+function readStoredStore(brand: DemoBrand): Store | null {
+  try {
+    const raw = localStorage.getItem(storeKey(brand))
+    return raw ? ensureStoreShape(JSON.parse(raw), brand) : null
+  } catch {
+    return null
+  }
+}
+
+/** Locate a token in its owning store. The active brand wins only on a collision. */
+function findStoredQuote(token: string): { brand: DemoBrand; store: Store } | null {
+  const activeBrand = getDemoBrand()
+  const brands: DemoBrand[] = activeBrand === 'speedy' ? ['speedy', 'default'] : ['default', 'speedy']
+  for (const brand of brands) {
+    const store = readStoredStore(brand)
+    if (store?.quotes.some((quote) => quote.client_token === token)) return { brand, store }
+  }
+  return null
+}
+
+function saveStoredStore(brand: DemoBrand, store: Store) {
+  localStorage.setItem(storeKey(brand), JSON.stringify(store))
+  if (cacheBrand === brand) cache = store
+}
+
 let cache: Store | null = null
 let cacheBrand: DemoBrand | null = null
 function load(): Store {
-  const brand = demoBrand()
+  const brand = getDemoBrand()
   // Re-hydrate when the active brand changed (the store is brand-scoped).
   if (cache && cacheBrand === brand) return cache
   cacheBrand = brand
@@ -360,15 +391,14 @@ function save() {
   if (cache && cacheBrand) localStorage.setItem(storeKey(cacheBrand), JSON.stringify(cache))
 }
 function ensureStore() {
-  const brand = demoBrand()
+  const brand = getDemoBrand()
   if (!localStorage.getItem(storeKey(brand))) {
     cache = seed(brand)
     cacheBrand = brand
     save()
   }
 }
-export function resetDemoData() {
-  const brand = demoBrand()
+export function resetDemoData(brand: DemoBrand = getDemoBrand()) {
   cache = seed(brand)
   cacheBrand = brand
   save()
@@ -749,26 +779,34 @@ export const demo = {
     save()
     return clone(row)
   },
-  getPublicQuote: (token: string) => buildPublicQuote(load(), token),
+  getPublicQuote: (token: string) => {
+    const found = findStoredQuote(token)
+    return found ? buildPublicQuote(found.store, token) : null
+  },
   acceptPublicQuote: (token: string) => {
-    const s = load()
+    const found = findStoredQuote(token)
+    if (!found) throw new Error('Devis introuvable')
+    const s = found.store
     const q = s.quotes.find((x) => x.client_token === token)
     if (!q) throw new Error('Devis introuvable')
     if (q.status === 'sent') {
       if (q.valid_until && q.valid_until < new Date().toISOString().slice(0, 10)) throw new Error('Devis expiré')
       q.status = 'accepted'; q.accepted_at = new Date().toISOString()
       q.accepted_terms_version = legalVersions.terms; q.accepted_privacy_version = legalVersions.privacy
-      save()
+      saveStoredStore(found.brand, s)
     } else if (q.status !== 'accepted') throw new Error('Devis non disponible')
-    return buildPublicQuote(load(), token)!
+    return buildPublicQuote(s, token)!
   },
   declinePublicQuote: (token: string, reason: string | null) => {
-    const s = load()
+    const found = findStoredQuote(token)
+    if (!found) throw new Error('Devis introuvable')
+    const s = found.store
     const q = s.quotes.find((x) => x.client_token === token)
     if (!q) throw new Error('Devis introuvable')
     if (q.status === 'sent') {
-      q.status = 'declined'; q.declined_at = new Date().toISOString(); q.decline_reason = reason?.trim() || null; save()
+      q.status = 'declined'; q.declined_at = new Date().toISOString(); q.decline_reason = reason?.trim() || null
+      saveStoredStore(found.brand, s)
     } else if (q.status !== 'declined') throw new Error('Devis non disponible')
-    return buildPublicQuote(load(), token)!
+    return buildPublicQuote(s, token)!
   },
 }
