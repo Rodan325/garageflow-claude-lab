@@ -82,11 +82,13 @@
     text-align: right;
   }
 
-  input[type='email'],
-  input[type='tel'],
-  input[type='password'],
-  input[autocomplete='one-time-code'],
-  .force-ltr {
+  html[dir='rtl'] input[type='email'],
+  html[dir='rtl'] input[type='tel'],
+  html[dir='rtl'] input[type='password'],
+  html[dir='rtl'] input[type='url'],
+  html[dir='rtl'] input[type='number'],
+  html[dir='rtl'] input[autocomplete='one-time-code'],
+  html[dir='rtl'] .force-ltr {
     direction: ltr;
     text-align: left;
   }
