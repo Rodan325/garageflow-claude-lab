@@ -1,6 +1,6 @@
-# GarageFlow — Démarrage rapide de la démo (≈ 5 min)
+# Clikarage — Démarrage rapide de la démo (≈ 5 min)
 
-Lancer GarageFlow en local et tester les parcours, **sans aucune configuration Supabase** grâce au mode démo.
+Lancer Clikarage en local et tester les parcours, **sans aucune configuration Supabase** grâce au mode démo.
 
 ## 1. Installation
 ```bash

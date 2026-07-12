@@ -1,4 +1,4 @@
-# GarageFlow — Checklist de préparation légale (pilote)
+# Clikarage — Checklist de préparation légale (pilote)
 
 > **Note interne** : Relecture juridique recommandée avant commercialisation large, contrat payant important, traitement à grande échelle ou ajout de documents sensibles.
 

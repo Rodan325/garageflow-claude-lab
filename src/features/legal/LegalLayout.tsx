@@ -11,7 +11,7 @@ import { legalConfig } from '@/config/legal'
  */
 export function LegalLayout({ title, version, children }: { title: string; version?: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    <div lang="fr" dir="ltr" className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center justify-between px-4">
           <Link to="/" className="flex items-center"><Logo /></Link>

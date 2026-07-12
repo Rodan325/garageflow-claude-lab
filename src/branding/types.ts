@@ -18,6 +18,8 @@ export interface Brand {
   logoComponent?: ComponentType<{ className?: string; compact?: boolean }>
   /** Optional logo image URL (used when no logoComponent). A "logo zone" to drop an authorized asset into. */
   logoUrl?: string
+  /** Optional compact icon asset. Falls back to the wordmark until an authorized icon exists. */
+  logoIconUrl?: string
   /** Favicon href (public path or data URI). Reverts to the app default under the default brand. */
   favicon?: string
   /** HSL triplet "H S% L%" matching index.css CSS vars. Undefined = keep the theme default (no override). */

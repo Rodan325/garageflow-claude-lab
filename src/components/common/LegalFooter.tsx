@@ -2,14 +2,7 @@ import { Link } from 'react-router-dom'
 import { legalConfig } from '@/config/legal'
 import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
-
-const LINKS = [
-  { to: '/legal', label: 'Mentions légales' },
-  { to: '/privacy', label: 'Confidentialité' },
-  { to: '/terms', label: 'CGU' },
-  { to: '/pilot-agreement', label: 'Contrat pilote' },
-  { to: '/dpa', label: 'DPA' },
-]
+import { useT } from '@/i18n'
 
 /**
  * Discreet legal footer, embedded on every surface (landing, login, signup,
@@ -18,6 +11,14 @@ const LINKS = [
  */
 export function LegalFooter({ className }: { className?: string }) {
   const { brand } = useBrand()
+  const t = useT()
+  const links = [
+    { to: '/legal', label: t.footer.legal },
+    { to: '/privacy', label: t.footer.privacy },
+    { to: '/terms', label: t.footer.terms },
+    { to: '/pilot-agreement', label: t.footer.pilotAgreement },
+    { to: '/dpa', label: t.footer.dpa },
+  ]
   return (
     <div
       className={cn(
@@ -25,15 +26,15 @@ export function LegalFooter({ className }: { className?: string }) {
         className,
       )}
     >
-      <span className="font-medium">{brand.legalDisplayName} — {legalConfig.pilotVersion}</span>
-      {LINKS.map(({ to, label }) => (
+      <span className="font-medium">{brand.official ? t.footer.serviceEditor : brand.legalDisplayName} — {t.footer.pilotVersion}</span>
+      {links.map(({ to, label }) => (
         <span key={to} className="inline-flex items-center gap-x-2">
           <span aria-hidden>·</span>
           <Link to={to} className="hover:text-foreground hover:underline">{label}</Link>
         </span>
       ))}
       <span aria-hidden>·</span>
-      <a href={`mailto:${legalConfig.contactEmail}`} className="hover:text-foreground hover:underline">Contact</a>
+      <a href={`mailto:${legalConfig.contactEmail}`} className="hover:text-foreground hover:underline">{t.footer.contact}</a>
     </div>
   )
 }

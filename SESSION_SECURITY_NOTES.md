@@ -1,7 +1,7 @@
-# GarageFlow — Sécurité des sessions & jetons (frontend)
+# Clikarage — Sécurité des sessions & jetons (frontend)
 
 ## Le fait honnête à connaître
-GarageFlow est une **SPA** (frontend statique + Supabase). Les jetons Supabase Auth (access + refresh) sont donc **stockés dans le navigateur** (par défaut `localStorage`) et **accessibles au JavaScript** de la page. **On ne peut pas** obtenir la même protection qu'un cookie `HttpOnly`/`SameSite` **sans** une architecture backend qui proxifie l'auth. C'est un compromis inhérent aux SPA — il faut donc **compenser** ailleurs.
+Clikarage est une **SPA** (frontend statique + Supabase). Les jetons Supabase Auth (access + refresh) sont donc **stockés dans le navigateur** (par défaut `localStorage`) et **accessibles au JavaScript** de la page. **On ne peut pas** obtenir la même protection qu'un cookie `HttpOnly`/`SameSite` **sans** une architecture backend qui proxifie l'auth. C'est un compromis inhérent aux SPA — il faut donc **compenser** ailleurs.
 
 ## Compensations en place
 - **RLS stricte** : même avec un jeton, on ne peut lire/écrire que ce que les policies autorisent (isolation garage/client prouvée, 60/60).

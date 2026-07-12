@@ -6,7 +6,7 @@ export function LegalPage() {
   return (
     <LegalLayout title="Mentions légales" version={legalVersions.legalNotice}>
       <H2>Éditeur du site</H2>
-      <P>{c.appName} est édité par :</P>
+      <P>{c.serviceStatement}</P>
       <UL
         items={[
           <>Nom / dénomination : <strong>{c.legalBusinessName}</strong></>,

@@ -1,4 +1,4 @@
-# GarageFlow — Checklist de déploiement pilote
+# Clikarage — Checklist de déploiement pilote
 
 Étapes pour mettre un garage pilote en production (frontend statique + Supabase). Cocher au fur et à mesure.
 

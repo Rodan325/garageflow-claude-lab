@@ -9,10 +9,12 @@ afterEach(() => {
 })
 
 describe('brand resolution', () => {
-  it('defaults to the official GarageFlow brand when nothing is set', () => {
+  it('defaults to the official Clikarage brand when nothing is set', () => {
     expect(resolveBrandId()).toBe('default')
     expect(getActiveBrand()).toBe(defaultBrand)
     expect(defaultBrand.official).toBe(true)
+    expect(defaultBrand.appName).toBe('Clikarage')
+    expect(defaultBrand.logoUrl).toBe('/branding/clikarage-logo.png')
     // No color override → the default app is visually unchanged.
     expect(defaultBrand.primaryColor).toBeUndefined()
   })
@@ -52,6 +54,21 @@ describe('exitBrandDemo — single centralized reset', () => {
     // Simulates the state a refresh would resolve from.
     expect(resolveBrandId()).toBe('default')
   })
+
+  it('restores the Clikarage title and favicon after Speedy', () => {
+    const icon = document.createElement('link')
+    icon.rel = 'icon'
+    icon.href = speedyBrand.favicon!
+    document.head.appendChild(icon)
+    document.title = speedyBrand.publicAppTitle
+    localStorage.setItem('gf-brand', 'speedy')
+
+    exitBrandDemo()
+
+    expect(document.title).toBe('Clikarage')
+    expect(icon.getAttribute('href')).toContain('/branding/clikarage-logo.png')
+    icon.remove()
+  })
 })
 
 describe('speedy demo brand', () => {
@@ -64,9 +81,10 @@ describe('speedy demo brand', () => {
     expect(speedyBrand.appName).toBe('Speedy')
     expect(speedyBrand.primaryColor).toBeTruthy()
     expect(speedyBrand.logoComponent).toBeTypeOf('function')
-    // PDF footer: default keeps GarageFlow; Speedy is explicitly non-official.
-    expect(defaultBrand.quoteFooterBranding).toMatch(/GarageFlow/)
-    expect(speedyBrand.quoteFooterBranding).not.toMatch(/GarageFlow/)
+    // PDF footer: default uses Clikarage; Speedy remains explicitly non-official.
+    expect(defaultBrand.quoteFooterBranding).toMatch(/Clikarage/)
+    expect(defaultBrand.quoteFooterBranding).toMatch(/RODANBTECH/)
+    expect(speedyBrand.quoteFooterBranding).not.toMatch(/Clikarage/)
     expect(speedyBrand.quoteFooterBranding).toMatch(/non officiel/i)
   })
 })

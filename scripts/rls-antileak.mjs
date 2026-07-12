@@ -36,7 +36,7 @@ async function clientFor(email, password) {
 }
 
 async function main() {
-  console.log('\nRLS anti-leak — GarageFlow C\n')
+  console.log('\nRLS anti-leak — Clikarage C\n')
 
   // 1) ANON
   console.log('Anonyme (non connecté)')

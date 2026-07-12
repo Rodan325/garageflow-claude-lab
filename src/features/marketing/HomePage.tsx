@@ -4,46 +4,39 @@ import { ArrowRight, CalendarCheck, CheckCircle2, Inbox, PhoneOff, ShieldCheck, 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useBrand } from '@/branding'
+import { useT } from '@/i18n'
 import { fadeSlideUp, listItem, listStagger } from '@/lib/motion'
 
-const problems = [
-  'Les rendez-vous se prennent au téléphone, entre deux réparations.',
-  'Les demandes se perdent entre SMS, appels et post-it.',
-  'Aucune vue claire sur l’atelier, les véhicules et les relances.',
-]
-
-const benefits = [
-  { icon: PhoneOff, title: 'Moins d’appels', text: 'Vos clients réservent en ligne. Vous reprenez la main sur le téléphone.' },
-  { icon: Inbox, title: 'Demandes centralisées', text: 'Toutes les demandes arrivent au même endroit, prêtes à traiter.' },
-  { icon: CalendarCheck, title: 'Agenda propre', text: 'Une demande confirmée devient un rendez-vous, sans double saisie.' },
-  { icon: Users, title: 'Suivi client', text: 'Le client voit l’état de sa demande : acceptée, à confirmer, refusée.' },
-  { icon: CheckCircle2, title: 'Simple à prendre en main', text: 'Pensé pour un garage, pas pour un informaticien. Opérationnel en quelques minutes.' },
-  { icon: ShieldCheck, title: 'Vos données protégées', text: 'Chaque garage est isolé. Données client réduites au nécessaire.' },
-]
+const benefitIcons = [PhoneOff, Inbox, CalendarCheck, Users, CheckCircle2, ShieldCheck]
+const previewTones = ['bg-warning/20 text-warning-foreground', 'bg-success/15 text-success', 'bg-primary/10 text-primary']
 
 export function HomePage() {
   const { brand } = useBrand()
+  const t = useT()
   return (
     <div>
       {/* Hero */}
       <section className="container grid items-center gap-10 py-16 lg:grid-cols-2 lg:py-24">
         <motion.div variants={fadeSlideUp} initial="hidden" animate="show">
           <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-            Réservation en ligne pour garages indépendants
+            {t.home.badge}
           </span>
           <h1 className="text-4xl font-bold leading-[1.12] tracking-tight sm:text-5xl">
-            Recevez vos demandes de rendez-vous en ligne et gérez-les en quelques clics.
+            {t.home.title}
           </h1>
           <p className="mt-4 max-w-lg text-lg text-muted-foreground">
-            {brand.appName} réunit l’espace garage et l’application client. Moins d’appels, des demandes centralisées,
-            un agenda propre.
+            <bdi>{brand.appName}</bdi> {t.home.intro}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Link to="/login"><Button size="lg">Espace garage <ArrowRight className="h-4 w-4" /></Button></Link>
-            <Link to="/app"><Button size="lg" variant="outline">Voir l’app client</Button></Link>
+            <Link to="/login">
+              <Button size="lg">
+                {t.nav.accessAccount}
+                <ArrowRight className="h-4 w-4 rtl:-scale-x-100" />
+              </Button>
+            </Link>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            Tester sans compte : « Démo garage » ou « Démo client » sur la page de connexion.
+            {t.home.demoHint}
           </p>
         </motion.div>
 
@@ -54,20 +47,16 @@ export function HomePage() {
               <span className="h-2.5 w-2.5 rounded-full bg-border" />
               <span className="h-2.5 w-2.5 rounded-full bg-border" />
               <span className="h-2.5 w-2.5 rounded-full bg-border" />
-              <span className="ml-2 text-xs text-muted-foreground">Réservations reçues</span>
+              <span className="text-xs text-muted-foreground ltr:ml-2 rtl:mr-2">{t.home.previewTitle}</span>
             </div>
             <div className="space-y-2.5 p-4">
-              {[
-                { n: 'Julie Durand', s: 'Plaquettes de frein', l: 'En attente', c: 'bg-warning/20 text-warning-foreground' },
-                { n: 'Marc Petit', s: 'Révision constructeur', l: 'Confirmée', c: 'bg-success/15 text-success' },
-                { n: 'Inès Lefort', s: 'Diagnostic', l: 'Autre créneau', c: 'bg-primary/10 text-primary' },
-              ].map((r) => (
-                <div key={r.n} className="flex items-center justify-between rounded-lg border border-border p-3">
+              {t.home.previewRows.map((row, index) => (
+                <div key={row.name} className="flex items-center justify-between rounded-lg border border-border p-3">
                   <div>
-                    <p className="text-sm font-semibold">{r.n}</p>
-                    <p className="text-xs text-muted-foreground">{r.s}</p>
+                    <p className="text-sm font-semibold" dir="auto">{row.name}</p>
+                    <p className="text-xs text-muted-foreground">{row.service}</p>
                   </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${r.c}`}>{r.l}</span>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${previewTones[index]}`}>{row.status}</span>
                 </div>
               ))}
             </div>
@@ -77,9 +66,9 @@ export function HomePage() {
 
       {/* Problèmes */}
       <section id="problemes" className="container scroll-mt-20 py-14">
-        <h2 className="text-center text-2xl font-bold sm:text-3xl">Ce qui ralentit un garage aujourd’hui</h2>
+        <h2 className="text-center text-2xl font-bold sm:text-3xl">{t.home.problemsTitle}</h2>
         <div className="mx-auto mt-8 grid max-w-4xl gap-4 sm:grid-cols-3">
-          {problems.map((p) => (
+          {t.home.problems.map((p) => (
             <Card key={p} className="p-5 text-sm text-muted-foreground">{p}</Card>
           ))}
         </div>
@@ -89,8 +78,8 @@ export function HomePage() {
       <section id="solution" className="scroll-mt-20 border-t border-border bg-muted/20">
         <div className="container py-16">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-bold sm:text-3xl">Ce que ça change au quotidien</h2>
-            <p className="mt-3 text-muted-foreground">Des workflows réels, simples, immédiatement utiles.</p>
+            <h2 className="text-2xl font-bold sm:text-3xl">{t.home.benefitsTitle}</h2>
+            <p className="mt-3 text-muted-foreground">{t.home.benefitsSubtitle}</p>
           </div>
           <motion.div
             variants={listStagger}
@@ -99,7 +88,9 @@ export function HomePage() {
             viewport={{ once: true, margin: '-80px' }}
             className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {benefits.map(({ icon: Icon, title, text }) => (
+            {t.home.benefits.map(({ title, text }, index) => {
+              const Icon = benefitIcons[index]
+              return (
               <motion.div key={title} variants={listItem}>
                 <Card className="h-full p-6">
                   <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -109,7 +100,8 @@ export function HomePage() {
                   <p className="mt-1.5 text-sm text-muted-foreground">{text}</p>
                 </Card>
               </motion.div>
-            ))}
+              )
+            })}
           </motion.div>
         </div>
       </section>
@@ -118,10 +110,10 @@ export function HomePage() {
       <section id="parcours" className="container scroll-mt-20 py-16">
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-7">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Côté client</p>
-            <h3 className="mt-1 text-lg font-bold">Réserver en 1 minute</h3>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t.home.clientSide}</p>
+            <h3 className="mt-1 text-lg font-bold">{t.home.clientTitle}</h3>
             <ol className="mt-4 space-y-3 text-sm">
-              {['Choisir le garage', 'Choisir une prestation', 'Renseigner le véhicule', 'Choisir un créneau', 'Envoyer et suivre la demande'].map((s, i) => (
+              {t.home.clientSteps.map((s, i) => (
                 <li key={s} className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{i + 1}</span>
                   {s}
@@ -130,10 +122,10 @@ export function HomePage() {
             </ol>
           </Card>
           <Card className="p-7">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Côté garage</p>
-            <h3 className="mt-1 text-lg font-bold">Traiter en quelques clics</h3>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t.home.garageSide}</p>
+            <h3 className="mt-1 text-lg font-bold">{t.home.garageTitle}</h3>
             <ol className="mt-4 space-y-3 text-sm">
-              {['Recevoir la demande', 'Confirmer, refuser ou proposer un créneau', 'Le rendez-vous se crée tout seul', 'Suivre l’agenda et les clients', 'Garder un historique clair'].map((s, i) => (
+              {t.home.garageSteps.map((s, i) => (
                 <li key={s} className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-foreground">{i + 1}</span>
                   {s}
@@ -147,13 +139,13 @@ export function HomePage() {
       {/* CTA */}
       <section className="border-t border-border bg-muted/20">
         <div className="container flex flex-col items-center gap-4 py-16 text-center">
-          <h2 className="text-2xl font-bold sm:text-3xl">Lancez un pilote dans votre garage</h2>
+          <h2 className="text-2xl font-bold sm:text-3xl">{t.home.ctaTitle}</h2>
           <p className="max-w-xl text-muted-foreground">
-            Installation rapide, formation courte, sans engagement. Vous gardez le contrôle.
+            {t.home.ctaText}
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Link to="/pilote"><Button size="lg">Découvrir l’offre pilote</Button></Link>
-            <Link to="/login"><Button size="lg" variant="outline">Ouvrir l’espace garage</Button></Link>
+            <Link to="/pilote"><Button size="lg">{t.home.discoverPilot}</Button></Link>
+            <Link to="/login"><Button size="lg" variant="outline">{t.nav.accessAccount}</Button></Link>
           </div>
         </div>
       </section>

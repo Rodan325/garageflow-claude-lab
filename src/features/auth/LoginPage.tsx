@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,11 +17,7 @@ import { useBrand } from '@/branding'
 import { mapAuthError } from './authErrors'
 import { useAuth } from './AuthProvider'
 
-const schema = z.object({
-  email: z.string().email('Adresse email invalide'),
-  password: z.string().min(1, 'Mot de passe requis'),
-})
-type Form = z.infer<typeof schema>
+type Form = { email: string; password: string }
 
 export function LoginPage() {
   const { signIn, enterDemo, ready, session, accountType, isStaff, configured } = useAuth()
@@ -34,6 +30,10 @@ export function LoginPage() {
   const redirect = params.get('redirect')
   const [submitting, setSubmitting] = useState(false)
   const [justLoggedIn, setJustLoggedIn] = useState(false)
+  const schema = useMemo(() => z.object({
+    email: z.string().email(t.validation.emailInvalid),
+    password: z.string().min(1, t.validation.passwordRequired),
+  }), [t])
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<Form>({ resolver: zodResolver(schema) })
 
@@ -88,7 +88,7 @@ export function LoginPage() {
         <div className="w-full max-w-md">
           <div className="mb-6 flex items-center justify-between">
             <Link to="/" className="inline-flex lg:hidden"><Logo /></Link>
-            <LanguageSwitcher className="ml-auto" />
+            <LanguageSwitcher className="ltr:ml-auto rtl:mr-auto" />
           </div>
           <h1 className="text-2xl font-bold">{t.login.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t.login.subtitle}</p>
@@ -96,11 +96,10 @@ export function LoginPage() {
           {!configured && (
             <Card className="mt-5 border-warning/40 bg-warning/10 p-4">
               <p className="flex items-center gap-2 text-sm font-semibold text-warning-foreground">
-                <FlaskConical className="h-4 w-4" /> Configuration Supabase manquante
+                <FlaskConical className="h-4 w-4" /> {t.login.configTitle}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                La connexion réelle nécessite un fichier <code className="rounded bg-black/10 px-1">.env</code>. En attendant,
-                explorez l’app en <strong>mode démo local</strong> ci-dessous. (Étapes de config : voir <code>SUPABASE_SETUP.md</code>.)
+                {t.login.configBodyStart} <code className="rounded bg-black/10 px-1">.env</code>. {t.login.configBodyEnd}
               </p>
             </Card>
           )}
@@ -134,7 +133,7 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Field label={t.common.email} htmlFor="email" error={errors.email?.message}>
-              <Input id="email" type="email" autoComplete="email" placeholder={t.login.emailPlaceholder} {...register('email')} />
+              <Input id="email" dir="ltr" type="email" autoComplete="email" placeholder={t.login.emailPlaceholder} {...register('email')} />
             </Field>
             <Field label={t.common.password} htmlFor="password" error={errors.password?.message}>
               <PasswordInput id="password" autoComplete="current-password" placeholder="••••••••" {...register('password')} />

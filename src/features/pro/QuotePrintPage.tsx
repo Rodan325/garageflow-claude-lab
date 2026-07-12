@@ -43,7 +43,7 @@ export function QuotePrintPage() {
   if (!quote) return <div className="p-8"><EmptyState title="Devis introuvable" /></div>
 
   return (
-    <div className="min-h-dvh bg-slate-100 py-6 print:bg-white print:py-0">
+    <div lang="fr" dir="ltr" className="min-h-dvh bg-slate-100 py-6 print:bg-white print:py-0">
       {/* Toolbar (hidden when printing) */}
       <div className="mx-auto mb-4 flex max-w-[800px] items-center justify-between px-4 print:hidden">
         <button onClick={() => navigate('/pro/quotes')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">

@@ -1,4 +1,4 @@
-# GarageFlow — Garde-fous coûts & abus
+# Clikarage — Garde-fous coûts & abus
 
 Objectif : qu'un secret volé ou un endpoint abusé **ne puisse pas** générer une facture énorme.
 

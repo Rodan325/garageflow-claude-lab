@@ -1,4 +1,4 @@
-# GarageFlow — Rate limiting & anti-abus (login / signup)
+# Clikarage — Rate limiting & anti-abus (login / signup)
 
 Protéger login et création de compte contre le brute-force et le spam **sans** bloquer un vrai utilisateur.
 

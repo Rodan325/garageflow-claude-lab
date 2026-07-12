@@ -1,8 +1,8 @@
-# GarageFlow — Offre pilote garage
+# Clikarage — Offre pilote garage
 
 *Document à remettre / envoyer à un garage intéressé.*
 
-GarageFlow aide votre garage à **recevoir les demandes de rendez-vous en ligne** et à **envoyer des devis clairs**, sans changer vos habitudes de travail. Nous vous proposons de le **tester gratuitement** sur votre activité réelle.
+Clikarage aide votre garage à **recevoir les demandes de rendez-vous en ligne** et à **envoyer des devis clairs**, sans changer vos habitudes de travail. Nous vous proposons de le **tester gratuitement** sur votre activité réelle.
 
 ---
 
@@ -25,7 +25,7 @@ GarageFlow aide votre garage à **recevoir les demandes de rendez-vous en ligne*
 - D'**utiliser l'outil sur quelques demandes et devis réels** pendant le test.
 - **15 minutes de retour** à mi-parcours et en fin de pilote.
 
-## Ce que GarageFlow vous apporte
+## Ce que Clikarage vous apporte
 - **Moins de temps au téléphone** : les demandes arrivent en ligne, déjà triées.
 - **Zéro double saisie** : demande → rendez-vous → fiche client → devis s'enchaînent.
 - **Des devis pros et traçables** : numérotés (DV-AAAA-NNNN), TVA calculée, PDF avec votre logo, statut clair (envoyé / accepté / refusé / expiré).
@@ -45,7 +45,7 @@ GarageFlow aide votre garage à **recevoir les demandes de rendez-vous en ligne*
 - **Notifications** de nouvelles demandes et rappels de rendez-vous.
 
 ## Critères de réussite du pilote
-- Au moins **quelques demandes** reçues et traitées via GarageFlow.
+- Au moins **quelques demandes** reçues et traitées via Clikarage.
 - Au moins **quelques devis** créés, envoyés et suivis jusqu'à acceptation/refus.
 - Un **gain de temps ressenti** sur la prise de rendez-vous et la rédaction des devis.
 - Une **image client** jugée plus professionnelle.

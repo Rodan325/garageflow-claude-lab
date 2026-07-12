@@ -1,4 +1,4 @@
-# GarageFlow — Configuration Supabase
+# Clikarage — Configuration Supabase
 
 ## 1. Projet
 - **Nom** : `garageflow-c` · **Région** : `eu-west-3` (Paris) · `https://tftmfhwmzkhzlvgwcnje.supabase.co`

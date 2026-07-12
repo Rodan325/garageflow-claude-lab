@@ -1,5 +1,5 @@
 /**
- * Local demo mode — lets anyone explore GarageFlow WITHOUT Supabase.
+ * Local demo mode — lets anyone explore Clikarage WITHOUT Supabase.
  * Data lives in localStorage (shared between tabs), so a booking made in the
  * "client" demo shows up in the "garage" demo inbox. This never replaces the
  * real Supabase mode: it only activates when explicitly entered.
@@ -25,7 +25,7 @@ export const DEMO_CLIENT_ID = 'demo-client'
 // Active role is PER-TAB (sessionStorage) so two tabs can run different roles
 // (client + garage) side by side; the demo DATA is shared (localStorage).
 const KIND_KEY = 'gf-demo'
-// Base key; brand-scoped at runtime (see storeKey()) so the default GarageFlow
+// Base key; brand-scoped at runtime (see storeKey()) so the default Clikarage
 // demo and the Speedy demo keep completely separate data.
 // v6: brand-scoped store; default brand reverts to the original catalog.
 export const STORE_KEY = 'gf-demo-store-v6'
@@ -111,7 +111,7 @@ interface Store {
 }
 type Vehicle = Customer extends never ? never : import('@/types/domain').Vehicle
 
-// Original GarageFlow demo catalog — kept for the DEFAULT brand so its demo is
+// Original Clikarage demo catalog — kept for the DEFAULT brand so its demo is
 // unchanged. The Speedy demo uses DEFAULT_AUTO_SERVICES (car-service catalog).
 const ORIGINAL_SERVICES = [
   { name: 'Révision constructeur', description: 'Vidange, filtres et points de contrôle complets.', category: 'Entretien', duration_minutes: 90, price_from: 149 },
@@ -140,7 +140,7 @@ function seed(brand: DemoBrand = 'default'): Store {
     address: null, city, postal_code, phone: g.phone,
     is_active: true, sort_order, created_at: today().toISOString(),
   })
-  // Centers exist ONLY in the multi-center (Speedy) demo. The plain GarageFlow
+  // Centers exist ONLY in the multi-center (Speedy) demo. The plain Clikarage
   // demo has none → the booking flow stays the legacy 3-step flow.
   const centers: GarageCenter[] = isSpeedy
     ? [

@@ -66,7 +66,7 @@ describe('demo centers — multi-center foundation', () => {
     expect(Array.isArray(s.centers)).toBe(true)
   })
 
-  it('the DEFAULT demo seeds NO centers (plain GarageFlow demo unchanged)', () => {
+  it('the DEFAULT demo seeds NO centers (plain Clikarage demo unchanged)', () => {
     const s = ensureStoreShape('force-reseed') // default brand
     expect(s.centers.length).toBe(0)
     expect(s.requests[0].center_id).toBeNull()
@@ -103,7 +103,7 @@ describe('demo quote token detection', () => {
     expect(isDemoQuoteToken('a1b2c3d4e5f6a7b8c9d0')).toBe(false)
   })
 
-  it('finds a GarageFlow quote in the default store', () => {
+  it('finds a Clikarage quote in the default store', () => {
     const token = 'demogarageflowquote123'
     saveQuoteStore('default', STORE_KEY, token)
 

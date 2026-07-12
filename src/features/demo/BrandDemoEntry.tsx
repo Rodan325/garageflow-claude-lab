@@ -5,7 +5,7 @@ import { useBrand, type BrandId } from '@/branding'
 // Dedicated demo activation routes (the app uses HashRouter, so the real URLs
 // carry the # fragment):
 //   /#/demo/speedy → activate the Speedy demo brand
-//   /#/demo/reset  → leave the demo, back to the default GarageFlow brand
+//   /#/demo/reset  → leave the demo, back to the default Clikarage brand
 export function BrandDemoEntry() {
   const { brand } = useParams()
   const { setBrand, exitDemo } = useBrand()

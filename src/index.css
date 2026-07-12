@@ -72,6 +72,25 @@
     min-height: 100dvh;
   }
 
+  html[lang='ar'] body {
+    font-family: Tahoma, 'Segoe UI', sans-serif;
+  }
+
+  html[dir='rtl'] input,
+  html[dir='rtl'] textarea,
+  html[dir='rtl'] select {
+    text-align: right;
+  }
+
+  input[type='email'],
+  input[type='tel'],
+  input[type='password'],
+  input[autocomplete='one-time-code'],
+  .force-ltr {
+    direction: ltr;
+    text-align: left;
+  }
+
   :focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }

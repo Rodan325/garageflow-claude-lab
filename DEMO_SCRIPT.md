@@ -1,4 +1,4 @@
-# GarageFlow — Script de démo (≈ 6 minutes)
+# Clikarage — Script de démo (≈ 6 minutes)
 
 > Fil rouge : **« Le client réserve. Le garage confirme. Le devis est prêt. »**
 

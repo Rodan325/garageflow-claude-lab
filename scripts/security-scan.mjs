@@ -1,5 +1,5 @@
 /**
- * GarageFlow — secret & frontend-safety scanner.
+ * Clikarage — secret & frontend-safety scanner.
  * Blocks the OBVIOUS leaks (real key values, private keys) and WARNS on
  * frontend references to server-only things. Not a full SAST — a guardrail.
  *
@@ -79,7 +79,7 @@ for (const file of walk(ROOT)) {
   }
 }
 
-console.log('\nGarageFlow — security scan\n')
+console.log('\nClikarage — security scan\n')
 if (warns.length) {
   console.log(`\x1b[33m${warns.length} avertissement(s) (à revoir, non bloquant) :\x1b[0m`)
   for (const w of warns) console.log(`  ~ ${w.rel}:${w.line} — ${w.name}`)

@@ -1,9 +1,9 @@
-# GarageFlow
+# Clikarage
 
 Plateforme **SaaS / PWA** pour garages automobiles indépendants, en deux espaces :
 
-- **GarageFlow Pro** — back-office du garage : dashboard, **réservations reçues**, agenda, clients, véhicules, et — en mode *Atelier avancé* — atelier (kanban), **prestations (catalogue)**, **devis**, équipe, paramètres.
-- **GarageFlow Client** — application **mobile-first** : choisir un garage, réserver une prestation, suivre ses demandes, gérer profil et véhicules, lire les actualités.
+- **Clikarage Pro** — back-office du garage : dashboard, **réservations reçues**, agenda, clients, véhicules, et — en mode *Atelier avancé* — atelier (kanban), **prestations (catalogue)**, **devis**, équipe, paramètres.
+- **Clikarage Client** — application **mobile-first** : choisir un garage, réserver une prestation, suivre ses demandes, gérer profil et véhicules, lire les actualités.
 
 Promesse : **« Le client réserve. Le garage confirme. Le devis est prêt. »**
 

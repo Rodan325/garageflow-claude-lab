@@ -7,7 +7,8 @@
  * ou information sensible.
  */
 export const legalConfig = {
-  appName: 'GarageFlow',
+  appName: 'Clikarage',
+  serviceStatement: 'Clikarage est un service édité par RODANBTECH.',
 
   editorName: 'Anas RODRIGUEZ BENKARROUM',
   tradingName: 'RODANBTECH',
@@ -40,7 +41,7 @@ export const legalConfig = {
   employees: 'Unité non employeuse',
 
   // Squarespace gère le domaine (et l'email selon la config) ; il N'héberge PAS
-  // l'application GarageFlow — celle-ci est déployée sur Vercel.
+  // l'application Clikarage — celle-ci est déployée sur Vercel.
   domainProviderName: 'Squarespace',
   domainProviderPurpose: 'Gestion du domaine et, le cas échéant, configuration de l’email professionnel',
   emailProviderName: 'Google Workspace / Squarespace, selon la configuration du domaine',

@@ -48,7 +48,7 @@ export function VerifyEmailPage() {
         <h1 className="text-2xl font-bold">{t.verifyEmail.title}</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           {t.verifyEmail.bodyPrefix}
-          {email ? <span className="font-medium text-foreground">{email}</span> : t.verifyEmail.bodyFallbackAddress}
+          {email ? <bdi dir="ltr" className="font-medium text-foreground">{email}</bdi> : t.verifyEmail.bodyFallbackAddress}
           {t.verifyEmail.bodySuffix}
         </p>
 

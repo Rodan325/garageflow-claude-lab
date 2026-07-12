@@ -1,28 +1,43 @@
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useBrand } from '@/branding'
 
 export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
-  // A branded logo (e.g. Speedy demo) replaces the wordmark; the default brand
-  // has none, so the GarageFlow mark below renders exactly as before.
   const { brand } = useBrand()
+  const [imageFailed, setImageFailed] = useState(false)
+
+  // White-label components always win, so Speedy's placeholder never receives
+  // the official Clikarage image.
   if (brand.logoComponent) {
     const BrandLogo = brand.logoComponent
     return <BrandLogo className={className} compact={compact} />
   }
-  return (
-    <span className={cn('inline-flex items-center gap-2 font-bold', className)}>
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M5 17V11l5-4 5 4v6" />
-          <path d="M4 17h12" />
-          <circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none" />
-        </svg>
+
+  // `logoIconUrl` is intentionally optional until an authorized compact asset
+  // exists. Small layouts keep a cropped, responsive wordmark in the meantime.
+  const imageSrc = compact ? (brand.logoIconUrl ?? brand.logoUrl) : brand.logoUrl
+  if (imageSrc && !imageFailed) {
+    return (
+      <span
+        className={cn(
+          'relative inline-flex shrink-0 overflow-hidden rounded-md bg-white',
+          compact ? 'h-8 w-24' : 'h-10 w-28 sm:w-40',
+          className,
+        )}
+      >
+        <img
+          src={imageSrc}
+          alt={brand.appName}
+          onError={() => setImageFailed(true)}
+          className="h-full w-full object-cover object-center"
+        />
       </span>
-      {!compact && (
-        <span className="text-lg tracking-tight">
-          Garage<span className="text-primary">Flow</span>
-        </span>
-      )}
+    )
+  }
+
+  return (
+    <span className={cn('inline-flex items-center font-bold tracking-tight', compact ? 'text-sm' : 'text-lg', className)}>
+      {brand.appName}
     </span>
   )
 }

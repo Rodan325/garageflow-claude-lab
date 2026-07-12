@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "GarageFlow — SaaS/PWA pour garages indépendants (Pro back-office + Client mobile-first).",
+  "description": "Clikarage — SaaS/PWA pour garages indépendants (Pro back-office + Client mobile-first).",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

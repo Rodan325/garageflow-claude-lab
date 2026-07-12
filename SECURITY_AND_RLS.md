@@ -1,4 +1,4 @@
-# GarageFlow — Sécurité & RLS
+# Clikarage — Sécurité & RLS
 
 ## 1. Principes
 - **Minimisation** : seules les données nécessaires au rendez-vous / devis.
