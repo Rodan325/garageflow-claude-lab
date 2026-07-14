@@ -39,7 +39,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
             <button onClick={() => scrollToSection('problemes')} className="hover:text-foreground">{t.nav.problems}</button>
             <button onClick={() => scrollToSection('solution')} className="hover:text-foreground">{t.nav.solution}</button>
             <button onClick={() => scrollToSection('parcours')} className="hover:text-foreground">{t.nav.journey}</button>
-            <Link to="/pilote" className="hover:text-foreground">{t.nav.pilotOffer}</Link>
+            <Link to="/solutions" className="hover:text-foreground">{t.nav.pilotOffer}</Link>
           </nav>
           <div className="flex items-center gap-2">
             <LanguageSwitcher className="[&_svg]:hidden sm:[&_svg]:block [&_select]:px-1 sm:[&_select]:px-2" />
@@ -58,7 +58,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
             <span>© {new Date().getFullYear()} {brand.companyDisplayName} — {t.footer.pilotDemo}</span>
           </div>
           <div className="flex gap-5">
-            <Link to="/pilote" className="hover:text-foreground">{t.nav.pilotOffer}</Link>
+            <Link to="/solutions" className="hover:text-foreground">{t.nav.pilotOffer}</Link>
             <Link to="/login" className="hover:text-foreground">{t.nav.accessAccount}</Link>
           </div>
         </div>

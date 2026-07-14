@@ -72,9 +72,9 @@ describe('LoginPage localization', () => {
 
     expect(document.documentElement.dir).toBe('rtl')
     expect(screen.getByRole('heading', { name: 'تسجيل الدخول' })).toBeInTheDocument()
-    expect(screen.getByText('إعداد Supabase غير مكتمل')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /تجربة الورشة/ })).toBeInTheDocument()
-    expect(container.textContent).not.toMatch(/Se connecter|Configuration Supabase manquante|Démo garage|Pas encore de compte/)
+    expect(screen.getByRole('button', { name: /مساحة الورشة/ })).toBeInTheDocument()
+    expect(screen.getAllByText('حساب تجريبي')).toHaveLength(2)
+    expect(container.textContent).not.toMatch(/Supabase|Se connecter|Configuration Supabase manquante|Démo garage|Pas encore de compte/)
   })
 
   it('keeps technical inputs LTR and left-aligned without leaking RTL styles', () => {
@@ -107,8 +107,8 @@ describe('LoginPage localization', () => {
 
     expect(document.documentElement.dir).toBe('ltr')
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
-    expect(screen.getByText('Supabase configuration is missing')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Garage demo/ })).toBeInTheDocument()
-    expect(container.textContent).not.toMatch(/Se connecter|Configuration Supabase manquante|Démo garage|Pas encore de compte/)
+    expect(screen.getByRole('button', { name: /Garage workspace/ })).toBeInTheDocument()
+    expect(screen.getAllByText('Demo account')).toHaveLength(2)
+    expect(container.textContent).not.toMatch(/Supabase|Se connecter|Configuration Supabase manquante|Démo garage|Pas encore de compte/)
   })
 })

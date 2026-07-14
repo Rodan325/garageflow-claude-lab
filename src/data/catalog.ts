@@ -84,7 +84,7 @@ export function useUpdateGarage() {
 export function useUploadLogo() {
   return useMutation({
     mutationFn: async ({ garageId, file }: { garageId: string; file: File }) => {
-      if (isDemo()) throw new Error('Le téléversement du logo nécessite une connexion Supabase (indisponible en démo).')
+      if (isDemo()) throw new Error('Cette action est indisponible avec un compte de démonstration.')
       const ext = file.name.split('.').pop() || 'png'
       const path = `${garageId}/logo-${Date.now()}.${ext}`
       const { error } = await supabase.storage.from('garage-logos').upload(path, file, { upsert: true })

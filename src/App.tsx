@@ -1,9 +1,8 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { MarketingShell } from '@/components/shells/MarketingShell'
 import { ProShell } from '@/components/shells/ProShell'
 import { ClientShell } from '@/components/shells/ClientShell'
 import { RequireClientAuth, RequireStaff } from '@/features/auth/guards'
-import { ConfigBanner } from '@/components/common/ConfigBanner'
 import { DemoBanner } from '@/components/common/DemoBanner'
 import { DemoNotice } from '@/components/common/DemoNotice'
 import { ScrollToTop } from '@/components/common/ScrollToTop'
@@ -11,7 +10,7 @@ import { BrandDemoEntry } from '@/features/demo/BrandDemoEntry'
 
 // Marketing
 import { HomePage } from '@/features/marketing/HomePage'
-import { PilotPage } from '@/features/marketing/PilotPage'
+import { SolutionsPage } from '@/features/marketing/SolutionsPage'
 // Auth
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
@@ -52,12 +51,12 @@ export function App() {
     <>
       <ScrollToTop />
       <DemoNotice />
-      <ConfigBanner />
       <DemoBanner />
       <Routes>
         <Route path="/demo/:brand" element={<BrandDemoEntry />} />
         <Route path="/" element={<MarketingShell><HomePage /></MarketingShell>} />
-        <Route path="/pilote" element={<MarketingShell><PilotPage /></MarketingShell>} />
+        <Route path="/solutions" element={<MarketingShell><SolutionsPage /></MarketingShell>} />
+        <Route path="/pilote" element={<Navigate to="/solutions" replace />} />
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />

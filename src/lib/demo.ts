@@ -86,7 +86,7 @@ export function demoPublicQuoteBrand(token?: string | null): DemoBrand | null {
 
 /** Discreet note shown when a demo garage copies a client quote link. */
 export const DEMO_QUOTE_LINK_HINT =
-  'En mode démo, ce lien fonctionne dans ce navigateur. Pour une démo sur téléphone ou un autre appareil, utilisez un vrai compte Supabase.'
+  'Ce lien de présentation est disponible depuis ce navigateur.'
 
 const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 const today = () => new Date()

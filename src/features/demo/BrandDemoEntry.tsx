@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useBrand, type BrandId } from '@/branding'
+import { clearDemo, getDemoBrand, resetDemoData } from '@/lib/demo'
 
 // Dedicated demo activation routes (the app uses HashRouter, so the real URLs
 // carry the # fragment):
@@ -16,7 +17,11 @@ export function BrandDemoEntry() {
     if (key === 'speedy') {
       setBrand('speedy' as BrandId)
     } else {
-      // reset / default / anything unknown → centralized exit.
+      if (key === 'reset') {
+        resetDemoData(getDemoBrand())
+        clearDemo()
+      }
+      // default / reset / anything unknown → centralized exit.
       exitDemo()
     }
     navigate('/', { replace: true })
