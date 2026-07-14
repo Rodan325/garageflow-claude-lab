@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Clikarage</title>
+  <desc id="desc">Icône Clikarage représentant un garage et une voiture</desc>
+  <defs>
+    <linearGradient id="clikarageGradient" x1="36" y1="28" x2="220" y2="228" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#14B89D"/>
+      <stop offset="1" stop-color="#087C70"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#clikarageGradient)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 108 128 32l98 76v112h-35v-88H65v88H30Z" stroke-width="18"/>
+    <path d="M82 145h92l16 28v42H66v-42Z" stroke-width="15"/>
+    <path d="M94 145l10-23h48l10 23" stroke-width="15"/>
+    <path d="M83 182h18M155 182h18" stroke-width="14"/>
+    <path d="M104 199h48" stroke-width="13"/>
+    <path d="M101 93h54M111 74h34M119 56h18" stroke-width="12"/>
+  </g>
+</svg>

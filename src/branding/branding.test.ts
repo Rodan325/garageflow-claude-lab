@@ -14,7 +14,9 @@ describe('brand resolution', () => {
     expect(getActiveBrand()).toBe(defaultBrand)
     expect(defaultBrand.official).toBe(true)
     expect(defaultBrand.appName).toBe('Clikarage')
-    expect(defaultBrand.logoUrl).toBe('/branding/clikarage-logo.png')
+    expect(defaultBrand.logoLightUrl).toBe('/branding/clikarage-logo-light.svg')
+    expect(defaultBrand.logoDarkUrl).toBe('/branding/clikarage-logo-dark.svg')
+    expect(defaultBrand.logoIconUrl).toBe('/branding/clikarage-icon.svg')
     // No color override → the default app is visually unchanged.
     expect(defaultBrand.primaryColor).toBeUndefined()
   })

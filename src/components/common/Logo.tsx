@@ -6,36 +6,39 @@ import { useBrand } from '@/branding'
 export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { brand } = useBrand()
   const { theme } = useTheme()
-  const [failedSrc, setFailedSrc] = useState<string | null>(null)
-  const themedSrc = theme === 'dark' ? brand.logoDarkUrl : brand.logoLightUrl
-  const imageSrc = compact ? brand.logoIconUrl : themedSrc
+  const [imageFailed, setImageFailed] = useState(false)
+  const selectedLogoUrl = compact
+    ? brand.logoIconUrl
+    : theme === 'dark'
+      ? brand.logoDarkUrl
+      : brand.logoLightUrl
 
   useEffect(() => {
-    if (failedSrc && failedSrc !== imageSrc) setFailedSrc(null)
-  }, [failedSrc, imageSrc])
+    setImageFailed(false)
+  }, [selectedLogoUrl])
 
   if (brand.logoComponent) {
     const BrandLogo = brand.logoComponent
     return <BrandLogo className={className} compact={compact} />
   }
 
-  if (imageSrc && failedSrc !== imageSrc) {
+  if (selectedLogoUrl && !imageFailed) {
     return (
       <span
         data-logo-variant={theme}
         className={cn(
           'relative inline-flex shrink-0 items-center overflow-hidden bg-transparent',
-          compact ? 'h-8 w-24 sm:w-28' : 'h-10 w-32 sm:w-40',
+          compact ? 'h-8 w-8' : 'h-10 w-32 sm:w-40',
           className,
         )}
       >
         <img
-          src={imageSrc}
+          src={selectedLogoUrl}
           alt="Clikarage"
-          width={compact ? 112 : 160}
+          width={compact ? 32 : 160}
           height={compact ? 32 : 40}
-          onError={() => setFailedSrc(imageSrc)}
-          className="h-full w-full object-contain object-center"
+          onError={() => setImageFailed(true)}
+          className="block h-full w-full object-contain object-center"
         />
       </span>
     )
