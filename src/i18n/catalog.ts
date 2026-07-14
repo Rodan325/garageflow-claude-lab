@@ -521,8 +521,12 @@ export function hasTranslation(lang: Exclude<Lang, 'fr'>, source: string) {
 export function translate(lang: Lang, source: string, variables?: Variables): string {
   let value = source
   if (lang !== 'fr') {
-    value = catalogs[lang][source] ?? (lang === 'ar' ? en[source] : undefined) ?? (lang === 'ar' ? 'الترجمة غير متاحة' : 'Translation unavailable')
-    if (import.meta.env.DEV && !catalogs[lang][source]) console.warn(`[i18n] Missing ${lang} translation: ${source}`)
+    const translated = catalogs[lang][source]
+    if (translated !== undefined) {
+      value = translated
+    } else if (import.meta.env.DEV) {
+      console.warn('[i18n] Missing translation', { lang, source })
+    }
   }
   if (!variables) return value
   return value.replace(/\{(\w+)\}/g, (_, key: string) => String(variables[key] ?? `{${key}}`))

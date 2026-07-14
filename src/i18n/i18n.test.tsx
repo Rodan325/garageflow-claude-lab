@@ -1,7 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
-import { LanguageProvider } from './index'
+import { LanguageProvider, useLang } from './index'
+
+const missingSource = 'Chaîne française absente du catalogue'
+
+function MissingTranslationProbe() {
+  const { tr } = useLang()
+  return <p>{tr(missingSource)}</p>
+}
 
 function chooseLanguage(name: 'Français' | 'English' | 'العربية') {
   fireEvent.click(screen.getByRole('button', { name: /Langue active|Active language|اللغة النشطة/ }))
@@ -74,4 +81,22 @@ describe('global language', () => {
     expect(screen.queryByRole('menu')).toBeNull()
     expect(trigger).toHaveFocus()
   })
+
+  it.each(['en', 'ar'] as const)(
+    'renders the French source instead of a technical placeholder when %s is missing',
+    (lang) => {
+      localStorage.setItem('gf-lang', lang)
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+      render(
+        <LanguageProvider>
+          <MissingTranslationProbe />
+        </LanguageProvider>,
+      )
+
+      expect(screen.getByText(missingSource)).toBeInTheDocument()
+      expect(document.body).not.toHaveTextContent('Translation unavailable')
+      expect(document.body).not.toHaveTextContent('الترجمة غير متاحة')
+    },
+  )
 })
