@@ -13,8 +13,8 @@ import './index.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrandProvider>
-      <LanguageProvider>
+    <LanguageProvider>
+      <BrandProvider>
         <ThemeProvider>
           <ToastProvider>
             <QueryClientProvider client={queryClient}>
@@ -26,7 +26,7 @@ createRoot(document.getElementById('root')!).render(
             </QueryClientProvider>
           </ToastProvider>
         </ThemeProvider>
-      </LanguageProvider>
-    </BrandProvider>
+      </BrandProvider>
+    </LanguageProvider>
   </StrictMode>,
 )

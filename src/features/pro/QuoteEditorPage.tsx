@@ -20,8 +20,10 @@ import { normEmail, normPhone, normPlate } from '@/lib/normalize'
 import { computeQuoteTotals } from '@/lib/quoteTotals'
 import { clientQuoteLink, effectiveQuoteStatus, quoteSendBlockReason } from '@/lib/quoteStatus'
 import { isDemo, DEMO_QUOTE_LINK_HINT } from '@/lib/demo'
-import { QUOTE_STATUS_META } from '@/types/domain'
-import type { Customer, DefaultLine, Vehicle } from '@/types/domain'
+import type { Customer, DefaultLine, QuoteStatus, Vehicle } from '@/types/domain'
+import { quoteStatusMeta } from '@/i18n/domainLabels'
+import { useLang } from '@/i18n'
+import { localizeDemoText } from '@/i18n/demoContent'
 
 interface Line { label: string; quantity: number; unit_price: number; tax_rate: number }
 const DEFAULT_CONDITIONS = 'Devis valable 30 jours. Pièces et main-d’œuvre garanties. TVA 20% incluse.'
@@ -36,6 +38,7 @@ const fullName = (c?: Customer | null) => (c ? `${c.first_name ?? ''} ${c.last_n
 const vehLabel = (v?: Vehicle | null) => (v ? `${v.brand} ${v.model}${v.registration ? ` · ${v.registration}` : ''}` : '')
 
 export function QuoteEditorPage() {
+  const { lang, tr } = useLang()
   const { id } = useParams()
   const editing = !!id
   const [params] = useSearchParams()
@@ -60,7 +63,7 @@ export function QuoteEditorPage() {
 
   const [title, setTitle] = useState('')
   const [validUntil, setValidUntil] = useState('')
-  const [conditions, setConditions] = useState(DEFAULT_CONDITIONS)
+  const [conditions, setConditions] = useState(() => tr(DEFAULT_CONDITIONS))
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<Line[]>([])
 
@@ -82,11 +85,11 @@ export function QuoteEditorPage() {
 
     if (editing) {
       if (existingQuote && existingLines && customers) {
-        setTitle(existingQuote.title)
+        setTitle(localizeDemoText(existingQuote.title, lang))
         setValidUntil(existingQuote.valid_until ?? '')
-        setConditions(existingQuote.conditions ?? DEFAULT_CONDITIONS)
+        setConditions(existingQuote.conditions ? localizeDemoText(existingQuote.conditions, lang) : tr(DEFAULT_CONDITIONS))
         setNotes(existingQuote.notes ?? '')
-        setLines(existingLines.map((l) => ({ label: l.label, quantity: l.quantity, unit_price: l.unit_price, tax_rate: l.tax_rate })))
+        setLines(existingLines.map((l) => ({ label: localizeDemoText(l.label, lang), quantity: l.quantity, unit_price: l.unit_price, tax_rate: l.tax_rate })))
         if (existingQuote.customer_id) { setClientMode('existing'); setCustomerId(existingQuote.customer_id) }
         else { setClientMode('new'); setNewClient((n) => ({ ...n, first: existingQuote.client_name ?? '' })) }
         if (existingQuote.vehicle_id) { setVehicleMode('existing'); setVehicleId(existingQuote.vehicle_id) }
@@ -99,7 +102,7 @@ export function QuoteEditorPage() {
     if (requests && services && customers && vehicles) {
       const req = requestId ? requests.find((r) => r.id === requestId) : null
       const svc = req ? services.find((s) => s.id === req.service_id) : null
-      setTitle(req?.service_name ?? svc?.name ?? 'Devis')
+      setTitle(localizeDemoText(req?.service_name ?? svc?.name, lang) || tr('Devis'))
 
       // suggest client in order: customer_id → linked_user_id → phone → email (normalised)
       let matchedClient: Customer | undefined
@@ -134,12 +137,19 @@ export function QuoteEditorPage() {
 
       // lines from the service default lines
       const defaults = (svc?.default_lines as unknown as DefaultLine[]) ?? []
-      if (defaults.length > 0) setLines(defaults.map((l) => ({ ...l })))
-      else setLines([{ label: svc?.name ?? req?.service_name ?? 'Prestation', quantity: 1, unit_price: svc?.price_from ?? 0, tax_rate: svc?.tax_rate ?? 20 }])
+      if (defaults.length > 0) setLines(defaults.map((l) => ({ ...l, label: localizeDemoText(l.label, lang) })))
+      else setLines([{ label: localizeDemoText(svc?.name ?? req?.service_name, lang) || tr('Prestation'), quantity: 1, unit_price: svc?.price_from ?? 0, tax_rate: svc?.tax_rate ?? 20 }])
 
       init.current = true
     }
-  }, [editing, existingQuote, existingLines, requests, services, customers, vehicles, requestId])
+  }, [editing, existingQuote, existingLines, requests, services, customers, vehicles, requestId, lang, tr])
+
+  useEffect(() => {
+    if (!init.current || !isDemo()) return
+    setTitle((current) => localizeDemoText(current, lang))
+    setConditions((current) => localizeDemoText(current, lang))
+    setLines((current) => current.map((line) => ({ ...line, label: localizeDemoText(line.label, lang) })))
+  }, [lang])
 
   // When the client changes: drop a vehicle that isn't theirs, then auto-pick a single one.
   useEffect(() => {
@@ -187,7 +197,7 @@ export function QuoteEditorPage() {
   // Persist (create or update a DRAFT) and return the quote id, or null on failure.
   async function persist(): Promise<string | null> {
     if (!gid) return null
-    if (!title.trim() || lines.length === 0) { toast.error('Ajoutez un intitulé et au moins une ligne'); return null }
+    if (!title.trim() || lines.length === 0) { toast.error(tr('Ajoutez un intitulé et au moins une ligne')); return null }
 
     try {
       // Resolve client — normalised dedup, never create a duplicate.
@@ -197,10 +207,10 @@ export function QuoteEditorPage() {
       let clientEmail: string | null = null
       if (clientMode === 'existing') {
         const c = (customers ?? []).find((x) => x.id === customerId)
-        if (!c) { toast.error('Choisissez un client'); return null }
+        if (!c) { toast.error(tr('Choisissez un client')); return null }
         resolvedCustomerId = c.id; clientName = fullName(c); clientPhone = c.phone; clientEmail = c.email
       } else {
-        if (!newClient.first && !newClient.last) { toast.error('Renseignez le client'); return null }
+        if (!newClient.first && !newClient.last) { toast.error(tr('Renseignez le client')); return null }
         const nEmail = normEmail(newClient.email)
         const nPhone = normPhone(newClient.phone)
         const dup = (customers ?? []).find(
@@ -259,8 +269,8 @@ export function QuoteEditorPage() {
       // Number is assigned server-side (per-garage sequence) inside useCreateQuote.
       const row = await createQuote.mutateAsync({ quote: quoteFields, lines: lineRows })
       return row.id
-    } catch (e) {
-      toast.error('Enregistrement impossible', (e as Error).message)
+    } catch {
+      toast.error(tr('Enregistrement impossible'), tr('L’enregistrement n’a pas pu être terminé.'))
       return null
     }
   }
@@ -268,7 +278,7 @@ export function QuoteEditorPage() {
   async function save(thenPrint: boolean) {
     const savedId = await persist()
     if (!savedId) return
-    toast.success(editing ? 'Devis mis à jour' : 'Devis créé')
+    toast.success(tr(editing ? 'Devis mis à jour' : 'Devis créé'))
     navigate(thenPrint ? `/print/quote/${savedId}` : '/pro/quotes')
   }
 
@@ -277,7 +287,7 @@ export function QuoteEditorPage() {
     // Validity date is mandatory before sending (mirrors the send_quote RPC).
     const blocked = quoteSendBlockReason(validUntil)
     if (blocked) {
-      toast.error(blocked)
+      toast.error(tr(blocked))
       document.getElementById('qd')?.focus()
       return
     }
@@ -287,10 +297,10 @@ export function QuoteEditorPage() {
       const row = await sendQuote.mutateAsync({ id: savedId, garageId: gid })
       const link = clientQuoteLink(row.client_token)
       if (link) await navigator.clipboard.writeText(link).catch(() => {})
-      toast.success('Devis envoyé au client', isDemo() ? DEMO_QUOTE_LINK_HINT : 'Lien de consultation copié dans le presse-papier')
+      toast.success(tr('Devis envoyé au client'), isDemo() ? tr(DEMO_QUOTE_LINK_HINT) : tr('Lien de consultation copié dans le presse-papier'))
       navigate('/pro/quotes')
-    } catch (e) {
-      toast.error('Envoi impossible', (e as Error).message)
+    } catch {
+      toast.error(tr('Envoi impossible'), tr('L’action n’a pas pu être réalisée.'))
     }
   }
 
@@ -299,21 +309,21 @@ export function QuoteEditorPage() {
   // A non-draft quote is not directly editable — offer preview + revision instead.
   if (editing && existingQuote && existingQuote.status !== 'draft') {
     const status = effectiveQuoteStatus(existingQuote)
-    const meta = QUOTE_STATUS_META[status] ?? { label: existingQuote.status, tone: 'neutral' as const }
+    const meta = quoteStatusMeta(status as QuoteStatus, lang)
     async function revise() {
       if (!existingQuote || !gid) return
       try {
         const row = await reviseQuote.mutateAsync({ id: existingQuote.id, garageId: gid })
-        toast.success('Révision créée', 'Nouveau brouillon prêt à modifier')
+        toast.success(tr('Révision créée'), tr('Nouveau brouillon prêt à modifier'))
         navigate(`/pro/quotes/${row.id}`)
-      } catch (e) { toast.error('Révision impossible', (e as Error).message) }
+      } catch { toast.error(tr('Révision impossible'), tr('L’action n’a pas pu être réalisée.')) }
     }
     return (
       <div>
         <button onClick={() => navigate('/pro/quotes')} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Devis
+          <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {tr('Devis')}
         </button>
-        <PageHeader title={existingQuote.title} subtitle={`${existingQuote.number} · ${meta.label}`} />
+        <PageHeader title={localizeDemoText(existingQuote.title, lang)} subtitle={`${existingQuote.number} · ${meta.label}`} />
         <Card>
           <CardContent className="space-y-4 py-6 text-sm">
             <div className="flex items-center gap-2">
@@ -321,18 +331,18 @@ export function QuoteEditorPage() {
             </div>
             <p className="text-muted-foreground">
               {status === 'accepted'
-                ? 'Ce devis a été accepté par le client : il reste tel quel. Vous pouvez créer une nouvelle version sans modifier le devis accepté.'
-                : 'Ce devis a été envoyé au client : il n’est plus modifiable directement (les montants sont figés côté client). Pour le faire évoluer, créez une nouvelle version qui repart en brouillon.'}
+                ? tr('Ce devis a été accepté par le client : il reste tel quel. Vous pouvez créer une nouvelle version sans modifier le devis accepté.')
+                : tr('Ce devis a été envoyé au client : il n’est plus modifiable directement (les montants sont figés côté client). Pour le faire évoluer, créez une nouvelle version qui repart en brouillon.')}
             </p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => navigate(`/print/quote/${existingQuote.id}`)}><Eye className="h-4 w-4" /> Aperçu</Button>
+              <Button variant="outline" onClick={() => navigate(`/print/quote/${existingQuote.id}`)}><Eye className="h-4 w-4" /> {tr('Aperçu')}</Button>
               {existingQuote.client_token && (
                 <Button variant="outline" onClick={async () => {
                   const link = clientQuoteLink(existingQuote.client_token)
-                  if (link) { await navigator.clipboard.writeText(link).catch(() => {}); toast.success('Lien client copié', isDemo() ? DEMO_QUOTE_LINK_HINT : undefined) }
-                }}><Send className="h-4 w-4" /> Copier le lien client</Button>
+                  if (link) { await navigator.clipboard.writeText(link).catch(() => {}); toast.success(tr('Lien client copié'), isDemo() ? tr(DEMO_QUOTE_LINK_HINT) : undefined) }
+                }}><Send className="h-4 w-4" /> {tr('Copier le lien client')}</Button>
               )}
-              <Button onClick={revise} loading={reviseQuote.isPending}><RotateCcw className="h-4 w-4" /> Créer une révision du devis</Button>
+              <Button onClick={revise} loading={reviseQuote.isPending}><RotateCcw className="h-4 w-4" /> {tr('Créer une révision du devis')}</Button>
             </div>
           </CardContent>
         </Card>
@@ -346,56 +356,56 @@ export function QuoteEditorPage() {
   return (
     <div>
       <button onClick={() => navigate('/pro/quotes')} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Devis
+        <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {tr('Devis')}
       </button>
-      <PageHeader title={editing ? 'Modifier le devis' : 'Nouveau devis'} subtitle="Client, véhicule et lignes — préremplis, modifiables avant validation." />
+      <PageHeader title={tr(editing ? 'Modifier le devis' : 'Nouveau devis')} subtitle={tr('Client, véhicule et lignes — préremplis, modifiables avant validation.')} />
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Lines */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>Lignes du devis</CardTitle>
+            <CardTitle>{tr('Lignes du devis')}</CardTitle>
             <Select className="w-48" defaultValue="" onChange={(e) => { if (e.target.value) applyService(e.target.value) }}>
-              <option value="">Partir d’une prestation…</option>
+              <option value="">{tr('Partir d’une prestation…')}</option>
               {(services ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="hidden grid-cols-12 gap-2 px-1 text-xs font-medium text-muted-foreground sm:grid">
-              <span className="col-span-6">Désignation</span>
-              <span className="col-span-2 text-right">Qté</span>
-              <span className="col-span-2 text-right">PU HT</span>
-              <span className="col-span-1 text-right">TVA</span>
+              <span className="col-span-6">{tr('Désignation')}</span>
+              <span className="col-span-2 text-right">{tr('Qté')}</span>
+              <span className="col-span-2 text-right">{tr('PU HT')}</span>
+              <span className="col-span-1 text-right">{tr('TVA')}</span>
               <span className="col-span-1" />
             </div>
             {lines.map((l, i) => (
               <div key={i} className="grid grid-cols-12 items-center gap-2">
-                <Input className="col-span-12 sm:col-span-6" value={l.label} placeholder="Désignation" onChange={(e) => setLine(i, { label: e.target.value })} />
+                <Input className="col-span-12 sm:col-span-6" value={l.label} placeholder={tr('Désignation')} onChange={(e) => setLine(i, { label: e.target.value })} />
                 <Input className="col-span-3 sm:col-span-2 text-right" type="number" value={l.quantity} onChange={(e) => setLine(i, { quantity: Number(e.target.value) })} />
                 <Input className="col-span-4 sm:col-span-2 text-right" type="number" value={l.unit_price} onChange={(e) => setLine(i, { unit_price: Number(e.target.value) })} />
                 <Input className="col-span-3 sm:col-span-1 text-right" type="number" value={l.tax_rate} onChange={(e) => setLine(i, { tax_rate: Number(e.target.value) })} />
-                <button onClick={() => removeLine(i)} className="col-span-2 flex justify-end text-muted-foreground hover:text-danger sm:col-span-1" aria-label="Supprimer"><Trash2 className="h-4 w-4" /></button>
+                <button onClick={() => removeLine(i)} className="col-span-2 flex justify-end text-muted-foreground hover:text-danger sm:col-span-1" aria-label={tr('Supprimer')}><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
-            <Button variant="outline" size="sm" onClick={addLine}><Plus className="h-4 w-4" /> Ajouter une ligne</Button>
+            <Button variant="outline" size="sm" onClick={addLine}><Plus className="h-4 w-4" /> {tr('Ajouter une ligne')}</Button>
           </CardContent>
         </Card>
 
         <div className="space-y-5">
           <Card>
-            <CardHeader><CardTitle>Récapitulatif</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{tr('Récapitulatif')}</CardTitle></CardHeader>
             <CardContent className="space-y-1.5 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Total HT</span><span className="font-medium">{euro(totals.subtotal)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">TVA</span><span className="font-medium">{euro(totals.tax_total)}</span></div>
-              <div className="flex justify-between border-t border-border pt-1.5 text-base"><span className="font-semibold">Total TTC</span><span className="font-bold text-primary">{euro(totals.total)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{tr('Total HT')}</span><span className="font-medium">{euro(totals.subtotal, lang)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{tr('TVA')}</span><span className="font-medium">{euro(totals.tax_total, lang)}</span></div>
+              <div className="flex justify-between border-t border-border pt-1.5 text-base"><span className="font-semibold">{tr('Total TTC')}</span><span className="font-bold text-primary">{euro(totals.total, lang)}</span></div>
             </CardContent>
           </Card>
 
           {/* Client */}
           <Card>
             <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>Client</CardTitle>
-              {suggested.client && clientMode === 'existing' && <Badge tone="primary">Suggéré</Badge>}
+              <CardTitle>{tr('Client')}</CardTitle>
+              {suggested.client && clientMode === 'existing' && <Badge tone="primary">{tr('Suggéré')}</Badge>}
             </CardHeader>
             <CardContent className="space-y-3">
               {clientMode === 'existing' && customerId ? (
@@ -404,35 +414,35 @@ export function QuoteEditorPage() {
                     <p className="text-sm font-medium">{fullName((customers ?? []).find((c) => c.id === customerId))}</p>
                     <p className="text-xs text-muted-foreground">{(customers ?? []).find((c) => c.id === customerId)?.phone ?? '—'}</p>
                   </div>
-                  <button className="text-xs font-medium text-primary hover:underline" onClick={() => { setCustomerId(''); setSuggested((s) => ({ ...s, client: false })) }}>Changer</button>
+                  <button className="text-xs font-medium text-primary hover:underline" onClick={() => { setCustomerId(''); setSuggested((s) => ({ ...s, client: false })) }}>{tr('Changer')}</button>
                 </div>
               ) : clientMode === 'existing' ? (
                 <>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder="Nom, téléphone, email…" className="pl-9" />
+                    <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} placeholder={tr('Nom, téléphone, email…')} className="ps-9" />
                   </div>
                   <div className="space-y-1">
                     {filteredClients.map((c) => (
-                      <button key={c.id} onClick={() => { setCustomerId(c.id); setClientSearch('') }} className="flex w-full items-center justify-between rounded-lg p-2 text-left text-sm hover:bg-muted/60">
-                        <span className="font-medium">{fullName(c) || 'Client'}</span>
+                      <button key={c.id} onClick={() => { setCustomerId(c.id); setClientSearch('') }} className="flex w-full items-center justify-between rounded-lg p-2 text-start text-sm hover:bg-muted/60">
+                        <span className="font-medium">{fullName(c) || tr('Client')}</span>
                         <span className="text-xs text-muted-foreground">{c.phone ?? c.email ?? ''}</span>
                       </button>
                     ))}
-                    {filteredClients.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">Aucun client trouvé.</p>}
+                    {filteredClients.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">{tr('Aucun client trouvé.')}</p>}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setClientMode('new')}><UserPlus className="h-4 w-4" /> Nouveau client</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setClientMode('new')}><UserPlus className="h-4 w-4" /> {tr('Nouveau client')}</Button>
                 </>
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-2">
-                    <Field label="Prénom" htmlFor="cf"><Input id="cf" value={newClient.first} onChange={(e) => setNewClient({ ...newClient, first: e.target.value })} /></Field>
-                    <Field label="Nom" htmlFor="cl"><Input id="cl" value={newClient.last} onChange={(e) => setNewClient({ ...newClient, last: e.target.value })} /></Field>
-                    <Field label="Téléphone" htmlFor="cp"><Input id="cp" value={newClient.phone} onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })} /></Field>
-                    <Field label="Email" htmlFor="ce"><Input id="ce" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} /></Field>
+                    <Field label={tr('Prénom')} htmlFor="cf"><Input id="cf" value={newClient.first} onChange={(e) => setNewClient({ ...newClient, first: e.target.value })} /></Field>
+                    <Field label={tr('Nom')} htmlFor="cl"><Input id="cl" value={newClient.last} onChange={(e) => setNewClient({ ...newClient, last: e.target.value })} /></Field>
+                    <Field label={tr('Téléphone')} htmlFor="cp"><Input id="cp" type="tel" value={newClient.phone} onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })} /></Field>
+                    <Field label={tr('Email')} htmlFor="ce"><Input id="ce" type="email" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} /></Field>
                   </div>
                   {(customers ?? []).length > 0 && (
-                    <button className="text-xs font-medium text-primary hover:underline" onClick={() => setClientMode('existing')}>Choisir un client existant</button>
+                    <button className="text-xs font-medium text-primary hover:underline" onClick={() => setClientMode('existing')}>{tr('Choisir un client existant')}</button>
                   )}
                 </>
               )}
@@ -442,8 +452,8 @@ export function QuoteEditorPage() {
           {/* Vehicle */}
           <Card>
             <CardHeader className="flex-row items-center justify-between">
-              <CardTitle>Véhicule</CardTitle>
-              {suggested.vehicle && vehicleMode === 'existing' && <Badge tone="primary">Suggéré</Badge>}
+              <CardTitle>{tr('Véhicule')}</CardTitle>
+              {suggested.vehicle && vehicleMode === 'existing' && <Badge tone="primary">{tr('Suggéré')}</Badge>}
             </CardHeader>
             <CardContent className="space-y-2">
               {vehicleMode === 'existing' && vehicleId ? (
@@ -453,10 +463,10 @@ export function QuoteEditorPage() {
                   return (
                     <div className={cn('flex items-center justify-between rounded-lg border p-2 text-sm', other ? 'border-warning/50 bg-warning/10' : 'border-primary bg-primary/5')}>
                       <span>
-                        {v ? `${v.brand} ${v.model}${v.registration ? ` · ${v.registration}` : ''}` : 'Véhicule sélectionné'}
-                        {other && <span className="ml-1 text-xs text-warning-foreground">· autre client</span>}
+                        {v ? `${v.brand} ${v.model}${v.registration ? ` · ${v.registration}` : ''}` : tr('Véhicule sélectionné')}
+                        {other && <span className="ms-1 text-xs text-warning-foreground">· {tr('autre client')}</span>}
                       </span>
-                      <button className="text-xs font-medium text-primary hover:underline" onClick={() => { setVehicleId(''); setVehicleMode('new'); setSuggested((s) => ({ ...s, vehicle: false })) }}>Changer</button>
+                      <button className="text-xs font-medium text-primary hover:underline" onClick={() => { setVehicleId(''); setVehicleMode('new'); setSuggested((s) => ({ ...s, vehicle: false })) }}>{tr('Changer')}</button>
                     </div>
                   )
                 })()
@@ -465,8 +475,8 @@ export function QuoteEditorPage() {
                   {clientMode === 'existing' && customerId && clientVehicles.length > 0 && (
                     <div className="space-y-1">
                       {clientVehicles.map((v) => (
-                        <button key={v.id} onClick={() => { setVehicleMode('existing'); setVehicleId(v.id) }} className="flex w-full items-center justify-between rounded-lg border border-border p-2 text-left text-sm hover:bg-muted/60">
-                          <span>{v.brand} {v.model} <span className="text-muted-foreground">· {v.registration ?? 'sans plaque'}</span></span>
+                        <button key={v.id} onClick={() => { setVehicleMode('existing'); setVehicleId(v.id) }} className="flex w-full items-center justify-between rounded-lg border border-border p-2 text-start text-sm hover:bg-muted/60">
+                          <span>{v.brand} {v.model} <span className="text-muted-foreground">· {v.registration ?? tr('sans plaque')}</span></span>
                         </button>
                       ))}
                     </div>
@@ -477,27 +487,27 @@ export function QuoteEditorPage() {
                       onChange={(p) => setNewVehicle((v) => ({ ...v, ...p }))}
                       showYear={false} showFuel={false} required={false}
                     />
-                    <div className="col-span-2"><Field label="Immatriculation" htmlFor="vr"><Input id="vr" value={newVehicle.registration} onChange={(e) => setNewVehicle({ ...newVehicle, registration: e.target.value })} /></Field></div>
+                    <div className="col-span-2"><Field label={tr('Immatriculation')} htmlFor="vr"><Input id="vr" className="force-ltr" value={newVehicle.registration} onChange={(e) => setNewVehicle({ ...newVehicle, registration: e.target.value })} /></Field></div>
                   </div>
                   {plateMatch && (() => {
                     const other = !!plateMatch.customer_id && plateMatch.customer_id !== customerId
                     const use = () => { setVehicleMode('existing'); setVehicleId(plateMatch.id); setCrossConfirm(null) }
                     return (
                       <div className={cn('rounded-lg border p-2 text-xs', other ? 'border-warning/50 bg-warning/10' : 'border-primary/30 bg-primary/5')}>
-                        <p className="font-medium">{other ? 'Véhicule rattaché à un autre client' : 'Véhicule déjà existant suggéré'}</p>
+                        <p className="font-medium">{tr(other ? 'Véhicule rattaché à un autre client' : 'Véhicule déjà existant suggéré')}</p>
                         <p className="text-muted-foreground">{plateMatch.brand} {plateMatch.model} · {plateMatch.registration}</p>
                         {!other ? (
-                          <button className="mt-1 font-medium text-primary hover:underline" onClick={use}>Utiliser ce véhicule</button>
+                          <button className="mt-1 font-medium text-primary hover:underline" onClick={use}>{tr('Utiliser ce véhicule')}</button>
                         ) : crossConfirm === plateMatch.id ? (
                           <div className="mt-1 space-y-1">
-                            <p>Ce véhicule est déjà rattaché à un autre client. Voulez-vous vraiment l’utiliser pour ce devis ?</p>
+                            <p>{tr('Ce véhicule est déjà rattaché à un autre client. Voulez-vous vraiment l’utiliser pour ce devis ?')}</p>
                             <div className="flex gap-4">
-                              <button className="font-medium text-danger hover:underline" onClick={use}>Oui, utiliser</button>
-                              <button className="font-medium text-muted-foreground hover:underline" onClick={() => setCrossConfirm(null)}>Annuler</button>
+                              <button className="font-medium text-danger hover:underline" onClick={use}>{tr('Oui, utiliser')}</button>
+                              <button className="font-medium text-muted-foreground hover:underline" onClick={() => setCrossConfirm(null)}>{tr('Annuler')}</button>
                             </div>
                           </div>
                         ) : (
-                          <button className="mt-1 font-medium text-warning-foreground hover:underline" onClick={() => setCrossConfirm(plateMatch.id)}>Utiliser quand même…</button>
+                          <button className="mt-1 font-medium text-warning-foreground hover:underline" onClick={() => setCrossConfirm(plateMatch.id)}>{tr('Utiliser quand même…')}</button>
                         )}
                       </div>
                     )
@@ -508,27 +518,27 @@ export function QuoteEditorPage() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>Détails</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{tr('Détails')}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <Field label="Intitulé" htmlFor="qt"><Input id="qt" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-              <Field label="Valable jusqu’au" htmlFor="qd" required hint="Obligatoire avant envoi au client."><Input id="qd" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
+              <Field label={tr('Intitulé')} htmlFor="qt"><Input id="qt" value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+              <Field label={tr('Valable jusqu’au')} htmlFor="qd" required hint={tr('Obligatoire avant envoi au client.')}><Input id="qd" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></Field>
             </CardContent>
           </Card>
         </div>
       </div>
 
       <Card className="mt-5">
-        <CardHeader><CardTitle>Conditions & notes</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{tr('Conditions & notes')}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <Field label="Conditions (imprimées sur le devis)" htmlFor="qcond"><Textarea id="qcond" value={conditions} onChange={(e) => setConditions(e.target.value)} /></Field>
-          <Field label="Notes internes (non imprimées)" htmlFor="qn"><Textarea id="qn" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+          <Field label={tr('Conditions (imprimées sur le devis)')} htmlFor="qcond"><Textarea id="qcond" value={conditions} onChange={(e) => setConditions(e.target.value)} /></Field>
+          <Field label={tr('Notes internes (non imprimées)')} htmlFor="qn"><Textarea id="qn" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
         </CardContent>
       </Card>
 
       <div className="mt-5 flex flex-wrap justify-end gap-2">
-        <Button variant="outline" onClick={() => save(false)} loading={saving}>Enregistrer</Button>
-        <Button variant="outline" onClick={() => save(true)} loading={saving}><Eye className="h-4 w-4" /> Enregistrer & aperçu</Button>
-        <Button onClick={saveAndSend} loading={sending}><Send className="h-4 w-4" /> Enregistrer & envoyer</Button>
+        <Button variant="outline" onClick={() => save(false)} loading={saving}>{tr('Enregistrer')}</Button>
+        <Button variant="outline" onClick={() => save(true)} loading={saving}><Eye className="h-4 w-4" /> {tr('Enregistrer & aperçu')}</Button>
+        <Button onClick={saveAndSend} loading={sending}><Send className="h-4 w-4" /> {tr('Enregistrer & envoyer')}</Button>
       </div>
     </div>
   )

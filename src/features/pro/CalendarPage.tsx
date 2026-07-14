@@ -12,6 +12,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useAppointments, useCreateAppointment } from '@/data/proData'
 import { dateLabel, shortTime } from '@/lib/format'
 import type { Appointment } from '@/types/domain'
+import { useLang } from '@/i18n'
 
 const APPT_TONE: Record<string, 'neutral' | 'info' | 'primary' | 'success' | 'danger'> = {
   scheduled: 'info',
@@ -23,6 +24,7 @@ const APPT_TONE: Record<string, 'neutral' | 'info' | 'primary' | 'success' | 'da
 }
 
 export function CalendarPage() {
+  const { lang, tr } = useLang()
   const { garage } = useAuth()
   const gid = garage?.id
   const { data: appointments, isLoading } = useAppointments(gid)
@@ -41,20 +43,20 @@ export function CalendarPage() {
   return (
     <div>
       <PageHeader
-        title="Agenda"
-        subtitle="Les rendez-vous confirmés depuis les réservations apparaissent ici."
-        action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nouveau rendez-vous</Button>}
+        title={tr('Agenda')}
+        subtitle={tr('Les rendez-vous confirmés depuis les réservations apparaissent ici.')}
+        action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> {tr('Nouveau rendez-vous')}</Button>}
       />
 
       {isLoading ? (
         <LoadingState />
       ) : groups.length === 0 ? (
-        <EmptyState icon={CalendarDays} title="Aucun rendez-vous planifié" description="Confirmez une réservation ou créez un rendez-vous manuellement." />
+        <EmptyState icon={CalendarDays} title={tr('Aucun rendez-vous planifié')} description={tr('Confirmez une réservation ou créez un rendez-vous manuellement.')} />
       ) : (
         <div className="space-y-5">
           {groups.map(([day, list]) => (
             <div key={day}>
-              <p className="mb-2 text-sm font-semibold capitalize text-muted-foreground">{dateLabel(new Date(day))}</p>
+              <p className="mb-2 text-sm font-semibold capitalize text-muted-foreground">{dateLabel(new Date(day), lang)}</p>
               <Card className="divide-y divide-border">
                 {list.map((a) => (
                   <div key={a.id} className="flex items-center gap-4 p-4">
@@ -65,7 +67,7 @@ export function CalendarPage() {
                       <p className="truncate font-medium">{a.title}</p>
                       {a.notes && <p className="truncate text-sm text-muted-foreground">{a.notes}</p>}
                     </div>
-                    <StatusPill tone={APPT_TONE[a.status] ?? 'neutral'} label={a.status} />
+                    <StatusPill tone={APPT_TONE[a.status] ?? 'neutral'} label={tr(a.status)} />
                   </div>
                 ))}
               </Card>
@@ -80,6 +82,7 @@ export function CalendarPage() {
 }
 
 function NewAppointmentModal({ garageId, onClose }: { garageId: string; onClose: () => void }) {
+  const { tr } = useLang()
   const create = useCreateAppointment()
   const toast = useToast()
   const [title, setTitle] = useState('')
@@ -89,7 +92,7 @@ function NewAppointmentModal({ garageId, onClose }: { garageId: string; onClose:
 
   async function submit() {
     if (!title || !date) {
-      toast.error('Titre et date requis')
+      toast.error(tr('Titre et date requis'))
       return
     }
     try {
@@ -100,10 +103,10 @@ function NewAppointmentModal({ garageId, onClose }: { garageId: string; onClose:
         notes: notes || null,
         status: 'scheduled',
       })
-      toast.success('Rendez-vous créé')
+      toast.success(tr('Rendez-vous créé'))
       onClose()
-    } catch (e) {
-      toast.error('Création impossible', (e as Error).message)
+    } catch {
+      toast.error(tr('Création impossible'), tr('L’enregistrement n’a pas pu être terminé.'))
     }
   }
 
@@ -111,21 +114,21 @@ function NewAppointmentModal({ garageId, onClose }: { garageId: string; onClose:
     <Modal
       open
       onClose={onClose}
-      title="Nouveau rendez-vous"
+      title={tr('Nouveau rendez-vous')}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Annuler</Button>
-          <Button loading={create.isPending} onClick={submit}>Créer</Button>
+          <Button variant="ghost" onClick={onClose}>{tr('Annuler')}</Button>
+          <Button loading={create.isPending} onClick={submit}>{tr('Créer')}</Button>
         </>
       }
     >
       <div className="space-y-3">
-        <Field label="Intitulé" htmlFor="t"><Input id="t" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Révision — Clio IV" /></Field>
+        <Field label={tr('Intitulé')} htmlFor="t"><Input id="t" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tr('Révision — Clio IV')} /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Date" htmlFor="d"><Input id="d" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <Field label="Heure" htmlFor="h"><Input id="h" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+          <Field label={tr('Date')} htmlFor="d"><Input id="d" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label={tr('Heure')} htmlFor="h"><Input id="h" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
         </div>
-        <Field label="Notes" htmlFor="n"><Textarea id="n" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+        <Field label={tr('Notes')} htmlFor="n"><Textarea id="n" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       </div>
     </Modal>
   )

@@ -1,0 +1,81 @@
+import type { Lang } from './index'
+import { isDemo } from '@/lib/demo'
+
+const content: Record<Exclude<Lang, 'fr'>, Record<string, string>> = {
+  en: {
+    'Révision constructeur': 'Manufacturer service', 'Vidange, filtres et points de contrôle complets.': 'Oil, filters and full inspection points.',
+    'Vidange + filtre': 'Oil and filter change', 'Vidange huile et remplacement du filtre à huile.': 'Engine oil and oil-filter replacement.',
+    'Plaquettes de frein': 'Brake pads', 'Contrôle et remplacement des plaquettes avant.': 'Front brake-pad inspection and replacement.',
+    'Diagnostic électronique': 'Electronic diagnostics', 'Lecture des défauts et diagnostic moteur.': 'Fault-code reading and engine diagnostics.',
+    'Recharge climatisation': 'Air-conditioning recharge', 'Recharge et contrôle du circuit de climatisation.': 'Air-conditioning recharge and system check.',
+    'Pneu monté (unité)': 'Fitted tyre (each)', 'Montage, équilibrage et valve neuve.': 'Fitting, balancing and a new valve.',
+    'Entretien, révision et réparation toutes marques au cœur de Lyon. Devis clair, délais respectés.': 'Servicing and repairs for all makes in central Lyon. Clear quotes and reliable timescales.',
+    'Offre révision avant l’été': 'Pre-summer service offer', 'Contrôle climatisation offert pour toute révision réservée en juin.': 'Free air-conditioning check with every service booked in June.',
+    'Nouveaux horaires': 'New opening hours', 'Le garage est désormais ouvert le samedi matin de 8h à 12h.': 'The garage is now open on Saturday mornings from 8:00 to 12:00.',
+    'Bruit au freinage côté avant droit.': 'Braking noise at the front right.', 'Plaquettes de frein avant': 'Front brake pads',
+    'Pneus avant (x2) + montage': 'Front tyres (x2) and fitting', 'Reporté à l’automne.': 'Postponed until autumn.',
+    'Entretien': 'Maintenance', 'Freinage': 'Brakes', 'Diagnostic': 'Diagnostics', 'Confort': 'Comfort',
+    'Pneumatiques': 'Tyres', 'Révision': 'Servicing', 'Climatisation': 'Air conditioning', 'Électrique': 'Electrical',
+    'Pneumatique': 'Tyres', 'Montage, équilibrage et valve — au pneu.': 'Fitting, balancing and valve — per tyre.',
+    'Géométrie / équilibrage': 'Wheel alignment / balancing', 'Réglage du parallélisme et équilibrage des roues.': 'Wheel alignment and balancing.',
+    'Vidange': 'Oil change', 'Vidange huile moteur et remplacement du filtre à huile.': 'Engine oil and oil-filter replacement.',
+    'Contrôle et remplacement des plaquettes / disques.': 'Brake pad and disc inspection and replacement.',
+    'Batterie': 'Battery', 'Test de charge et remplacement de la batterie.': 'Battery charge test and replacement.',
+    'Amortisseurs': 'Shock absorbers', 'Contrôle et remplacement des amortisseurs.': 'Shock-absorber inspection and replacement.',
+    'Bougies': 'Spark plugs', 'Remplacement des bougies d’allumage ou de préchauffage.': 'Spark-plug or glow-plug replacement.',
+    'Essuie-glaces': 'Wiper blades', 'Remplacement des balais d’essuie-glaces.': 'Wiper-blade replacement.', 'Suspension': 'Suspension',
+    'Remplacement plaquettes': 'Brake-pad replacement', 'Freinage bruyant': 'Noisy brakes',
+    'Diagnostic voyant moteur': 'Engine warning-light diagnostics', 'Voyant moteur allumé': 'Engine warning light on',
+    'Révision 80 000 km': '80,000 km service', 'Entretien périodique': 'Scheduled maintenance',
+    'Rappeler Mme Lefort pour le devis freins': 'Call Ms Lefort back about the brake quote',
+    'Commander filtres habitacle': 'Order cabin filters', 'Préparer la restitution de la 308': 'Prepare the 308 for collection',
+    'Devis valable 30 jours. Pièces et main-d’œuvre garanties. TVA 20% incluse.': 'Quote valid for 30 days. Parts and labour guaranteed. 20% VAT included.',
+    'Révision constructeur (vidange + filtres)': 'Manufacturer service (oil and filters)', 'Main-d’œuvre': 'Labour',
+    'Plaquettes de frein avant (jeu)': 'Front brake-pad set', 'Recharge climatisation (offre revue)': 'Air-conditioning recharge (revised offer)',
+    'Pneu 205/55 R16 (monté)': '205/55 R16 tyre (fitted)',
+  },
+  ar: {
+    'Révision constructeur': 'صيانة حسب توصيات الصانع', 'Vidange, filtres et points de contrôle complets.': 'تغيير الزيت والفلاتر وفحص شامل.',
+    'Vidange + filtre': 'تغيير الزيت والفلتر', 'Vidange huile et remplacement du filtre à huile.': 'تغيير زيت المحرك وفلتر الزيت.',
+    'Plaquettes de frein': 'بطانات الفرامل', 'Contrôle et remplacement des plaquettes avant.': 'فحص بطانات الفرامل الأمامية واستبدالها.',
+    'Diagnostic électronique': 'تشخيص إلكتروني', 'Lecture des défauts et diagnostic moteur.': 'قراءة رموز الأعطال وتشخيص المحرك.',
+    'Recharge climatisation': 'تعبئة المكيف', 'Recharge et contrôle du circuit de climatisation.': 'تعبئة وفحص نظام التكييف.',
+    'Pneu monté (unité)': 'إطار مركب (للوحدة)', 'Montage, équilibrage et valve neuve.': 'تركيب وموازنة وصمام جديد.',
+    'Entretien, révision et réparation toutes marques au cœur de Lyon. Devis clair, délais respectés.': 'صيانة وإصلاح جميع العلامات في وسط ليون، بعروض واضحة ومواعيد محترمة.',
+    'Offre révision avant l’été': 'عرض صيانة قبل الصيف', 'Contrôle climatisation offert pour toute révision réservée en juin.': 'فحص مجاني للمكيف مع كل صيانة محجوزة في يونيو.',
+    'Nouveaux horaires': 'ساعات عمل جديدة', 'Le garage est désormais ouvert le samedi matin de 8h à 12h.': 'تفتح الورشة الآن صباح السبت من 8 إلى 12.',
+    'Bruit au freinage côté avant droit.': 'صوت فرامل من الجهة الأمامية اليمنى.', 'Plaquettes de frein avant': 'بطانات الفرامل الأمامية',
+    'Pneus avant (x2) + montage': 'إطاران أماميان مع التركيب', 'Reporté à l’automne.': 'مؤجل إلى الخريف.',
+    'Entretien': 'الصيانة', 'Freinage': 'الفرامل', 'Diagnostic': 'التشخيص', 'Confort': 'الراحة',
+    'Pneumatiques': 'الإطارات', 'Révision': 'الصيانة الدورية', 'Climatisation': 'التكييف', 'Électrique': 'الكهرباء',
+    'Pneumatique': 'الإطارات', 'Montage, équilibrage et valve — au pneu.': 'تركيب وموازنة وصمام لكل إطار.',
+    'Géométrie / équilibrage': 'ضبط الزوايا والموازنة', 'Réglage du parallélisme et équilibrage des roues.': 'ضبط زوايا العجلات وموازنتها.',
+    'Vidange': 'تغيير الزيت', 'Vidange huile moteur et remplacement du filtre à huile.': 'تغيير زيت المحرك وفلتر الزيت.',
+    'Contrôle et remplacement des plaquettes / disques.': 'فحص واستبدال بطانات وأقراص الفرامل.',
+    'Batterie': 'البطارية', 'Test de charge et remplacement de la batterie.': 'اختبار شحن البطارية واستبدالها.',
+    'Amortisseurs': 'ممتصات الصدمات', 'Contrôle et remplacement des amortisseurs.': 'فحص ممتصات الصدمات واستبدالها.',
+    'Bougies': 'شمعات الإشعال', 'Remplacement des bougies d’allumage ou de préchauffage.': 'استبدال شمعات الإشعال أو التسخين.',
+    'Essuie-glaces': 'ماسحات الزجاج', 'Remplacement des balais d’essuie-glaces.': 'استبدال شفرات ماسحات الزجاج.', 'Suspension': 'نظام التعليق',
+    'Remplacement plaquettes': 'استبدال بطانات الفرامل', 'Freinage bruyant': 'ضجيج في الفرامل',
+    'Diagnostic voyant moteur': 'تشخيص ضوء المحرك', 'Voyant moteur allumé': 'ضوء المحرك مضاء',
+    'Révision 80 000 km': 'صيانة 80,000 كم', 'Entretien périodique': 'صيانة دورية',
+    'Rappeler Mme Lefort pour le devis freins': 'الاتصال بالسيدة لوفور بخصوص عرض الفرامل',
+    'Commander filtres habitacle': 'طلب فلاتر المقصورة', 'Préparer la restitution de la 308': 'تجهيز سيارة 308 للتسليم',
+    'Devis valable 30 jours. Pièces et main-d’œuvre garanties. TVA 20% incluse.': 'عرض السعر صالح لمدة 30 يومًا. القطع واليد العاملة مضمونة. الضريبة 20% مشمولة.',
+    'Révision constructeur (vidange + filtres)': 'صيانة الصانع (زيت وفلاتر)', 'Main-d’œuvre': 'اليد العاملة',
+    'Plaquettes de frein avant (jeu)': 'طقم بطانات الفرامل الأمامية', 'Recharge climatisation (offre revue)': 'تعبئة المكيف (عرض مُراجع)',
+    'Pneu 205/55 R16 (monté)': 'إطار 205/55 R16 مع التركيب',
+  },
+}
+
+export function localizeDemoText(
+  value: string | null | undefined,
+  lang: Lang,
+  demoContext = isDemo(),
+) {
+  if (!value || !demoContext) return value ?? ''
+  const source = Object.keys(content.en).find((key) =>
+    key === value || content.en[key] === value || content.ar[key] === value,
+  ) ?? value
+  return lang === 'fr' ? source : content[lang][source] ?? source
+}

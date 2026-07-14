@@ -5,13 +5,16 @@ import {
 } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { LegalFooter } from '@/components/common/LegalFooter'
 import { SupabaseStatus } from '@/components/common/SupabaseStatus'
 import { Avatar } from '@/components/ui/avatar'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useGarageRequests } from '@/data/requests'
 import { useProMode } from '@/features/pro/useProMode'
-import { ROLE_LABEL, type GarageRole } from '@/types/domain'
+import type { GarageRole } from '@/types/domain'
+import { roleLabel } from '@/i18n/domainLabels'
+import { useLang } from '@/i18n'
 import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +40,7 @@ export function ProShell() {
   const pending = (requests ?? []).filter((r) => r.status === 'pending').length
   const { mode, set } = useProMode()
   const [open, setOpen] = useState(false)
+  const { lang, tr } = useLang()
 
   const itemClass = ({ isActive }: { isActive: boolean }) =>
     cn(
@@ -48,7 +52,7 @@ export function ProShell() {
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between px-5">
         <Logo />
-        <button className="lg:hidden" onClick={() => setOpen(false)} aria-label="Fermer le menu">
+        <button className="lg:hidden" onClick={() => setOpen(false)} aria-label={tr('Fermer le menu')}>
           <X className="h-5 w-5" />
         </button>
       </div>
@@ -57,7 +61,7 @@ export function ProShell() {
         {essentiel.map(({ to, label, icon: Icon, end, badge }) => (
           <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)} className={itemClass}>
             <Icon className="h-[18px] w-[18px]" />
-            <span className="flex-1">{label}</span>
+            <span className="flex-1">{tr(label)}</span>
             {badge && pending > 0 && (
               <span className="rounded-full bg-primary/15 px-1.5 text-xs font-semibold text-primary">{pending}</span>
             )}
@@ -67,12 +71,12 @@ export function ProShell() {
         {mode === 'avance' && (
           <>
             <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-              Atelier & gestion
+              {tr('Atelier & gestion')}
             </p>
             {avance.map(({ to, label, icon: Icon, end }) => (
               <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)} className={itemClass}>
                 <Icon className="h-[18px] w-[18px]" />
-                <span className="flex-1">{label}</span>
+                <span className="flex-1">{tr(label)}</span>
               </NavLink>
             ))}
           </>
@@ -80,11 +84,11 @@ export function ProShell() {
 
         <NavLink to="/pro/settings" onClick={() => setOpen(false)} className={(state) => cn(itemClass(state), 'mt-1')}>
           <Settings className="h-[18px] w-[18px]" />
-          <span className="flex-1">Paramètres</span>
+          <span className="flex-1">{tr('Paramètres')}</span>
         </NavLink>
         <NavLink to="/pro/legal-status" onClick={() => setOpen(false)} className={itemClass}>
           <ScrollText className="h-[18px] w-[18px]" />
-          <span className="flex-1">Statut légal</span>
+          <span className="flex-1">{tr('Statut légal')}</span>
         </NavLink>
       </nav>
 
@@ -95,13 +99,13 @@ export function ProShell() {
             onClick={() => set('essentiel')}
             className={cn('flex-1 rounded-md py-1.5 transition-colors', mode === 'essentiel' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}
           >
-            Essentiel
+            {tr('Essentiel')}
           </button>
           <button
             onClick={() => set('avance')}
             className={cn('flex-1 rounded-md py-1.5 transition-colors', mode === 'avance' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}
           >
-            Atelier avancé
+            {tr('Atelier avancé')}
           </button>
         </div>
       </div>
@@ -110,12 +114,12 @@ export function ProShell() {
         <div className="flex items-center gap-3 rounded-lg p-2">
           <Avatar name={profile?.full_name} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{profile?.full_name ?? 'Utilisateur'}</p>
-            <p className="truncate text-xs text-muted-foreground">{role ? ROLE_LABEL[role as GarageRole] : 'Membre'}</p>
+            <p className="truncate text-sm font-medium">{profile?.full_name ?? tr('Utilisateur')}</p>
+            <p className="truncate text-xs text-muted-foreground">{role ? roleLabel(role as GarageRole, lang) : tr('Membre')}</p>
           </div>
           <button
             onClick={async () => { await signOut(); navigate('/login') }}
-            aria-label="Se déconnecter"
+            aria-label={tr('Se déconnecter')}
             className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
           >
             <LogOut className="h-[18px] w-[18px]" />
@@ -126,29 +130,30 @@ export function ProShell() {
   )
 
   return (
-    <div lang="fr" dir="ltr" className="min-h-dvh bg-muted/20">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-card lg:block">{Sidebar}</aside>
+    <div className="min-h-dvh bg-muted/20">
+      <aside className="fixed inset-y-0 start-0 hidden w-64 border-e border-border bg-card lg:block">{Sidebar}</aside>
 
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-foreground/40" onClick={() => setOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-64 bg-card shadow-pop">{Sidebar}</div>
+          <div className="absolute inset-y-0 start-0 w-64 bg-card shadow-pop">{Sidebar}</div>
         </div>
       )}
 
-      <div className="lg:pl-64">
+      <div className="lg:ps-64">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-background/90 px-4 backdrop-blur lg:px-8">
           <div className="flex items-center gap-3">
-            <button className="lg:hidden" onClick={() => setOpen(true)} aria-label="Ouvrir le menu">
+            <button className="lg:hidden" onClick={() => setOpen(true)} aria-label={tr('Ouvrir le menu')}>
               <Menu className="h-5 w-5" />
             </button>
             <div>
               <p className="text-sm font-semibold leading-tight">{garage?.name ?? `${brand.shortName} Pro`}</p>
-              <p className="text-xs text-muted-foreground">{garage?.city ? `${garage.city} · ` : ''}Espace garage</p>
+              <p className="text-xs text-muted-foreground">{garage?.city ? `${garage.city} · ` : ''}{tr('Espace garage')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <SupabaseStatus className="hidden sm:inline-flex" />
+            <LanguageSwitcher />
             <ThemeToggle />
           </div>
         </header>

@@ -2,6 +2,7 @@ import { createContext, createElement, useCallback, useContext, useLayoutEffect,
 import { fr, type Messages } from './fr'
 import { en } from './en'
 import { ar } from './ar'
+import { translate } from './catalog'
 
 export type { Messages }
 
@@ -10,6 +11,7 @@ export type Lang = 'fr' | 'en' | 'ar'
 /** Supported languages, in display order. `fr` stays the default. */
 export const LANGS: Lang[] = ['fr', 'en', 'ar']
 export const DEFAULT_LANG: Lang = 'fr'
+export const LOCALES: Record<Lang, string> = { fr: 'fr-FR', en: 'en-GB', ar: 'ar-MA' }
 
 /** Right-to-left languages — only Arabic for now. */
 const RTL_LANGS: Lang[] = ['ar']
@@ -30,6 +32,13 @@ export function getStoredLang(): Lang {
     if (isLang(v)) return v
   } catch {
     /* localStorage unavailable — use default */
+  }
+  if (typeof navigator !== 'undefined') {
+    const requested = [...(navigator.languages ?? []), navigator.language]
+    for (const locale of requested) {
+      const candidate = locale?.toLowerCase().split('-')[0]
+      if (isLang(candidate)) return candidate
+    }
   }
   return DEFAULT_LANG
 }
@@ -53,6 +62,7 @@ function persistLang(lang: Lang) {
 interface LangContextValue {
   lang: Lang
   setLang: (lang: Lang) => void
+  tr: (source: string, variables?: Record<string, string | number>) => string
 }
 
 const LangContext = createContext<LangContextValue | null>(null)
@@ -72,7 +82,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setLangState(next)
   }, [])
 
-  const value = useMemo<LangContextValue>(() => ({ lang, setLang }), [lang, setLang])
+  const tr = useCallback((source: string, variables?: Record<string, string | number>) => translate(lang, source, variables), [lang])
+  const value = useMemo<LangContextValue>(() => ({ lang, setLang, tr }), [lang, setLang, tr])
   return createElement(LangContext.Provider, { value }, children)
 }
 
@@ -82,7 +93,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
  */
 export function useLang(): LangContextValue {
   const ctx = useContext(LangContext)
-  return ctx ?? { lang: DEFAULT_LANG, setLang: () => {} }
+  return ctx ?? { lang: DEFAULT_LANG, setLang: () => {}, tr: (source, variables) => translate(DEFAULT_LANG, source, variables) }
 }
 
 /**

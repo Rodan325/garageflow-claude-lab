@@ -8,6 +8,8 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useQuote, useQuoteLines } from '@/data/quotes'
 import { useCustomers } from '@/data/proData'
 import { euro, shortDate } from '@/lib/format'
+import { useLang } from '@/i18n'
+import { localizeDemoText } from '@/i18n/demoContent'
 
 /**
  * Standalone, print-ready quote document (rendered outside the Pro shell).
@@ -15,6 +17,7 @@ import { euro, shortDate } from '@/lib/format'
  * and the browser's "Imprimer → Enregistrer en PDF" produces a clean PDF.
  */
 export function QuotePrintPage() {
+  const { lang, tr } = useLang()
   const { id } = useParams()
   const navigate = useNavigate()
   const { garage } = useAuth()
@@ -31,27 +34,27 @@ export function QuotePrintPage() {
     try {
       const customer = customers?.find((c) => c.id === quote.customer_id)
       const { downloadQuotePdf } = await import('./quotePdf')
-      await downloadQuotePdf({ quote, lines: lines ?? [], garage, customer })
-    } catch (e) {
-      toast.error('Génération PDF impossible', (e as Error).message)
+      await downloadQuotePdf({ quote, lines: lines ?? [], garage, customer, lang })
+    } catch {
+      toast.error(tr('Génération PDF impossible'), tr('Le PDF n’a pas pu être généré.'))
     } finally {
       setDownloading(false)
     }
   }
 
   if (isLoading) return <LoadingState />
-  if (!quote) return <div className="p-8"><EmptyState title="Devis introuvable" /></div>
+  if (!quote) return <div className="p-8"><EmptyState title={tr('Devis introuvable')} /></div>
 
   return (
-    <div lang="fr" dir="ltr" className="min-h-dvh bg-slate-100 py-6 print:bg-white print:py-0">
+    <div className="min-h-dvh bg-slate-100 py-6 print:bg-white print:py-0">
       {/* Toolbar (hidden when printing) */}
       <div className="mx-auto mb-4 flex max-w-[800px] items-center justify-between px-4 print:hidden">
         <button onClick={() => navigate('/pro/quotes')} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900">
-          <ArrowLeft className="h-4 w-4" /> Devis
+          <ArrowLeft className="h-4 w-4 rtl:rotate-180" /> {tr('Devis')}
         </button>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> Imprimer</Button>
-          <Button onClick={download} loading={downloading}><Download className="h-4 w-4" /> Télécharger le PDF</Button>
+          <Button variant="outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> {tr('Imprimer')}</Button>
+          <Button onClick={download} loading={downloading}><Download className="h-4 w-4" /> {tr('Télécharger le PDF')}</Button>
         </div>
       </div>
 
@@ -68,59 +71,59 @@ export function QuotePrintPage() {
               </div>
             )}
             <div>
-              <p className="text-lg font-bold text-slate-900">{garage?.name ?? 'Garage'}</p>
+              <p className="text-lg font-bold text-slate-900">{garage?.name ?? tr('Garage')}</p>
               {garage?.address && <p className="text-sm text-slate-500">{garage.address}{garage.city ? `, ${garage.city}` : ''}</p>}
               <p className="text-sm text-slate-500">
                 {[garage?.phone, garage?.email].filter(Boolean).join(' · ')}
               </p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-xl font-bold" style={{ color: accent }}>DEVIS</p>
+          <div className="text-end">
+            <p className="text-xl font-bold" style={{ color: accent }}>{tr('Devis').toUpperCase()}</p>
             <p className="text-sm font-medium text-slate-700">{quote.number}</p>
-            <p className="text-xs text-slate-500">Date : {shortDate(quote.created_at)}</p>
-            {quote.valid_until && <p className="text-xs text-slate-500">Valable jusqu’au {shortDate(quote.valid_until)}</p>}
+            <p className="text-xs text-slate-500">{tr('Date : {date}', { date: shortDate(quote.created_at, lang) })}</p>
+            {quote.valid_until && <p className="text-xs text-slate-500">{tr('Valable jusqu’au {date}', { date: shortDate(quote.valid_until, lang) })}</p>}
           </div>
         </div>
 
         {/* Client / vehicle */}
         <div className="mt-6 grid grid-cols-2 gap-6 text-sm">
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Client</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{tr('Client')}</p>
             <p className="font-medium text-slate-900">{quote.client_name || '—'}</p>
             {quote.client_phone && <p className="text-slate-500">{quote.client_phone}</p>}
             {quote.client_email && <p className="text-slate-500">{quote.client_email}</p>}
           </div>
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Véhicule</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{tr('Véhicule')}</p>
             <p className="font-medium text-slate-900">{(quote.vehicle_label || '—').split(' · ')[0]}</p>
             {quote.vehicle_label?.includes(' · ') && (
-              <p className="font-semibold text-slate-900">Immatriculation : {quote.vehicle_label.split(' · ')[1]}</p>
+              <p className="font-semibold text-slate-900">{tr('Immatriculation : {plate}', { plate: quote.vehicle_label.split(' · ')[1] })}</p>
             )}
           </div>
         </div>
 
-        <p className="mt-6 text-base font-semibold text-slate-900">{quote.title}</p>
+        <p className="mt-6 text-base font-semibold text-slate-900">{localizeDemoText(quote.title, lang)}</p>
 
         {/* Lines */}
         <table className="mt-3 w-full border-collapse text-sm">
           <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-slate-500" style={{ borderBottom: `1px solid ${accent}` }}>
-              <th className="py-2">Désignation</th>
-              <th className="py-2 text-right">Qté</th>
-              <th className="py-2 text-right">PU HT</th>
-              <th className="py-2 text-right">TVA</th>
-              <th className="py-2 text-right">Total HT</th>
+            <tr className="text-start text-xs uppercase tracking-wide text-slate-500" style={{ borderBottom: `1px solid ${accent}` }}>
+              <th className="py-2">{tr('Désignation')}</th>
+              <th className="py-2 text-end">{tr('Qté')}</th>
+              <th className="py-2 text-end">{tr('PU HT')}</th>
+              <th className="py-2 text-end">{tr('TVA')}</th>
+              <th className="py-2 text-end">{tr('Total HT')}</th>
             </tr>
           </thead>
           <tbody>
             {(lines ?? []).map((l) => (
               <tr key={l.id} className="border-b border-slate-100">
-                <td className="py-2 pr-2">{l.label}</td>
+                <td className="py-2 pr-2">{localizeDemoText(l.label, lang)}</td>
                 <td className="py-2 text-right">{l.quantity}</td>
-                <td className="py-2 text-right">{euro(l.unit_price)}</td>
+                <td className="py-2 text-right">{euro(l.unit_price, lang)}</td>
                 <td className="py-2 text-right">{l.tax_rate}%</td>
-                <td className="py-2 text-right">{euro(l.line_total)}</td>
+                <td className="py-2 text-right">{euro(l.line_total, lang)}</td>
               </tr>
             ))}
           </tbody>
@@ -129,10 +132,10 @@ export function QuotePrintPage() {
         {/* Totals */}
         <div className="mt-4 flex justify-end">
           <div className="w-60 space-y-1 text-sm">
-            <div className="flex justify-between"><span className="text-slate-500">Total HT</span><span>{euro(quote.subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">TVA</span><span>{euro(quote.tax_total)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">{tr('Total HT')}</span><span>{euro(quote.subtotal, lang)}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">{tr('TVA')}</span><span>{euro(quote.tax_total, lang)}</span></div>
             <div className="mt-1 flex justify-between border-t-2 pt-1 text-base font-bold" style={{ borderColor: accent }}>
-              <span>Total TTC</span><span style={{ color: accent }}>{euro(quote.total)}</span>
+              <span>{tr('Total TTC')}</span><span style={{ color: accent }}>{euro(quote.total, lang)}</span>
             </div>
           </div>
         </div>
@@ -140,8 +143,8 @@ export function QuotePrintPage() {
         {/* Conditions */}
         {quote.conditions && (
           <div className="mt-6 text-xs text-slate-500">
-            <p className="mb-1 font-semibold text-slate-600">Conditions</p>
-            <p>{quote.conditions}</p>
+            <p className="mb-1 font-semibold text-slate-600">{tr('Conditions')}</p>
+            <p>{localizeDemoText(quote.conditions, lang)}</p>
           </div>
         )}
 
@@ -151,8 +154,8 @@ export function QuotePrintPage() {
             {garage?.legal_info || [garage?.legal_name, garage?.siret ? `SIRET ${garage.siret}` : null, garage?.vat_number].filter(Boolean).join(' · ')}
           </div>
           <div className="w-56 rounded border border-slate-300 p-3 text-center text-xs text-slate-500">
-            <p className="font-medium text-slate-700">Bon pour accord</p>
-            <p className="mt-6">Date et signature</p>
+            <p className="font-medium text-slate-700">{tr('Bon pour accord')}</p>
+            <p className="mt-6">{tr('Date et signature')}</p>
           </div>
         </div>
       </div>

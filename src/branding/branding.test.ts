@@ -40,10 +40,12 @@ describe('exitBrandDemo — single centralized reset', () => {
   it('removes gf-brand and the selected center, back to default', () => {
     localStorage.setItem('gf-brand', 'speedy')
     localStorage.setItem('gf-selected-center', 'ctr-1')
+    localStorage.setItem('gf-lang', 'ar')
     exitBrandDemo()
     expect(localStorage.getItem('gf-brand')).toBeNull()
     expect(localStorage.getItem('gf-selected-center')).toBeNull()
     expect(resolveBrandId()).toBe('default')
+    expect(localStorage.getItem('gf-lang')).toBe('ar')
   })
 
   it('strips ?brand so a refresh cannot re-activate Speedy', () => {

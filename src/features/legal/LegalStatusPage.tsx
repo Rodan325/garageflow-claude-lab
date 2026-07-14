@@ -13,6 +13,7 @@ import {
   legalConfig,
 } from '@/config/legal'
 import { listOwnLegalAcceptances } from './legalAcceptance'
+import { LOCALES, useLang } from '@/i18n'
 
 /**
  * Garage-side legal status: which documents apply, which versions were
@@ -20,6 +21,7 @@ import { listOwnLegalAcceptances } from './legalAcceptance'
  * Reads ONLY the connected user's own acceptances (RLS).
  */
 export function LegalStatusPage() {
+  const { lang, tr } = useLang()
   const { userId, demo } = useAuth()
   const { data: acceptances, isLoading } = useQuery({
     queryKey: ['legal-acceptances', userId],
@@ -32,15 +34,14 @@ export function LegalStatusPage() {
   return (
     <div>
       <PageHeader
-        title="Statut légal"
-        subtitle="Documents applicables au pilote et preuve de votre acceptation (versions + dates)."
+        title={tr('Statut légal')}
+        subtitle={tr('Documents applicables au pilote et preuve de votre acceptation (versions + dates).')}
       />
 
       {demo ? (
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
-            Mode démo local : aucune acceptation n’est enregistrée. Avec un compte garage réel, cette page liste les
-            documents acceptés, leur version et la date d’acceptation.
+            {tr('Mode démo local : aucune acceptation n’est enregistrée. Avec un compte garage réel, cette page liste les documents acceptés, leur version et la date d’acceptation.')}
           </CardContent>
         </Card>
       ) : isLoading ? (
@@ -59,24 +60,24 @@ export function LegalStatusPage() {
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 font-medium">
                     <ScrollText className="h-4 w-4 text-muted-foreground" />
-                    {meta.label}
-                    <Link to={meta.route} target="_blank" className="text-primary hover:underline" aria-label={`Ouvrir ${meta.label}`}>
+                    {tr(meta.label)}
+                    <Link to={meta.route} target="_blank" className="text-primary hover:underline" aria-label={tr('Ouvrir {document}', { document: tr(meta.label) })}>
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Link>
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Version applicable : {currentVersion}
+                    {tr('Version applicable : {version}', { version: currentVersion })}
                     {match
-                      ? ` · Acceptée le ${new Date(match.accepted_at).toLocaleString('fr-FR')}`
+                      ? ` · ${tr('Acceptée le {date}', { date: new Date(match.accepted_at).toLocaleString(LOCALES[lang]) })}`
                       : older
-                        ? ` · Ancienne version acceptée (${older.document_version}) — nouvelle acceptation requise`
-                        : ' · Aucune acceptation enregistrée'}
+                        ? ` · ${tr('Ancienne version acceptée ({version}) — nouvelle acceptation requise', { version: older.document_version })}`
+                        : ` · ${tr('Aucune acceptation enregistrée')}`}
                   </p>
                 </div>
                 {match ? (
-                  <Badge tone="success"><CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Acceptée</Badge>
+                  <Badge tone="success"><CheckCircle2 className="me-1 h-3.5 w-3.5" /> {tr('Acceptée')}</Badge>
                 ) : (
-                  <Badge tone="warning"><CircleAlert className="mr-1 h-3.5 w-3.5" /> Manquante</Badge>
+                  <Badge tone="warning"><CircleAlert className="me-1 h-3.5 w-3.5" /> {tr('Manquante')}</Badge>
                 )}
               </div>
             )
@@ -85,19 +86,18 @@ export function LegalStatusPage() {
       )}
 
       <Card className="mt-5">
-        <CardHeader><CardTitle>Documents du pilote</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{tr('Documents du pilote')}</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-          <Link to="/terms" className="font-medium text-primary hover:underline">Conditions d’utilisation</Link>
-          <Link to="/pilot-agreement" className="font-medium text-primary hover:underline">Conditions du pilote garage</Link>
-          <Link to="/dpa" className="font-medium text-primary hover:underline">Accord de sous-traitance RGPD</Link>
-          <Link to="/privacy" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>
-          <Link to="/legal" className="font-medium text-primary hover:underline">Mentions légales</Link>
+          <Link to="/terms" className="font-medium text-primary hover:underline">{tr('Conditions d’utilisation')}</Link>
+          <Link to="/pilot-agreement" className="font-medium text-primary hover:underline">{tr('Conditions du pilote garage')}</Link>
+          <Link to="/dpa" className="font-medium text-primary hover:underline">{tr('Accord de sous-traitance RGPD')}</Link>
+          <Link to="/privacy" className="font-medium text-primary hover:underline">{tr('Politique de confidentialité')}</Link>
+          <Link to="/legal" className="font-medium text-primary hover:underline">{tr('Mentions légales')}</Link>
         </CardContent>
       </Card>
 
       <p className="mt-4 text-xs text-muted-foreground">
-        Contact : {legalConfig.contactEmail} · Les acceptations sont conservées dans un journal horodaté (version du
-        document, date, contexte).
+        {tr('Contact : {email} · Les acceptations sont conservées dans un journal horodaté (version du document, date, contexte).', { email: legalConfig.contactEmail })}
       </p>
     </div>
   )

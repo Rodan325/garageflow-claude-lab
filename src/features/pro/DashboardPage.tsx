@@ -10,7 +10,10 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useDashboardStats, useTasks, useToggleTask, useAppointments } from '@/data/proData'
 import { useGarageRequests } from '@/data/requests'
-import { REQUEST_STATUS_META } from '@/types/domain'
+import type { RequestStatus } from '@/types/domain'
+import { requestStatusMeta } from '@/i18n/domainLabels'
+import { useLang } from '@/i18n'
+import { localizeDemoText } from '@/i18n/demoContent'
 import { dateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { listItem, listStagger } from '@/lib/motion'
@@ -42,6 +45,7 @@ function Kpi({
 }
 
 export function DashboardPage() {
+  const { lang, tr } = useLang()
   const { garage, profile } = useAuth()
   const gid = garage?.id
   const { data: stats, isLoading } = useDashboardStats(gid)
@@ -58,26 +62,26 @@ export function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title={`Bonjour ${profile?.full_name?.split(' ')[0] ?? ''}`} subtitle="Voici ce qui demande votre attention." />
+      <PageHeader title={tr('Bonjour {name}', { name: profile?.full_name?.split(' ')[0] ?? '' })} subtitle={tr('Voici ce qui demande votre attention.')} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Kpi icon={Inbox} label="Demandes" value={stats?.pendingRequests ?? 0} loading={isLoading} accent to="/pro/bookings" />
-        <Kpi icon={CalendarClock} label="RDV du jour" value={stats?.todayAppointments ?? 0} loading={isLoading} to="/pro/calendar" />
-        <Kpi icon={CheckSquare} label="Tâches" value={stats?.openTasks ?? 0} loading={isLoading} />
+        <Kpi icon={Inbox} label={tr('Demandes')} value={stats?.pendingRequests ?? 0} loading={isLoading} accent to="/pro/bookings" />
+        <Kpi icon={CalendarClock} label={tr('RDV du jour')} value={stats?.todayAppointments ?? 0} loading={isLoading} to="/pro/calendar" />
+        <Kpi icon={CheckSquare} label={tr('Tâches')} value={stats?.openTasks ?? 0} loading={isLoading} />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-5 sm:gap-5 lg:grid-cols-3">
         {/* Demandes à traiter */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>À traiter</CardTitle>
+            <CardTitle>{tr('À traiter')}</CardTitle>
             <Link to="/pro/bookings" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-              Réservations <ArrowRight className="h-4 w-4" />
+              {tr('Réservations')} <ArrowRight className="h-4 w-4 rtl:rotate-180" />
             </Link>
           </CardHeader>
           <CardContent className="space-y-4">
             {pending.length === 0 && waitingClient.length === 0 ? (
-              <EmptyState icon={Inbox} title="Tout est à jour" description="Aucune demande en attente pour le moment." />
+              <EmptyState icon={Inbox} title={tr('Tout est à jour')} description={tr('Aucune demande en attente pour le moment.')} />
             ) : (
               <>
                 {pending.length > 0 && (
@@ -87,10 +91,10 @@ export function DashboardPage() {
                         <Link to="/pro/bookings" className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40">
                           <Avatar name={r.contact_name} />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold">{r.contact_name ?? 'Client'}</p>
-                            <p className="truncate text-xs text-muted-foreground">{r.service_name} · {r.vehicle_label}</p>
+                            <p className="truncate text-sm font-semibold">{r.contact_name ?? tr('Client')}</p>
+                            <p className="truncate text-xs text-muted-foreground">{localizeDemoText(r.service_name, lang)} · {r.vehicle_label}</p>
                           </div>
-                          <StatusPill {...REQUEST_STATUS_META[r.status as keyof typeof REQUEST_STATUS_META]} />
+                          <StatusPill {...requestStatusMeta(r.status as RequestStatus, lang)} />
                         </Link>
                       </motion.li>
                     ))}
@@ -98,7 +102,7 @@ export function DashboardPage() {
                 )}
                 {waitingClient.length > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    {waitingClient.length} demande(s) en attente de réponse du client.
+                    {tr('{count} demande(s) en attente de réponse du client.', { count: waitingClient.length })}
                   </p>
                 )}
               </>
@@ -108,10 +112,10 @@ export function DashboardPage() {
 
         {/* Tâches du jour */}
         <Card>
-          <CardHeader><CardTitle>À faire aujourd’hui</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{tr('À faire aujourd’hui')}</CardTitle></CardHeader>
           <CardContent>
             {openTasks.length === 0 ? (
-              <EmptyState icon={CheckSquare} title="Rien à faire" />
+              <EmptyState icon={CheckSquare} title={tr('Rien à faire')} />
             ) : (
               <ul className="space-y-2.5">
                 {openTasks.map((t) => (
@@ -121,7 +125,7 @@ export function DashboardPage() {
                       className="mt-0.5 h-4 w-4 rounded border-input accent-[hsl(var(--primary))]"
                       onChange={() => toggleTask.mutate({ id: t.id, status: 'done', garageId: gid! })}
                     />
-                    <span>{t.title}</span>
+                    <span>{localizeDemoText(t.title, lang)}</span>
                   </li>
                 ))}
               </ul>
@@ -133,23 +137,23 @@ export function DashboardPage() {
       {/* Rendez-vous du jour */}
       <Card className="mt-4 sm:mt-5">
         <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>Rendez-vous du jour</CardTitle>
-          <Link to="/pro/calendar" className="text-sm font-medium text-primary hover:underline">Agenda</Link>
+          <CardTitle>{tr('Rendez-vous du jour')}</CardTitle>
+          <Link to="/pro/calendar" className="text-sm font-medium text-primary hover:underline">{tr('Agenda')}</Link>
         </CardHeader>
         <CardContent>
           {todayAppts.length === 0 ? (
             <EmptyState
               icon={CalendarClock}
-              title="Aucun rendez-vous aujourd’hui"
-              action={<Link to="/pro/calendar"><Button variant="outline" size="sm">Voir l’agenda</Button></Link>}
+              title={tr('Aucun rendez-vous aujourd’hui')}
+              action={<Link to="/pro/calendar"><Button variant="outline" size="sm">{tr('Voir l’agenda')}</Button></Link>}
             />
           ) : (
             <ul className="divide-y divide-border">
               {todayAppts.map((a) => (
                 <li key={a.id} className="flex items-center gap-3 py-2.5 text-sm">
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Clock className="h-4 w-4" /></span>
-                  <span className="flex-1 font-medium">{a.title}</span>
-                  <span className="text-muted-foreground">{dateTime(a.starts_at)}</span>
+                  <span className="flex-1 font-medium">{localizeDemoText(a.title, lang)}</span>
+                  <span className="text-muted-foreground">{dateTime(a.starts_at, lang)}</span>
                 </li>
               ))}
             </ul>

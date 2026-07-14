@@ -1,43 +1,56 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { useTheme } from '@/lib/theme'
 import { useBrand } from '@/branding'
 
 export function Logo({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { brand } = useBrand()
-  const [imageFailed, setImageFailed] = useState(false)
+  const { theme } = useTheme()
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const themedSrc = theme === 'dark' ? brand.logoDarkUrl : brand.logoLightUrl
+  const imageSrc = compact ? brand.logoIconUrl : themedSrc
 
-  // White-label components always win, so Speedy's placeholder never receives
-  // the official Clikarage image.
+  useEffect(() => {
+    if (failedSrc && failedSrc !== imageSrc) setFailedSrc(null)
+  }, [failedSrc, imageSrc])
+
   if (brand.logoComponent) {
     const BrandLogo = brand.logoComponent
     return <BrandLogo className={className} compact={compact} />
   }
 
-  // `logoIconUrl` is intentionally optional until an authorized compact asset
-  // exists. Small layouts keep a cropped, responsive wordmark in the meantime.
-  const imageSrc = compact ? (brand.logoIconUrl ?? brand.logoUrl) : brand.logoUrl
-  if (imageSrc && !imageFailed) {
+  if (imageSrc && failedSrc !== imageSrc) {
     return (
       <span
+        data-logo-variant={theme}
         className={cn(
-          'relative inline-flex shrink-0 overflow-hidden rounded-md bg-white',
-          compact ? 'h-8 w-24' : 'h-10 w-28 sm:w-40',
+          'relative inline-flex shrink-0 items-center overflow-hidden bg-transparent',
+          compact ? 'h-8 w-24 sm:w-28' : 'h-10 w-32 sm:w-40',
           className,
         )}
       >
         <img
           src={imageSrc}
-          alt={brand.appName}
-          onError={() => setImageFailed(true)}
-          className="h-full w-full object-cover object-center"
+          alt="Clikarage"
+          width={compact ? 112 : 160}
+          height={compact ? 32 : 40}
+          onError={() => setFailedSrc(imageSrc)}
+          className="h-full w-full object-contain object-center"
         />
       </span>
     )
   }
 
   return (
-    <span className={cn('inline-flex items-center font-bold tracking-tight', compact ? 'text-sm' : 'text-lg', className)}>
-      {brand.appName}
+    <span
+      data-logo-variant={`${theme}-fallback`}
+      className={cn(
+        'inline-flex h-10 shrink-0 items-center bg-transparent font-bold tracking-tight text-foreground',
+        compact ? 'text-sm' : 'text-lg sm:text-xl',
+        className,
+      )}
+    >
+      Clikarage
     </span>
   )
 }

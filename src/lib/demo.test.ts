@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect } from 'vitest'
 import {
   canResolveDemoPublicQuote,
+  demoPublicQuoteBrand,
   demo,
   ensureStoreShape,
   isDemoQuoteToken,
@@ -108,6 +109,7 @@ describe('demo quote token detection', () => {
     saveQuoteStore('default', STORE_KEY, token)
 
     expect(canResolveDemoPublicQuote(token)).toBe(true)
+    expect(demoPublicQuoteBrand(token)).toBe('default')
     expect(demo.getPublicQuote(token)?.garage.name).toBe('Garage Central Lyon')
   })
 
@@ -117,6 +119,7 @@ describe('demo quote token detection', () => {
     localStorage.removeItem('gf-brand')
 
     expect(canResolveDemoPublicQuote(token)).toBe(true)
+    expect(demoPublicQuoteBrand(token)).toBe('speedy')
     expect(demo.getPublicQuote(token)?.garage.name).toBe('Speedy Lyon')
   })
 
@@ -125,6 +128,7 @@ describe('demo quote token detection', () => {
     saveQuoteStore('speedy', SPEEDY_STORE_KEY, 'demospeedyonly')
 
     expect(canResolveDemoPublicQuote('demomissing')).toBe(false)
+    expect(demoPublicQuoteBrand('demomissing')).toBeNull()
     expect(demo.getPublicQuote('demomissing')).toBeNull()
   })
 

@@ -4,6 +4,7 @@ import {
   VEHICLE_BRANDS, modelsForBrand, isKnownBrand, yearError, normalizeBrand, titleCaseVehicle,
   FUELS, CURRENT_YEAR,
 } from '@/data/vehicleCatalog'
+import { useLang } from '@/i18n'
 
 export interface VehicleFieldsValue {
   brand: string
@@ -28,6 +29,7 @@ export function VehicleFields({
   showFuel?: boolean
   required?: boolean
 }) {
+  const { tr } = useLang()
   const uid = useId().replace(/:/g, '')
   const brandsId = `brands-${uid}`
   const modelsId = `models-${uid}`
@@ -42,28 +44,28 @@ export function VehicleFields({
       <datalist id={modelsId}>{models.map((m) => <option key={m} value={m} />)}</datalist>
 
       <Field
-        label="Marque"
+        label={tr('Marque')}
         htmlFor={`${uid}-b`}
         required={required}
-        hint={brandUnknown ? 'Marque non reconnue — vérifiez l’orthographe ou choisissez dans la liste.' : 'Tapez pour voir des suggestions.'}
+        hint={brandUnknown ? tr('Marque non reconnue — vérifiez l’orthographe ou choisissez dans la liste.') : tr('Tapez pour voir des suggestions.')}
       >
         <Input
-          id={`${uid}-b`} list={brandsId} value={value.brand} autoComplete="off" placeholder="Peugeot, Renault…"
+          id={`${uid}-b`} list={brandsId} value={value.brand} autoComplete="off" placeholder={tr('Peugeot, Renault…')}
           onChange={(e) => onChange({ brand: e.target.value })}
           onBlur={(e) => { const v = e.target.value.trim(); if (v) onChange({ brand: normalizeBrand(v) }) }}
         />
       </Field>
 
-      <Field label="Modèle" htmlFor={`${uid}-m`} required={required}>
+      <Field label={tr('Modèle')} htmlFor={`${uid}-m`} required={required}>
         <Input
-          id={`${uid}-m`} list={modelsId} value={value.model} autoComplete="off" placeholder={models[0] ?? '208, Clio…'}
+          id={`${uid}-m`} list={modelsId} value={value.model} autoComplete="off" placeholder={models[0] ?? tr('208, Clio…')}
           onChange={(e) => onChange({ model: e.target.value })}
           onBlur={(e) => { const v = e.target.value.trim(); if (v) onChange({ model: titleCaseVehicle(v) }) }}
         />
       </Field>
 
       {showYear && (
-        <Field label="Année" htmlFor={`${uid}-y`} error={yearMsg ?? undefined}>
+        <Field label={tr('Année')} htmlFor={`${uid}-y`} error={yearMsg ? tr(yearMsg) : undefined}>
           <Input
             id={`${uid}-y`} type="number" inputMode="numeric" value={value.year} placeholder={String(CURRENT_YEAR)}
             onChange={(e) => onChange({ year: e.target.value })}
@@ -72,10 +74,10 @@ export function VehicleFields({
       )}
 
       {showFuel && (
-        <Field label="Carburant" htmlFor={`${uid}-f`}>
+        <Field label={tr('Carburant')} htmlFor={`${uid}-f`}>
           <Select id={`${uid}-f`} value={value.fuel} onChange={(e) => onChange({ fuel: e.target.value })}>
             <option value="">—</option>
-            {FUELS.map((f) => <option key={f} value={f}>{f}</option>)}
+            {FUELS.map((f) => <option key={f} value={f}>{tr(f)}</option>)}
           </Select>
         </Field>
       )}

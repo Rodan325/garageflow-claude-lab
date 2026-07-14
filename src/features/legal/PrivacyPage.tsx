@@ -1,5 +1,7 @@
 import { legalConfig as c, legalVersions } from '@/config/legal'
 import { LegalLayout, H2, P, UL, MailLink, ExtLink } from './LegalLayout'
+import { LocalizedLegalPage } from './LocalizedLegalPage'
+import { useLang } from '@/i18n'
 
 const SUMMARY: { label: string; value: string }[] = [
   { label: 'Données collectées', value: 'Identité, coordonnées, compte, véhicule, demandes, messages, devis et statuts, ainsi que des logs techniques limités.' },
@@ -22,6 +24,8 @@ const DATA_TABLE: { data: string; nature: string; base: string; dest: string; du
 ]
 
 export function PrivacyPage() {
+  const { lang } = useLang()
+  if (lang !== 'fr') return <LocalizedLegalPage document="privacy" version={legalVersions.privacy} />
   return (
     <LegalLayout title="Politique de confidentialité" version={legalVersions.privacy}>
       <section className="rounded-xl border border-border bg-muted/30 p-4">

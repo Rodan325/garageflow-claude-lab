@@ -4,6 +4,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { MarketingShell } from '@/components/shells/MarketingShell'
 import { LanguageProvider, type Lang } from '@/i18n'
 import { HomePage } from './HomePage'
+import { PilotPage } from './PilotPage'
+import { NotFoundPage } from './NotFoundPage'
 
 beforeAll(() => {
   vi.stubGlobal('IntersectionObserver', class {
@@ -29,6 +31,15 @@ function renderPublic(lang: Lang) {
           <Route path="/login" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
+    </LanguageProvider>,
+  )
+}
+
+function renderPage(lang: Lang, page: React.ReactNode) {
+  localStorage.setItem('gf-lang', lang)
+  return render(
+    <LanguageProvider>
+      <MemoryRouter>{page}</MemoryRouter>
     </LanguageProvider>,
   )
 }
@@ -72,5 +83,20 @@ describe('public navigation and localization', () => {
     expect(screen.getAllByText('Access your account').length).toBeGreaterThan(0)
     expect(screen.getByText('What slows a garage down today')).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/Problèmes|Parcours|Offre pilote|Accéder à votre espace/)
+  })
+
+  it('renders the pilot and not-found pages in Arabic without forcing French or LTR', () => {
+    const pilot = renderPage('ar', <MarketingShell><PilotPage /></MarketingShell>)
+
+    expect(document.documentElement.lang).toBe('ar')
+    expect(document.documentElement.dir).toBe('rtl')
+    expect(screen.getByText('البرنامج التجريبي')).toBeInTheDocument()
+    expect(pilot.container.textContent).not.toMatch(/Programme pilote|Ce qui est inclus|Audit gratuit|Démarrer la démo|Revenir à l’accueil/)
+
+    pilot.unmount()
+    const notFound = renderPage('ar', <NotFoundPage />)
+    expect(screen.getByText('هذه الصفحة غير موجودة أو تم نقلها.')).toBeInTheDocument()
+    expect(notFound.container.textContent).not.toMatch(/Cette page|Accueil|Application client/)
+    expect(document.documentElement.dir).toBe('rtl')
   })
 })

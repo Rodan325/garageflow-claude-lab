@@ -23,7 +23,7 @@ export function LoginPage() {
   const { signIn, enterDemo, ready, session, accountType, isStaff, configured } = useAuth()
   const toast = useToast()
   const t = useT()
-  const { lang } = useLang()
+  const { lang, tr } = useLang()
   const { brand } = useBrand()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -78,7 +78,7 @@ export function LoginPage() {
         <Link to="/"><Logo className="text-white [&_.text-primary]:text-white" /></Link>
         <div className="space-y-3">
           <h2 className="text-2xl font-semibold leading-snug">{t.login.asideHeading}</h2>
-          <p className="max-w-sm text-sm text-white/80">{brand.official ? t.login.asideSubtitle : brand.loginBranding}</p>
+          <p className="max-w-sm text-sm text-white/80">{brand.official ? t.login.asideSubtitle : tr(brand.loginBranding)}</p>
         </div>
         <p className="text-sm text-white/60">© {new Date().getFullYear()} {brand.companyDisplayName}</p>
       </aside>

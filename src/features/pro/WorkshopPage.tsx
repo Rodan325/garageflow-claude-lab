@@ -9,9 +9,13 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useCreateRepair, useRepairs, useUpdateRepairStatus, useVehicles } from '@/data/proData'
-import { REPAIR_COLUMNS, REPAIR_STATUS_META, type RepairStatus } from '@/types/domain'
+import { REPAIR_COLUMNS, type RepairStatus } from '@/types/domain'
+import { repairStatusMeta } from '@/i18n/domainLabels'
+import { useLang } from '@/i18n'
+import { localizeDemoText } from '@/i18n/demoContent'
 
 export function WorkshopPage() {
+  const { lang, tr } = useLang()
   const { garage } = useAuth()
   const gid = garage?.id
   const { data: repairs, isLoading } = useRepairs(gid)
@@ -33,19 +37,19 @@ export function WorkshopPage() {
   return (
     <div>
       <PageHeader
-        title="Atelier"
-        subtitle="Suivi des réparations en cours."
-        action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Nouvelle réparation</Button>}
+        title={tr('Atelier')}
+        subtitle={tr('Suivi des réparations en cours.')}
+        action={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> {tr('Nouvelle réparation')}</Button>}
       />
 
       {isLoading ? (
         <LoadingState />
       ) : (repairs ?? []).length === 0 ? (
-        <EmptyState icon={Wrench} title="Atelier vide" description="Aucune réparation en cours pour le moment." action={<Button onClick={() => setOpen(true)}>Créer une réparation</Button>} />
+        <EmptyState icon={Wrench} title={tr('Atelier vide')} description={tr('Aucune réparation en cours pour le moment.')} action={<Button onClick={() => setOpen(true)}>{tr('Créer une réparation')}</Button>} />
       ) : (
         <div className="flex gap-3 overflow-x-auto pb-3">
           {REPAIR_COLUMNS.map((col) => {
-            const meta = REPAIR_STATUS_META[col]
+            const meta = repairStatusMeta(col, lang)
             const items = (repairs ?? []).filter((r) => r.status === col)
             return (
               <div key={col} className="w-64 shrink-0">
@@ -58,25 +62,25 @@ export function WorkshopPage() {
                     const idx = REPAIR_COLUMNS.indexOf(col)
                     return (
                       <Card key={r.id} className="p-3">
-                        <p className="text-sm font-medium">{r.title}</p>
+                        <p className="text-sm font-medium">{localizeDemoText(r.title, lang)}</p>
                         {vlabel(r.vehicle_id) && <p className="text-xs text-muted-foreground">{vlabel(r.vehicle_id)}</p>}
-                        {r.symptom && <p className="mt-1 text-xs text-muted-foreground">{r.symptom}</p>}
+                        {r.symptom && <p className="mt-1 text-xs text-muted-foreground">{localizeDemoText(r.symptom, lang)}</p>}
                         <div className="mt-2 flex justify-between">
                           <button
                             disabled={idx === 0}
                             onClick={() => move(r.id, col, -1)}
                             className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"
-                            aria-label="Étape précédente"
+                            aria-label={tr('Étape précédente')}
                           >
-                            <ChevronLeft className="h-4 w-4" />
+                            <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
                           </button>
                           <button
                             disabled={idx === REPAIR_COLUMNS.length - 1}
                             onClick={() => move(r.id, col, 1)}
                             className="rounded p-1 text-primary hover:bg-muted disabled:opacity-30"
-                            aria-label="Étape suivante"
+                            aria-label={tr('Étape suivante')}
                           >
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                           </button>
                         </div>
                       </Card>
@@ -104,6 +108,7 @@ function NewRepairModal({
   vehicles: { id: string; brand: string; model: string }[]
   onClose: () => void
 }) {
+  const { tr } = useLang()
   const create = useCreateRepair()
   const toast = useToast()
   const [form, setForm] = useState({ title: '', symptom: '', vehicle_id: '' })
@@ -111,7 +116,7 @@ function NewRepairModal({
 
   async function submit() {
     if (!form.title) {
-      toast.error('Intitulé requis')
+      toast.error(tr('Intitulé requis'))
       return
     }
     try {
@@ -122,21 +127,21 @@ function NewRepairModal({
         vehicle_id: form.vehicle_id || null,
         status: 'to_diagnose',
       })
-      toast.success('Réparation créée')
+      toast.success(tr('Réparation créée'))
       onClose()
-    } catch (e) {
-      toast.error('Création impossible', (e as Error).message)
+    } catch {
+      toast.error(tr('Création impossible'), tr('L’enregistrement n’a pas pu être terminé.'))
     }
   }
 
   return (
-    <Modal open onClose={onClose} title="Nouvelle réparation" footer={<><Button variant="ghost" onClick={onClose}>Annuler</Button><Button loading={create.isPending} onClick={submit}>Créer</Button></>}>
+    <Modal open onClose={onClose} title={tr('Nouvelle réparation')} footer={<><Button variant="ghost" onClick={onClose}>{tr('Annuler')}</Button><Button loading={create.isPending} onClick={submit}>{tr('Créer')}</Button></>}>
       <div className="space-y-3">
-        <Field label="Intitulé" htmlFor="rt" required><Input id="rt" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Remplacement plaquettes" /></Field>
-        <Field label="Symptôme / demande" htmlFor="rs"><Textarea id="rs" value={form.symptom} onChange={(e) => set('symptom', e.target.value)} /></Field>
-        <Field label="Véhicule" htmlFor="rv">
+        <Field label={tr('Intitulé')} htmlFor="rt" required><Input id="rt" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={tr('Remplacement plaquettes')} /></Field>
+        <Field label={tr('Symptôme / demande')} htmlFor="rs"><Textarea id="rs" value={form.symptom} onChange={(e) => set('symptom', e.target.value)} /></Field>
+        <Field label={tr('Véhicule')} htmlFor="rv">
           <Select id="rv" value={form.vehicle_id} onChange={(e) => set('vehicle_id', e.target.value)}>
-            <option value="">— Aucun —</option>
+            <option value="">— {tr('Aucun')} —</option>
             {vehicles.map((v) => <option key={v.id} value={v.id}>{v.brand} {v.model}</option>)}
           </Select>
         </Field>

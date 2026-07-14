@@ -1,7 +1,11 @@
 import { legalConfig as c, legalVersions } from '@/config/legal'
 import { LegalLayout, H2, P, UL, MailLink } from './LegalLayout'
+import { LocalizedLegalPage } from './LocalizedLegalPage'
+import { useLang } from '@/i18n'
 
 export function DpaPage() {
+  const { lang } = useLang()
+  if (lang !== 'fr') return <LocalizedLegalPage document="dpa" version={legalVersions.dpa} />
   return (
     <LegalLayout title="Accord de sous-traitance RGPD" version={legalVersions.dpa}>
       <H2>1. Objet</H2>
