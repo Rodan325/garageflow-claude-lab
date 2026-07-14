@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
+import { useLang } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 interface ModalProps {
@@ -26,6 +27,8 @@ export function Modal({
   variant = 'center',
   className,
 }: ModalProps) {
+  const { tr } = useLang()
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -70,7 +73,7 @@ export function Modal({
               </div>
               <button
                 onClick={onClose}
-                aria-label="Fermer"
+                aria-label={tr('Fermer')}
                 className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
               >
                 <X className="h-5 w-5" />

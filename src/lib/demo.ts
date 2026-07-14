@@ -77,6 +77,13 @@ export function canResolveDemoPublicQuote(token?: string | null): boolean {
   return findStoredQuote(token) !== null
 }
 
+/** Owning dataset for a stored public demo quote, without changing active branding. */
+export function demoPublicQuoteBrand(token?: string | null): DemoBrand | null {
+  if (!token || !isDemoQuoteToken(token)) return null
+  if (typeof window === 'undefined') return null
+  return findStoredQuote(token)?.brand ?? null
+}
+
 /** Discreet note shown when a demo garage copies a client quote link. */
 export const DEMO_QUOTE_LINK_HINT =
   'En mode démo, ce lien fonctionne dans ce navigateur. Pour une démo sur téléphone ou un autre appareil, utilisez un vrai compte Supabase.'

@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom'
 import { legalConfig as c, legalVersions } from '@/config/legal'
 import { LegalLayout, H2, P, UL, MailLink } from './LegalLayout'
+import { LocalizedLegalPage } from './LocalizedLegalPage'
+import { useLang } from '@/i18n'
 
 export function TermsPage() {
+  const { lang } = useLang()
+  if (lang !== 'fr') return <LocalizedLegalPage document="terms" version={legalVersions.terms} />
   return (
     <LegalLayout title="Conditions générales d’utilisation" version={legalVersions.terms}>
       <H2>1. Objet</H2>

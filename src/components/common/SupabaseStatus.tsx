@@ -2,6 +2,7 @@ import { Database, FlaskConical, WifiOff } from 'lucide-react'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { cn } from '@/lib/utils'
+import { useLang } from '@/i18n'
 
 /**
  * Backend status indicator shown in the Pro topbar — visible to non-technical
@@ -12,27 +13,28 @@ import { cn } from '@/lib/utils'
  */
 export function SupabaseStatus({ className }: { className?: string }) {
   const { session, demo } = useAuth()
+  const { tr } = useLang()
   const base = 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium'
 
   if (demo) {
     return (
       <span
         className={cn(base, 'bg-amber-500/15 text-warning-foreground', className)}
-        title="Mode démo local : les données restent dans ce navigateur"
+        title={tr('Mode démo local : les données restent dans ce navigateur')}
       >
         <FlaskConical className="h-3.5 w-3.5" />
-        Mode démo
+        {tr('Mode démo')}
       </span>
     )
   }
 
   const connected = isSupabaseConfigured && !!session
-  const label = connected ? 'Supabase connecté' : isSupabaseConfigured ? 'Non connecté' : 'Supabase non configuré'
+  const label = connected ? tr('Supabase connecté') : isSupabaseConfigured ? tr('Non connecté') : tr('Supabase non configuré')
   const title = connected
-    ? 'Connecté à Supabase'
+    ? tr('Connecté à Supabase')
     : isSupabaseConfigured
-      ? 'Supabase configuré, aucune session active'
-      : 'Supabase non configuré'
+      ? tr('Supabase configuré, aucune session active')
+      : tr('Supabase non configuré')
 
   return (
     <span

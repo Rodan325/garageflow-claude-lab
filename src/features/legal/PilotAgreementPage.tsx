@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom'
 import { legalConfig as c, legalVersions } from '@/config/legal'
 import { LegalLayout, H2, P, UL, MailLink } from './LegalLayout'
+import { LocalizedLegalPage } from './LocalizedLegalPage'
+import { useLang } from '@/i18n'
 
 export function PilotAgreementPage() {
+  const { lang } = useLang()
+  if (lang !== 'fr') return <LocalizedLegalPage document="pilotAgreement" version={legalVersions.pilotAgreement} />
   return (
     <LegalLayout title="Conditions du pilote garage" version={legalVersions.pilotAgreement}>
       <H2>1. Objet du pilote</H2>

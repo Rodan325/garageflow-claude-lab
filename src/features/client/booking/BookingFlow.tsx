@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
 import { ArrowLeft, Check, CheckCircle2, ChevronRight, Clock, LogIn, Plus, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -25,6 +23,8 @@ import { openDays, slotsForDate } from '@/lib/slots'
 import { euro } from '@/lib/format'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { GarageService } from '@/types/domain'
+import { LOCALES, useLang } from '@/i18n'
+import { localizeDemoText } from '@/i18n/demoContent'
 
 type Step = 'center' | 'service' | 'slot' | 'identify' | 'done'
 const STEP_LABEL: Record<Step, string> = {
@@ -44,6 +44,7 @@ interface NewVehicle {
 }
 
 export function BookingFlow() {
+  const { lang, tr } = useLang()
   const navigate = useNavigate()
   const toast = useToast()
   const { userId, profile, email, authed } = useAuth()
@@ -96,7 +97,7 @@ export function BookingFlow() {
   const [reference, setReference] = useState<string | null>(null)
   const restored = useRef(false)
 
-  const days = useMemo(() => openDays(hours, 8), [hours])
+  const days = useMemo(() => openDays(hours, 8, lang), [hours, lang])
   const slots = useMemo(() => (date ? slotsForDate(hours, date) : []), [date, hours])
 
   // Restore a deep-linked service or a saved draft (e.g. after a login round-trip),
@@ -184,9 +185,9 @@ export function BookingFlow() {
     return (
       <div className="p-4">
         <EmptyState
-          title="Choisissez d’abord un garage"
-          description="Revenez à l’accueil pour sélectionner votre garage."
-          action={<Link to="/app"><Button>Choisir un garage</Button></Link>}
+          title={tr('Choisissez d’abord un garage')}
+          description={tr('Revenez à l’accueil pour sélectionner votre garage.')}
+          action={<Link to="/app"><Button>{tr('Choisir un garage')}</Button></Link>}
         />
       </div>
     )
@@ -203,11 +204,11 @@ export function BookingFlow() {
 
   async function submit() {
     if (!service || !date || !time || !contactName.trim()) {
-      toast.error('Informations incomplètes')
+      toast.error(tr('Informations incomplètes'))
       return
     }
     if (showCenterStep && !validCenterId) {
-      toast.error('Choisissez un centre')
+      toast.error(tr('Choisissez un centre'))
       return
     }
     try {
@@ -216,7 +217,7 @@ export function BookingFlow() {
       if (vehicleMode === 'new') {
         const vErr = vehicleFieldsError({ brand: newVehicle.brand, model: newVehicle.model, year: newVehicle.year, fuel: '' })
         if (vErr) {
-          toast.error(vErr)
+          toast.error(tr(vErr))
           return
         }
         const created = await addVehicle.mutateAsync({
@@ -231,7 +232,7 @@ export function BookingFlow() {
       } else {
         const v = vehicles?.find((x) => x.id === selectedVehicleId)
         if (!v) {
-          toast.error('Choisissez un véhicule')
+          toast.error(tr('Choisissez un véhicule'))
           return
         }
         vehId = v.id
@@ -259,8 +260,8 @@ export function BookingFlow() {
       sessionStorage.removeItem(DRAFT_KEY)
       setReference(row.reference)
       setStep('done')
-    } catch (e) {
-      toast.error('Envoi impossible', (e as Error).message)
+    } catch {
+      toast.error(tr('Envoi impossible'), tr('La demande n’a pas pu être envoyée.'))
     }
   }
 
@@ -270,7 +271,7 @@ export function BookingFlow() {
         reference={reference}
         service={service?.name}
         garage={garageName}
-        when={date ? `${format(new Date(date), 'EEEE d MMM', { locale: fr })} à ${time}` : ''}
+        when={date ? tr('{date} à {time}', { date: new Intl.DateTimeFormat(LOCALES[lang], { weekday: 'long', day: 'numeric', month: 'short' }).format(new Date(`${date}T12:00:00`)), time }) : ''}
         onTrack={() => navigate('/app/bookings')}
       />
     )
@@ -286,7 +287,7 @@ export function BookingFlow() {
           <div key={s} className={`h-1.5 flex-1 rounded-full ${i <= stepIndex ? 'bg-primary' : 'bg-muted'}`} />
         ))}
       </div>
-      <p className="mb-3 text-sm font-medium text-muted-foreground">Étape {stepIndex + 1}/{STEPS.length} · {STEP_LABEL[step]}</p>
+      <p className="mb-3 text-sm font-medium text-muted-foreground">{tr('Étape {current}/{total} · {label}', { current: stepIndex + 1, total: STEPS.length, label: tr(STEP_LABEL[step]) })}</p>
 
         <motion.div
           key={step}
@@ -297,10 +298,10 @@ export function BookingFlow() {
         >
           {step === 'center' && (
             <div>
-              <h1 className="mb-3 text-lg font-bold">Quel centre ?</h1>
+              <h1 className="mb-3 text-lg font-bold">{tr('Quel centre ?')}</h1>
               <div className="space-y-2">
                 {(centers ?? []).map((c) => (
-                  <button key={c.id} className="w-full text-left" onClick={() => { selectCenter(c.id); setStep(service ? 'slot' : 'service') }}>
+                  <button key={c.id} className="w-full text-start" onClick={() => { selectCenter(c.id); setStep(service ? 'slot' : 'service') }}>
                     <Card className={`flex items-center justify-between p-4 transition-colors hover:bg-muted/40 ${selectedCenterId === c.id ? 'ring-2 ring-primary' : ''}`}>
                       <div className="min-w-0">
                         <p className="font-medium">{c.name}</p>
@@ -308,7 +309,7 @@ export function BookingFlow() {
                           <p className="text-xs text-muted-foreground">{[c.postal_code, c.city].filter(Boolean).join(' ')}</p>
                         )}
                       </div>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180" />
                     </Card>
                   </button>
                 ))}
@@ -320,23 +321,23 @@ export function BookingFlow() {
             <div>
               <div className="mb-3 flex items-center gap-2">
                 {stepIndex > 0 && (
-                  <Button variant="outline" size="sm" onClick={back} aria-label="Retour"><ArrowLeft className="h-4 w-4" /></Button>
+                  <Button variant="outline" size="sm" onClick={back} aria-label={tr('Retour')}><ArrowLeft className="h-4 w-4 rtl:rotate-180" /></Button>
                 )}
-                <h1 className="text-lg font-bold">Quelle prestation ?</h1>
+                <h1 className="text-lg font-bold">{tr('Quelle prestation ?')}</h1>
               </div>
               {servicesLoading ? (
                 <LoadingState />
               ) : (
                 <div className="space-y-2">
                   {(services ?? []).map((s) => (
-                    <button key={s.id} className="w-full text-left" onClick={() => { setService(s); setStep('slot') }}>
+                    <button key={s.id} className="w-full text-start" onClick={() => { setService(s); setStep('slot') }}>
                       <Card className={`flex items-center justify-between p-4 transition-colors hover:bg-muted/40 ${service?.id === s.id ? 'ring-2 ring-primary' : ''}`}>
                         <div className="min-w-0">
-                          <p className="font-medium">{s.name}</p>
-                          {s.description && <p className="line-clamp-1 text-xs text-muted-foreground">{s.description}</p>}
-                          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" /> {s.duration_minutes} min</p>
+                          <p className="font-medium">{localizeDemoText(s.name, lang)}</p>
+                          {s.description && <p className="line-clamp-1 text-xs text-muted-foreground">{localizeDemoText(s.description, lang)}</p>}
+                          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" /> {tr('{minutes} min', { minutes: s.duration_minutes })}</p>
                         </div>
-                        <span className="shrink-0 text-sm font-semibold text-primary">{s.price_type === 'fixed' ? euro(s.price_from) : `dès ${euro(s.price_from)}`}</span>
+                        <span className="shrink-0 text-sm font-semibold text-primary">{s.price_type === 'fixed' ? euro(s.price_from, lang) : tr('dès {price}', { price: euro(s.price_from, lang) })}</span>
                       </Card>
                     </button>
                   ))}
@@ -347,9 +348,9 @@ export function BookingFlow() {
 
           {step === 'slot' && (
             <div>
-              <h1 className="mb-1 text-lg font-bold">Choisissez un créneau</h1>
-              {service && <p className="mb-3 text-sm text-muted-foreground">{service.name}</p>}
-              <p className="mb-2 text-sm font-medium">Date</p>
+              <h1 className="mb-1 text-lg font-bold">{tr('Choisissez un créneau')}</h1>
+              {service && <p className="mb-3 text-sm text-muted-foreground">{localizeDemoText(service.name, lang)}</p>}
+              <p className="mb-2 text-sm font-medium">{tr('Date')}</p>
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {days.map((d) => (
                   <button
@@ -363,7 +364,7 @@ export function BookingFlow() {
               </div>
               {date && (
                 <>
-                  <p className="mb-2 mt-4 text-sm font-medium">Horaire souhaité</p>
+                  <p className="mb-2 mt-4 text-sm font-medium">{tr('Horaire souhaité')}</p>
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                     {slots.map((t) => (
                       <button
@@ -377,11 +378,11 @@ export function BookingFlow() {
                   </div>
                 </>
               )}
-              <p className="mt-3 text-xs text-muted-foreground">Le garage confirmera ou proposera un autre créneau.</p>
+              <p className="mt-3 text-xs text-muted-foreground">{tr('Le garage confirmera ou proposera un autre créneau.')}</p>
               <div className="mt-5 flex gap-2">
-                <Button variant="outline" onClick={back} aria-label="Retour"><ArrowLeft className="h-4 w-4" /></Button>
+                <Button variant="outline" onClick={back} aria-label={tr('Retour')}><ArrowLeft className="h-4 w-4 rtl:rotate-180" /></Button>
                 <Button className="flex-1" disabled={!date || !time} onClick={() => setStep('identify')}>
-                  Continuer <ChevronRight className="h-4 w-4" />
+                  {tr('Continuer')} <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                 </Button>
               </div>
             </div>
@@ -389,13 +390,13 @@ export function BookingFlow() {
 
           {step === 'identify' && (
             <div>
-              <h1 className="mb-3 text-lg font-bold">Véhicule & coordonnées</h1>
+              <h1 className="mb-3 text-lg font-bold">{tr('Véhicule & coordonnées')}</h1>
               <RecapCard service={service} date={date} time={time} />
 
               {/* Vehicle */}
-              <p className="mb-1 mt-4 text-sm font-medium">Véhicule</p>
+              <p className="mb-1 mt-4 text-sm font-medium">{tr('Véhicule')}</p>
               <p className="mb-2 text-xs text-muted-foreground">
-                Les informations de votre véhicule sont utilisées pour permettre au garage de traiter votre demande, préparer le rendez-vous et établir un devis.
+                {tr('Les informations de votre véhicule sont utilisées pour permettre au garage de traiter votre demande, préparer le rendez-vous et établir un devis.')}
               </p>
               {authed && myVehicles.length > 0 && (
                 <div className="space-y-2">
@@ -403,12 +404,12 @@ export function BookingFlow() {
                     <button
                       key={v.id}
                       onClick={() => { setVehicleMode('existing'); setSelectedVehicleId(v.id) }}
-                      className="w-full text-left"
+                      className="w-full text-start"
                     >
                       <Card className={`flex items-center justify-between p-3 ${vehicleMode === 'existing' && selectedVehicleId === v.id ? 'ring-2 ring-primary' : ''}`}>
                         <div>
                           <p className="text-sm font-medium">{v.brand} {v.model}</p>
-                          <p className="text-xs text-muted-foreground">{v.registration ?? 'sans plaque'}</p>
+                          <p className="text-xs text-muted-foreground">{v.registration ?? tr('sans plaque')}</p>
                         </div>
                         {vehicleMode === 'existing' && selectedVehicleId === v.id && <Check className="h-4 w-4 text-primary" />}
                       </Card>
@@ -418,7 +419,7 @@ export function BookingFlow() {
                     onClick={() => { setVehicleMode('new'); setSelectedVehicleId('') }}
                     className={`flex w-full items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm ${vehicleMode === 'new' ? 'bg-muted/40' : ''}`}
                   >
-                    <Plus className="h-4 w-4" /> Autre véhicule
+                    <Plus className="h-4 w-4" /> {tr('Autre véhicule')}
                   </button>
                 </div>
               )}
@@ -429,41 +430,40 @@ export function BookingFlow() {
                     onChange={(p) => setNewVehicle((v) => ({ ...v, ...p }))}
                     showFuel={false}
                   />
-                  <Field label="Plaque" htmlFor="vr"><Input id="vr" value={newVehicle.registration} onChange={(e) => setNewVehicle({ ...newVehicle, registration: e.target.value })} /></Field>
+                  <Field label={tr('Plaque')} htmlFor="vr"><Input id="vr" className="force-ltr" value={newVehicle.registration} onChange={(e) => setNewVehicle({ ...newVehicle, registration: e.target.value })} /></Field>
                 </div>
               )}
 
               {/* Coordinates */}
-              <p className="mb-2 mt-4 text-sm font-medium">Coordonnées</p>
+              <p className="mb-2 mt-4 text-sm font-medium">{tr('Coordonnées')}</p>
               <div className="space-y-3">
-                <Field label="Nom" htmlFor="cn" required><Input id="cn" value={contactName} onChange={(e) => setContactName(e.target.value)} /></Field>
-                <Field label="Téléphone" htmlFor="cp"><Input id="cp" type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="06 12 34 56 78" /></Field>
-                <Field label="Message au garage" htmlFor="msg"><Textarea id="msg" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Décrivez le problème (facultatif)" /></Field>
+                <Field label={tr('Nom')} htmlFor="cn" required><Input id="cn" value={contactName} onChange={(e) => setContactName(e.target.value)} /></Field>
+                <Field label={tr('Téléphone')} htmlFor="cp"><Input id="cp" type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="06 12 34 56 78" /></Field>
+                <Field label={tr('Message au garage')} htmlFor="msg"><Textarea id="msg" value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr('Décrivez le problème (facultatif)')} /></Field>
               </div>
 
               {/* Consent before sharing the vehicle with this garage */}
               <p className="mt-4 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
-                En envoyant cette demande, vous autorisez le garage sélectionné à consulter les informations
-                nécessaires au traitement de votre demande, y compris le véhicule choisi. Consultez la{' '}
-                <Link to="/privacy" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>.
+                {tr('En envoyant cette demande, vous autorisez le garage sélectionné à consulter les informations nécessaires au traitement de votre demande, y compris le véhicule choisi. Consultez la')}{' '}
+                <Link to="/privacy" className="font-medium text-primary hover:underline">{tr('Politique de confidentialité')}</Link>.
               </p>
 
               {/* Confirm / identify */}
               <div className="mt-4">
                 {authed ? (
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={back} aria-label="Retour"><ArrowLeft className="h-4 w-4" /></Button>
+                    <Button variant="outline" onClick={back} aria-label={tr('Retour')}><ArrowLeft className="h-4 w-4 rtl:rotate-180" /></Button>
                     <Button className="flex-1" loading={createRequest.isPending || addVehicle.isPending} onClick={submit}>
-                      <Check className="h-4 w-4" /> Envoyer la demande
+                      <Check className="h-4 w-4" /> {tr('Envoyer la demande')}
                     </Button>
                   </div>
                 ) : (
                   <Card className="space-y-3 bg-muted/30 p-4">
-                    <p className="text-sm font-medium">Dernière étape : identifiez-vous pour confirmer</p>
-                    <p className="text-xs text-muted-foreground">Vos informations sont conservées. Vous revenez ici juste après.</p>
+                    <p className="text-sm font-medium">{tr('Dernière étape : identifiez-vous pour confirmer')}</p>
+                    <p className="text-xs text-muted-foreground">{tr('Vos informations sont conservées. Vous revenez ici juste après.')}</p>
                     <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button className="flex-1" onClick={() => goAuth('/login')}><LogIn className="h-4 w-4" /> Se connecter</Button>
-                      <Button variant="outline" className="flex-1" onClick={() => goAuth('/signup')}><UserPlus className="h-4 w-4" /> Créer un compte</Button>
+                      <Button className="flex-1" onClick={() => goAuth('/login')}><LogIn className="h-4 w-4" /> {tr('Se connecter')}</Button>
+                      <Button variant="outline" className="flex-1" onClick={() => goAuth('/signup')}><UserPlus className="h-4 w-4" /> {tr('Créer un compte')}</Button>
                     </div>
                   </Card>
                 )}
@@ -476,10 +476,11 @@ export function BookingFlow() {
 }
 
 function RecapCard({ service, date, time }: { service: GarageService | null; date: string; time: string }) {
+  const { lang, tr } = useLang()
   return (
     <Card className="space-y-1.5 bg-muted/40 p-3 text-sm">
-      <div className="flex justify-between"><span className="text-muted-foreground">Prestation</span><span className="font-medium">{service?.name ?? '—'}</span></div>
-      <div className="flex justify-between"><span className="text-muted-foreground">Créneau</span><span className="font-medium capitalize">{date ? format(new Date(date), 'EEE d MMM', { locale: fr }) : '—'} · {time || '—'}</span></div>
+      <div className="flex justify-between"><span className="text-muted-foreground">{tr('Prestation')}</span><span className="font-medium">{service ? localizeDemoText(service.name, lang) : '—'}</span></div>
+      <div className="flex justify-between"><span className="text-muted-foreground">{tr('Créneau')}</span><span className="font-medium capitalize">{date ? new Intl.DateTimeFormat(LOCALES[lang], { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${date}T12:00:00`)) : '—'} · {time || '—'}</span></div>
     </Card>
   )
 }
@@ -493,6 +494,7 @@ function Confirmation({
   when?: string
   onTrack: () => void
 }) {
+  const { tr } = useLang()
   return (
     <div className="mx-auto flex min-h-[70dvh] max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
       <motion.div
@@ -504,23 +506,23 @@ function Confirmation({
         <CheckCircle2 className="h-9 w-9" />
       </motion.div>
       <div>
-        <h1 className="text-xl font-bold">Demande envoyée</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Le garage va vous répondre rapidement.</p>
+        <h1 className="text-xl font-bold">{tr('Demande envoyée')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{tr('Le garage va vous répondre rapidement.')}</p>
       </div>
-      <Card className="w-full max-w-xs p-4 text-left">
+      <Card className="w-full max-w-xs p-4 text-start">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Référence</span>
+          <span className="text-xs text-muted-foreground">{tr('Référence')}</span>
           <span className="font-bold tracking-wider text-primary">{reference}</span>
         </div>
         <div className="mt-2 space-y-1.5 border-t border-border pt-2 text-sm">
-          {service && <Row label="Prestation" value={service} />}
-          {garage && <Row label="Garage" value={garage} />}
-          {when && <Row label="Date" value={when} />}
-          <Row label="Statut" value="En attente" />
+          {service && <Row label={tr('Prestation')} value={service} />}
+          {garage && <Row label={tr('Garage')} value={garage} />}
+          {when && <Row label={tr('Date')} value={when} />}
+          <Row label={tr('Statut')} value={tr('En attente')} />
         </div>
       </Card>
-      <Button className="w-full max-w-xs" onClick={onTrack}>Voir ma demande</Button>
-      <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground">Retour à l’accueil</Link>
+      <Button className="w-full max-w-xs" onClick={onTrack}>{tr('Voir ma demande')}</Button>
+      <Link to="/app" className="text-sm text-muted-foreground hover:text-foreground">{tr('Retour à l’accueil')}</Link>
     </div>
   )
 }
@@ -529,7 +531,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-3">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium capitalize">{value}</span>
+      <span className="text-end font-medium capitalize">{value}</span>
     </div>
   )
 }

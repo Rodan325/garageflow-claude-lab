@@ -37,6 +37,11 @@ function renderLogin(lang: Lang) {
   )
 }
 
+function chooseLanguage(name: 'Français' | 'English' | 'العربية') {
+  fireEvent.click(screen.getByRole('button', { name: /Langue active|Active language|اللغة النشطة/ }))
+  fireEvent.click(screen.getByRole('menuitemradio', { name }))
+}
+
 let appStyleElement: HTMLStyleElement
 
 beforeAll(() => {
@@ -81,16 +86,15 @@ describe('LoginPage localization', () => {
     expect(getComputedStyle(email).direction).toBe('ltr')
     expect(getComputedStyle(email).textAlign).toBe('left')
 
-    const language = screen.getByRole('combobox')
-    fireEvent.change(language, { target: { value: 'fr' } })
+    chooseLanguage('Français')
     expect(document.documentElement.lang).toBe('fr')
     expect(document.documentElement.dir).toBe('ltr')
     expect(email).toHaveAttribute('dir', 'ltr')
     expect(getComputedStyle(email).direction).not.toBe('rtl')
     expect(getComputedStyle(email).textAlign).not.toBe('right')
 
-    fireEvent.change(language, { target: { value: 'ar' } })
-    fireEvent.change(language, { target: { value: 'en' } })
+    chooseLanguage('العربية')
+    chooseLanguage('English')
     expect(document.documentElement.lang).toBe('en')
     expect(document.documentElement.dir).toBe('ltr')
     expect(email).toHaveAttribute('dir', 'ltr')

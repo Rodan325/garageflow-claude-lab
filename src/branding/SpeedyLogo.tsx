@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useLang } from '@/i18n'
 
 /**
  * PLACEHOLDER logo zone for the Speedy demo — deliberately NOT the official
@@ -7,6 +8,7 @@ import { cn } from '@/lib/utils'
  * on the Speedy brand config instead of editing the app.
  */
 export function SpeedyLogo({ className, compact = false }: { className?: string; compact?: boolean }) {
+  const { tr } = useLang()
   return (
     <span className={cn('inline-flex items-center gap-2 font-bold', className)}>
       <span
@@ -18,7 +20,7 @@ export function SpeedyLogo({ className, compact = false }: { className?: string;
       {!compact && (
         <span className="text-lg tracking-tight">
           Speedy{' '}
-          <span className="align-top text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">démo</span>
+          <span className="align-top text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{tr('Démo')}</span>
         </span>
       )}
     </span>

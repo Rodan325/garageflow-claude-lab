@@ -2,8 +2,10 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { CalendarCheck, Car, Home, ListChecks, User } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { LegalFooter } from '@/components/common/LegalFooter'
 import { cn } from '@/lib/utils'
+import { useLang } from '@/i18n'
 
 const nav = [
   { to: '/app', label: 'Accueil', icon: Home, end: true },
@@ -21,8 +23,9 @@ const nav = [
  */
 export function ClientShell() {
   const navigate = useNavigate()
+  const { tr } = useLang()
   return (
-    <div lang="fr" dir="ltr" className="flex min-h-dvh flex-col bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       {/* Desktop top nav */}
       <header className="sticky top-0 z-30 hidden border-b border-border bg-background/90 backdrop-blur lg:block">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-6">
@@ -40,10 +43,11 @@ export function ClientShell() {
                   )
                 }
               >
-                {label}
+                {tr(label)}
               </NavLink>
             ))}
-            <ThemeToggle className="ml-1" />
+            <LanguageSwitcher className="ms-1" />
+            <ThemeToggle />
           </nav>
         </div>
       </header>
@@ -51,7 +55,7 @@ export function ClientShell() {
       {/* Mobile top header */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur lg:hidden">
         <button onClick={() => navigate('/app')} className="flex items-center"><Logo /></button>
-        <ThemeToggle />
+        <div className="flex items-center gap-1"><LanguageSwitcher /><ThemeToggle /></div>
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 pb-24 lg:pb-12">
@@ -77,7 +81,7 @@ export function ClientShell() {
               {({ isActive }) => (
                 <>
                   <Icon className={cn('h-5 w-5 transition-transform', isActive && 'scale-110')} />
-                  {label}
+                  {tr(label)}
                 </>
               )}
             </NavLink>

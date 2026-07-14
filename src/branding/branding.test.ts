@@ -14,7 +14,9 @@ describe('brand resolution', () => {
     expect(getActiveBrand()).toBe(defaultBrand)
     expect(defaultBrand.official).toBe(true)
     expect(defaultBrand.appName).toBe('Clikarage')
-    expect(defaultBrand.logoUrl).toBe('/branding/clikarage-logo.png')
+    expect(defaultBrand.logoLightUrl).toBe('/branding/clikarage-logo-light.svg')
+    expect(defaultBrand.logoDarkUrl).toBe('/branding/clikarage-logo-dark.svg')
+    expect(defaultBrand.logoIconUrl).toBe('/branding/clikarage-icon.svg')
     // No color override → the default app is visually unchanged.
     expect(defaultBrand.primaryColor).toBeUndefined()
   })
@@ -40,10 +42,12 @@ describe('exitBrandDemo — single centralized reset', () => {
   it('removes gf-brand and the selected center, back to default', () => {
     localStorage.setItem('gf-brand', 'speedy')
     localStorage.setItem('gf-selected-center', 'ctr-1')
+    localStorage.setItem('gf-lang', 'ar')
     exitBrandDemo()
     expect(localStorage.getItem('gf-brand')).toBeNull()
     expect(localStorage.getItem('gf-selected-center')).toBeNull()
     expect(resolveBrandId()).toBe('default')
+    expect(localStorage.getItem('gf-lang')).toBe('ar')
   })
 
   it('strips ?brand so a refresh cannot re-activate Speedy', () => {

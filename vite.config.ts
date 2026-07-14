@@ -20,9 +20,7 @@ export default defineConfig({
         display: 'standalone',
         start_url: './',
         scope: './',
-        icons: [
-          { src: 'branding/clikarage-logo.png', sizes: '1450x1118', type: 'image/png', purpose: 'any' },
-        ],
+        // Square PWA icons will be restored when authorized transparent assets are supplied.
       },
       workbox: { navigateFallbackDenylist: [/^\/api/], cleanupOutdatedCaches: true },
     }),

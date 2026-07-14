@@ -1,5 +1,7 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { env } from '@/lib/env'
+import { getStoredLang, useLang, type Lang } from '@/i18n'
+import { translate } from '@/i18n/catalog'
 import { defaultBrand } from './default'
 import { speedyBrand } from './speedy'
 import type { Brand, BrandId } from './types'
@@ -57,6 +59,11 @@ export function getActiveBrand(): Brand {
   return BRANDS[resolveBrandId()]
 }
 
+/** Brand config by id, for read-only contexts that must not activate a brand. */
+export function getBrand(id: BrandId): Brand {
+  return BRANDS[id]
+}
+
 /** Remove the `brand` param from BOTH the query string and the hash query, in
  *  place (history.replaceState) — so a refresh never re-activates a brand. */
 function stripBrandParam() {
@@ -96,7 +103,7 @@ function clearSelectedCenter() {
 }
 
 /** Apply brand overrides to <html>: CSS color vars, title, favicon, theme-color. */
-function applyBrand(brand: Brand) {
+function applyBrand(brand: Brand, lang: Lang = getStoredLang()) {
   if (typeof document === 'undefined') return
   const root = document.documentElement
   const setVar = (k: string, v?: string) => (v ? root.style.setProperty(k, v) : root.style.removeProperty(k))
@@ -105,7 +112,7 @@ function applyBrand(brand: Brand) {
   setVar('--ring', brand.primaryColor)
   setVar('--accent', brand.accentColor)
   setVar('--primary-foreground', brand.primaryForeground)
-  document.title = brand.publicAppTitle
+  document.title = translate(lang, brand.publicAppTitle)
   const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
   if (link && brand.favicon) link.href = brand.favicon
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
@@ -141,12 +148,13 @@ interface BrandContextValue {
 const BrandContext = createContext<BrandContextValue | null>(null)
 
 export function BrandProvider({ children }: { children: React.ReactNode }) {
+  const { lang } = useLang()
   const [brandId, setBrandId] = useState<BrandId>(() => resolveBrandId())
   const brand = BRANDS[brandId]
 
   useEffect(() => {
-    applyBrand(brand)
-  }, [brand])
+    applyBrand(brand, lang)
+  }, [brand, lang])
 
   const setBrand = useCallback((id: BrandId) => {
     try {
