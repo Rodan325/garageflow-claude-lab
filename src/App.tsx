@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import { MarketingShell } from '@/components/shells/MarketingShell'
 import { ProShell } from '@/components/shells/ProShell'
 import { ClientShell } from '@/components/shells/ClientShell'
@@ -54,6 +55,7 @@ export function App() {
       <DemoNotice />
       <ConfigBanner />
       <DemoBanner />
+      <Analytics />
       <Routes>
         <Route path="/demo/:brand" element={<BrandDemoEntry />} />
         <Route path="/" element={<MarketingShell><HomePage /></MarketingShell>} />
