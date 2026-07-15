@@ -120,6 +120,67 @@ describe('demo workshop timeline', () => {
   })
 })
 
+describe('demo diagnostic recommendations', () => {
+  function loadFreshDemo() {
+    const store = ensureStoreShape('force-reseed', 'default')
+    localStorage.setItem(STORE_KEY, JSON.stringify(store))
+    reloadDemoCache()
+    return demo.garageRequests()[0]
+  }
+
+  it('records an accepted customer decision with legal versions and language', () => {
+    const request = loadFreshDemo()
+    const recommendation = demo.recommendations(request.id, true)[0]
+
+    const decided = demo.decideRecommendation({
+      recommendationId: recommendation.id,
+      action: 'accepted',
+      language: 'en',
+    })
+
+    expect(decided.status).toBe('accepted')
+    expect(decided.decided_at).toBeTruthy()
+    const event = demo.recommendationDecisions(recommendation.id, true).at(-1)
+    expect(event?.action).toBe('accepted')
+    expect(event?.displayed_language).toBe('en')
+    expect(event?.legal_terms_version).toBeTruthy()
+    expect(event?.legal_privacy_version).toBeTruthy()
+  })
+
+  it('keeps a proposed recommendation open when the customer asks a question', () => {
+    const request = loadFreshDemo()
+    const recommendation = demo.recommendations(request.id, true)[0]
+
+    const decided = demo.decideRecommendation({
+      recommendationId: recommendation.id,
+      action: 'question',
+      note: 'Pouvez-vous me rappeler avec le détail ?',
+      language: 'fr',
+    })
+
+    expect(decided.status).toBe('proposed')
+    expect(decided.decided_at).toBeNull()
+    expect(demo.recommendationDecisions(recommendation.id, true).at(-1)?.action).toBe('question')
+  })
+
+  it('links a supplemental quote to its recommendation without changing existing quotes', () => {
+    const request = loadFreshDemo()
+    const recommendation = demo.recommendations(request.id)[0]
+    const existingIds = demo.quotes().map((quote) => quote.id)
+    const quote = demo.createQuote({
+      garage_id: request.garage_id,
+      title: recommendation.title,
+      service_request_id: request.id,
+    }, [{ label: recommendation.title, quantity: 1, unit_price: 289, tax_rate: 20 }])
+
+    const linked = demo.linkRecommendationQuote(recommendation.id, quote.id)
+
+    expect(linked.recommendation_id).toBe(recommendation.id)
+    expect(linked.supplemental_to_quote_id).toBeNull()
+    expect(demo.quotes().filter((item) => existingIds.includes(item.id)).every((item) => item.recommendation_id === null)).toBe(true)
+  })
+})
+
 describe('demo quote token detection', () => {
   function saveQuoteStore(brand: DemoBrand, key: string, token: string) {
     const store = ensureStoreShape('force-reseed', brand)

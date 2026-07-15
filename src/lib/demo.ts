@@ -16,6 +16,15 @@ import { computeQuoteTotals, lineTotal } from '@/lib/quoteTotals'
 import { quoteSendBlockReason } from '@/lib/quoteStatus'
 import { legalVersions } from '@/config/legal'
 import { assertWorkshopTransition, isWorkshopStage } from '@/features/workshop/lifecycle'
+import {
+  canStaffTransitionRecommendation,
+  customerDecisionStatus,
+  type RecommendationDecision,
+  type RecommendationDecisionEvent,
+  type RecommendationStatus,
+  type RecommendationUrgency,
+  type WorkshopRecommendation,
+} from '@/features/recommendations/model'
 
 const totalsFrom = (lines: Partial<QuoteLine>[]) =>
   computeQuoteTotals(lines.map((l) => ({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 })))
@@ -110,6 +119,8 @@ interface Store {
   requests: ServiceRequest[]
   messages: ServiceRequestMessage[]
   workshopTimeline: ServiceRequestTimelineEvent[]
+  recommendations: WorkshopRecommendation[]
+  recommendationDecisions: RecommendationDecisionEvent[]
   appointments: Appointment[]
   repairs: Repair[]
   tasks: Task[]
@@ -242,6 +253,27 @@ function seed(brand: DemoBrand = 'default'): Store {
       notification_status: 'simulated',
     },
   ]
+  const recommendations: WorkshopRecommendation[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      service_request_id: requests[0].id, title: 'Remplacement des disques de frein avant',
+      description: 'Usure avancée constatée pendant le diagnostic. Le remplacement est recommandé avec les plaquettes.',
+      category: 'Freinage', urgency: 'recommended', reason: 'Épaisseur proche de la limite constructeur.',
+      estimated_price: 289, estimated_duration_minutes: 90, affects_delivery_time: true,
+      proposed_delivery_at: new Date(Date.now() + 6 * 3600000).toISOString(), status: 'proposed',
+      created_by: DEMO_STAFF_ID, created_at: new Date(Date.now() - 45 * 60000).toISOString(),
+      decided_at: null, customer_decision_note: null,
+    },
+  ]
+  const recommendationDecisions: RecommendationDecisionEvent[] = [
+    {
+      id: uid(), recommendation_id: recommendations[0].id, garage_id: DEMO_GARAGE_ID,
+      service_request_id: requests[0].id, action: 'proposed', previous_status: 'draft',
+      new_status: 'proposed', decided_by: DEMO_STAFF_ID,
+      occurred_at: recommendations[0].created_at, legal_terms_version: null,
+      legal_privacy_version: null, displayed_language: null, note: null, visible_to_customer: true,
+    },
+  ]
   const repair = (title: string, status: string, vehicle_id: string | null, symptom: string): Repair => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, vehicle_id, customer_id: null, appointment_id: null,
     title, symptom, diagnostic: null, status, assigned_to: null, notes: null,
@@ -311,6 +343,7 @@ function seed(brand: DemoBrand = 'default'): Store {
       revised_from: o.revisedFrom ?? null,
       accepted_terms_version: o.acceptedAgo == null ? null : legalVersions.terms,
       accepted_privacy_version: o.acceptedAgo == null ? null : legalVersions.privacy,
+      recommendation_id: null, supplemental_to_quote_id: null,
     }
     quotes.push(q)
     return q
@@ -335,7 +368,8 @@ function seed(brand: DemoBrand = 'default'): Store {
 
   return {
     garages: [g], centers, services, news, hours, customers, vehicles, clientVehicles, requests,
-    messages: [], workshopTimeline, appointments: [], repairs, tasks, quotes, quoteLines,
+    messages: [], workshopTimeline, recommendations, recommendationDecisions,
+    appointments: [], repairs, tasks, quotes, quoteLines,
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
     reqSeq: 1, quoteSeq: qseq,
   }
@@ -346,6 +380,7 @@ const QUOTE_LIFECYCLE_DEFAULTS = {
   client_token: null, sent_at: null, accepted_at: null, declined_at: null,
   decline_reason: null, revised_from: null,
   accepted_terms_version: null, accepted_privacy_version: null,
+  recommendation_id: null, supplemental_to_quote_id: null,
 } as const
 
 /**
@@ -377,6 +412,8 @@ export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): St
     requests: arr('requests'),
     messages: arr('messages'),
     workshopTimeline: arr('workshopTimeline'),
+    recommendations: arr('recommendations'),
+    recommendationDecisions: arr('recommendationDecisions'),
     appointments: arr('appointments'),
     repairs: arr('repairs'),
     tasks: arr('tasks'),
@@ -529,6 +566,14 @@ export const demo = {
       .filter((event) => event.request_id === requestId)
       .sort((a, b) => +new Date(a.occurred_at) - +new Date(b.occurred_at)),
   ),
+  recommendations: (requestId: string, customerView = false) => clone(
+    load().recommendations.filter((item) => item.service_request_id === requestId
+      && (!customerView || !['draft', 'cancelled'].includes(item.status))),
+  ),
+  recommendationDecisions: (recommendationId: string, customerView = false) => clone(
+    load().recommendationDecisions.filter((event) => event.recommendation_id === recommendationId
+      && (!customerView || event.visible_to_customer)),
+  ),
   clientVehicles: () => clone(load().clientVehicles),
   clientProfile: () => clone(load().clientProfile),
   vehicles: () => clone([...load().vehicles].sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at))),
@@ -621,6 +666,108 @@ export const demo = {
     s.workshopTimeline.push(event)
     save()
     return clone(event)
+  },
+  createRecommendation: (input: {
+    requestId: string
+    title: string
+    description?: string | null
+    category?: string | null
+    urgency?: RecommendationUrgency
+    reason?: string | null
+    estimatedPrice?: number | null
+    estimatedDurationMinutes?: number | null
+    affectsDeliveryTime?: boolean
+    proposedDeliveryAt?: string | null
+  }): WorkshopRecommendation => {
+    const s = load()
+    const request = s.requests.find((row) => row.id === input.requestId)
+    if (!request) throw new Error('Service request not found')
+    if (!input.title.trim()) throw new Error('Recommendation title is required')
+    const row: WorkshopRecommendation = {
+      id: uid(), garage_id: request.garage_id, center_id: request.center_id,
+      service_request_id: request.id, title: input.title.trim(),
+      description: input.description?.trim() || null, category: input.category?.trim() || null,
+      urgency: input.urgency ?? 'recommended', reason: input.reason?.trim() || null,
+      estimated_price: input.estimatedPrice ?? null,
+      estimated_duration_minutes: input.estimatedDurationMinutes ?? null,
+      affects_delivery_time: input.affectsDeliveryTime ?? false,
+      proposed_delivery_at: input.proposedDeliveryAt ?? null,
+      status: 'draft', created_by: DEMO_STAFF_ID, created_at: new Date().toISOString(),
+      decided_at: null, customer_decision_note: null,
+    }
+    if ((row.estimated_price ?? 0) < 0 || (row.estimated_duration_minutes ?? 0) < 0) {
+      throw new Error('Invalid recommendation estimate')
+    }
+    s.recommendations.push(row)
+    save()
+    return clone(row)
+  },
+  setRecommendationStatus: (recommendationId: string, newStatus: RecommendationStatus, note?: string | null) => {
+    const s = load()
+    const recommendation = s.recommendations.find((item) => item.id === recommendationId)
+    if (!recommendation) throw new Error('Recommendation not found')
+    const previousStatus = recommendation.status
+    if (!canStaffTransitionRecommendation(previousStatus, newStatus)) {
+      throw new Error(`Invalid recommendation transition from ${previousStatus} to ${newStatus}`)
+    }
+    recommendation.status = newStatus
+    const event: RecommendationDecisionEvent = {
+      id: uid(), recommendation_id: recommendation.id, garage_id: recommendation.garage_id,
+      service_request_id: recommendation.service_request_id,
+      action: newStatus as RecommendationDecisionEvent['action'], previous_status: previousStatus,
+      new_status: newStatus, decided_by: DEMO_STAFF_ID, occurred_at: new Date().toISOString(),
+      legal_terms_version: null, legal_privacy_version: null, displayed_language: null,
+      note: note?.trim() || null, visible_to_customer: true,
+    }
+    s.recommendationDecisions.push(event)
+    save()
+    return clone(recommendation)
+  },
+  decideRecommendation: (input: {
+    recommendationId: string
+    action: RecommendationDecision
+    note?: string | null
+    language: 'fr' | 'en' | 'ar'
+  }) => {
+    const s = load()
+    const recommendation = s.recommendations.find((item) => item.id === input.recommendationId)
+    if (!recommendation) throw new Error('Recommendation not found')
+    if (input.action === 'question' && !input.note?.trim()) throw new Error('A question is required')
+    const previousStatus = recommendation.status
+    const newStatus = customerDecisionStatus(input.action, previousStatus)
+    recommendation.status = newStatus
+    recommendation.customer_decision_note = input.note?.trim() || null
+    if (input.action !== 'question') recommendation.decided_at = new Date().toISOString()
+    const event: RecommendationDecisionEvent = {
+      id: uid(), recommendation_id: recommendation.id, garage_id: recommendation.garage_id,
+      service_request_id: recommendation.service_request_id, action: input.action,
+      previous_status: previousStatus, new_status: newStatus, decided_by: DEMO_CLIENT_ID,
+      occurred_at: new Date().toISOString(), legal_terms_version: legalVersions.terms,
+      legal_privacy_version: legalVersions.privacy, displayed_language: input.language,
+      note: input.note?.trim() || null, visible_to_customer: true,
+    }
+    s.recommendationDecisions.push(event)
+    save()
+    return clone(recommendation)
+  },
+  linkRecommendationQuote: (recommendationId: string, quoteId: string, parentQuoteId?: string | null) => {
+    const s = load()
+    const recommendation = s.recommendations.find((item) => item.id === recommendationId)
+    const quote = s.quotes.find((item) => item.id === quoteId)
+    const parent = parentQuoteId ? s.quotes.find((item) => item.id === parentQuoteId) : null
+    if (!recommendation || !quote) throw new Error('Recommendation or quote not found')
+    if (recommendation.garage_id !== quote.garage_id
+      || recommendation.service_request_id !== quote.service_request_id) {
+      throw new Error('Recommendation and quote do not belong to the same case')
+    }
+    if (parentQuoteId && (!parent || parent.garage_id !== quote.garage_id
+      || parent.service_request_id !== quote.service_request_id)) {
+      throw new Error('Invalid parent quote')
+    }
+    quote.recommendation_id = recommendation.id
+    quote.supplemental_to_quote_id = parentQuoteId ?? null
+    save()
+    return clone(quote)
   },
   addRequestMessage: (input: Partial<ServiceRequestMessage>): ServiceRequestMessage => {
     const s = load()
@@ -814,6 +961,8 @@ export const demo = {
       client_token: null, sent_at: null, accepted_at: null, declined_at: null,
       decline_reason: null, revised_from: null,
       accepted_terms_version: null, accepted_privacy_version: null,
+      recommendation_id: quote.recommendation_id ?? null,
+      supplemental_to_quote_id: quote.supplemental_to_quote_id ?? null,
     }
     s.quotes.unshift(row)
     lines.forEach((l, i) =>

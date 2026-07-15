@@ -1,4 +1,5 @@
 import { ArrowRight, Clock3, ShieldCheck, TriangleAlert, Wrench } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Badge, StatusPill } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -10,6 +11,7 @@ import { useTransitionWorkshopStage } from '@/data/workshop'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useLang } from '@/i18n'
 import { dateTime } from '@/lib/format'
+import { recommendationsEnabled } from '@/lib/features'
 import type { ServiceRequest, WorkshopStage } from '@/types/domain'
 import {
   allowedWorkshopTransitions,
@@ -160,6 +162,14 @@ function WorkshopRequestCard({
             <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
           </Button>
         ))}
+        {recommendationsEnabled() && currentStage !== null && (
+          <Link
+            to={`/pro/workshop/${request.id}/recommendations`}
+            className="inline-flex w-full items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium text-primary hover:bg-muted"
+          >
+            {tr('Diagnostic et recommandations')}
+          </Link>
+        )}
       </div>
     </Card>
   )

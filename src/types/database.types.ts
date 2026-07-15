@@ -864,6 +864,72 @@ export type Database = {
           },
         ]
       }
+      recommendation_decisions: {
+        Row: {
+          action: string
+          decided_by: string | null
+          displayed_language: string | null
+          garage_id: string
+          id: string
+          legal_privacy_version: string | null
+          legal_terms_version: string | null
+          new_status: string
+          note: string | null
+          occurred_at: string
+          previous_status: string
+          recommendation_id: string
+          service_request_id: string
+          visible_to_customer: boolean
+        }
+        Insert: {
+          action: string
+          decided_by?: string | null
+          displayed_language?: string | null
+          garage_id: string
+          id?: string
+          legal_privacy_version?: string | null
+          legal_terms_version?: string | null
+          new_status: string
+          note?: string | null
+          occurred_at?: string
+          previous_status: string
+          recommendation_id: string
+          service_request_id: string
+          visible_to_customer?: boolean
+        }
+        Update: {
+          action?: string
+          decided_by?: string | null
+          displayed_language?: string | null
+          garage_id?: string
+          id?: string
+          legal_privacy_version?: string | null
+          legal_terms_version?: string | null
+          new_status?: string
+          note?: string | null
+          occurred_at?: string
+          previous_status?: string
+          recommendation_id?: string
+          service_request_id?: string
+          visible_to_customer?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_decisions_recommendation_garage_fk"
+            columns: ["recommendation_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "workshop_recommendations"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "recommendation_decisions_request_garage_fk"
+            columns: ["service_request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           accepted_at: string | null
@@ -884,11 +950,13 @@ export type Database = {
           notes: string | null
           number: string
           repair_id: string | null
+          recommendation_id: string | null
           revised_from: string | null
           sent_at: string | null
           service_request_id: string | null
           status: string
           subtotal: number
+          supplemental_to_quote_id: string | null
           tax_total: number
           title: string
           total: number
@@ -915,11 +983,13 @@ export type Database = {
           notes?: string | null
           number: string
           repair_id?: string | null
+          recommendation_id?: string | null
           revised_from?: string | null
           sent_at?: string | null
           service_request_id?: string | null
           status?: string
           subtotal?: number
+          supplemental_to_quote_id?: string | null
           tax_total?: number
           title: string
           total?: number
@@ -946,11 +1016,13 @@ export type Database = {
           notes?: string | null
           number?: string
           repair_id?: string | null
+          recommendation_id?: string | null
           revised_from?: string | null
           sent_at?: string | null
           service_request_id?: string | null
           status?: string
           subtotal?: number
+          supplemental_to_quote_id?: string | null
           tax_total?: number
           title?: string
           total?: number
@@ -981,6 +1053,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "quotes_recommendation_garage_fk"
+            columns: ["recommendation_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "workshop_recommendations"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
             foreignKeyName: "quotes_revised_from_fkey"
             columns: ["revised_from"]
             isOneToOne: false
@@ -993,6 +1072,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "service_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_supplemental_to_garage_fk"
+            columns: ["supplemental_to_quote_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id", "garage_id"]
           },
           {
             foreignKeyName: "quotes_vehicle_id_fkey"
@@ -1321,6 +1407,84 @@ export type Database = {
           },
         ]
       }
+      workshop_recommendations: {
+        Row: {
+          affects_delivery_time: boolean
+          category: string | null
+          center_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_decision_note: string | null
+          decided_at: string | null
+          description: string | null
+          estimated_duration_minutes: number | null
+          estimated_price: number | null
+          garage_id: string
+          id: string
+          proposed_delivery_at: string | null
+          reason: string | null
+          service_request_id: string
+          status: string
+          title: string
+          urgency: string
+        }
+        Insert: {
+          affects_delivery_time?: boolean
+          category?: string | null
+          center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_decision_note?: string | null
+          decided_at?: string | null
+          description?: string | null
+          estimated_duration_minutes?: number | null
+          estimated_price?: number | null
+          garage_id: string
+          id?: string
+          proposed_delivery_at?: string | null
+          reason?: string | null
+          service_request_id: string
+          status?: string
+          title: string
+          urgency?: string
+        }
+        Update: {
+          affects_delivery_time?: boolean
+          category?: string | null
+          center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_decision_note?: string | null
+          decided_at?: string | null
+          description?: string | null
+          estimated_duration_minutes?: number | null
+          estimated_price?: number | null
+          garage_id?: string
+          id?: string
+          proposed_delivery_at?: string | null
+          reason?: string | null
+          service_request_id?: string
+          status?: string
+          title?: string
+          urgency?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_recommendations_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "workshop_recommendations_request_garage_fk"
+            columns: ["service_request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_to: string | null
@@ -1466,6 +1630,32 @@ export type Database = {
         Args: { p_token: string; p_terms_version?: string; p_privacy_version?: string }
         Returns: Json
       }
+      create_workshop_recommendation: {
+        Args: {
+          p_request_id: string
+          p_title: string
+          p_description?: string | null
+          p_category?: string | null
+          p_urgency?: string
+          p_reason?: string | null
+          p_estimated_price?: number | null
+          p_estimated_duration_minutes?: number | null
+          p_affects_delivery_time?: boolean
+          p_proposed_delivery_at?: string | null
+        }
+        Returns: Database["public"]["Tables"]["workshop_recommendations"]["Row"]
+      }
+      decide_workshop_recommendation: {
+        Args: {
+          p_recommendation_id: string
+          p_action: string
+          p_note?: string | null
+          p_terms_version?: string | null
+          p_privacy_version?: string | null
+          p_displayed_language?: string | null
+        }
+        Returns: Database["public"]["Tables"]["workshop_recommendations"]["Row"]
+      }
       create_quote_with_lines: {
         Args: { p_lines: Json; p_quote: Json }
         Returns: {
@@ -1519,6 +1709,14 @@ export type Database = {
         Returns: boolean
       }
       is_garage_member: { Args: { p_garage_id: string }; Returns: boolean }
+      link_recommendation_quote: {
+        Args: {
+          p_recommendation_id: string
+          p_quote_id: string
+          p_supplemental_to_quote_id?: string | null
+        }
+        Returns: Database["public"]["Tables"]["quotes"]["Row"]
+      }
       next_quote_number: { Args: { p_garage_id: string }; Returns: string }
       transition_workshop_stage: {
         Args: {
@@ -1568,6 +1766,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_workshop_recommendation_status: {
+        Args: { p_recommendation_id: string; p_new_status: string; p_note?: string | null }
+        Returns: Database["public"]["Tables"]["workshop_recommendations"]["Row"]
       }
       send_quote: {
         Args: { p_id: string }

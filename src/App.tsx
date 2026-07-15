@@ -28,6 +28,7 @@ import { QuotePrintPage } from '@/features/pro/QuotePrintPage'
 import { ServicesPage } from '@/features/pro/ServicesPage'
 import { TeamPage } from '@/features/pro/TeamPage'
 import { SettingsPage } from '@/features/pro/SettingsPage'
+import { RecommendationsPage } from '@/features/recommendations/RecommendationsPage'
 // Client
 import { ClientHomePage } from '@/features/client/ClientHomePage'
 import { ClientNewsPage } from '@/features/client/ClientNewsPage'
@@ -69,6 +70,7 @@ export function App() {
           <Route path="vehicles" element={<VehiclesPage />} />
           <Route path="clients" element={<ClientsPage />} />
           <Route path="workshop" element={<WorkshopPage />} />
+          <Route path="workshop/:requestId/recommendations" element={<RecommendationsPage />} />
           <Route path="services" element={<ServicesPage />} />
           <Route path="quotes" element={<QuotesPage />} />
           <Route path="quotes/new" element={<QuoteEditorPage />} />

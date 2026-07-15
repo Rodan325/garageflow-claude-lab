@@ -13,8 +13,9 @@ import { requestStatusMeta } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { localizeDemoText } from '@/i18n/demoContent'
 import { shortDate, shortTime, fromNow } from '@/lib/format'
-import { workshopTimelineEnabled } from '@/lib/features'
+import { recommendationsEnabled, workshopTimelineEnabled } from '@/lib/features'
 import { CustomerWorkshopTimeline } from '@/features/workshop/CustomerWorkshopTimeline'
+import { CustomerRecommendations } from '@/features/recommendations/CustomerRecommendations'
 
 export function ClientBookingDetailPage() {
   const { lang, tr } = useLang()
@@ -74,6 +75,7 @@ export function ClientBookingDetailPage() {
       </Card>
 
       {workshopTimelineEnabled() && <CustomerWorkshopTimeline requestId={request.id} />}
+      {recommendationsEnabled() && <CustomerRecommendations requestId={request.id} />}
 
       <div className="mt-5">
         <p className="mb-2 text-sm font-semibold">{tr('Échanges avec le garage')}</p>
