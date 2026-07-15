@@ -15,6 +15,8 @@ const roots = [
   'src/features/recommendations',
   'src/features/attachments',
   'src/features/notifications',
+  'src/features/reports',
+  'src/features/reminders',
   'src/components',
   'src/lib',
 ]

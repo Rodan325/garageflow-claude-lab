@@ -28,6 +28,8 @@ export const env = {
   enableRecommendations: clean(import.meta.env.VITE_ENABLE_RECOMMENDATIONS) === 'true',
   enableAttachments: clean(import.meta.env.VITE_ENABLE_ATTACHMENTS) === 'true',
   enableNotifications: clean(import.meta.env.VITE_ENABLE_NOTIFICATIONS) === 'true',
+  enableDeliveryReports: clean(import.meta.env.VITE_ENABLE_DELIVERY_REPORTS) === 'true',
+  enableMaintenanceReminders: clean(import.meta.env.VITE_ENABLE_MAINTENANCE_REMINDERS) === 'true',
   /** Optional white-label brand for a dedicated build/preview (e.g. 'speedy'). Empty = default. */
   brand: clean(import.meta.env.VITE_BRAND),
 }

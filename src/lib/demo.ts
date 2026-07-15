@@ -27,6 +27,8 @@ import {
 } from '@/features/recommendations/model'
 import type { AttachmentDocumentType, AttachmentVisibility, ServiceRequestAttachment } from '@/features/attachments/model'
 import type { NotificationEvent, NotificationOutboxItem } from '@/features/notifications/model'
+import type { DeliveryReport } from '@/features/reports/model'
+import type { MaintenanceReminder, ReminderType } from '@/features/reminders/model'
 
 const totalsFrom = (lines: Partial<QuoteLine>[]) =>
   computeQuoteTotals(lines.map((l) => ({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 })))
@@ -125,6 +127,8 @@ interface Store {
   recommendationDecisions: RecommendationDecisionEvent[]
   attachments: ServiceRequestAttachment[]
   notificationOutbox: NotificationOutboxItem[]
+  deliveryReports: DeliveryReport[]
+  maintenanceReminders: MaintenanceReminder[]
   appointments: Appointment[]
   repairs: Repair[]
   tasks: Task[]
@@ -308,6 +312,39 @@ function seed(brand: DemoBrand = 'default'): Store {
       failed_at: null, error_code: null, created_at: recommendations[0].created_at,
     },
   ]
+  const deliveryReports: DeliveryReport[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      service_request_id: requests[0].id, report_number: `RI-${today().getFullYear()}-0001`,
+      status: 'finalized', customer_snapshot: { name: 'Julie Durand', phone: '+33 6 55 44 33 22' },
+      vehicle_snapshot: { label: 'Volkswagen Golf 7', registration: 'IJ-789-KL' },
+      entry_mileage: 98000, exit_mileage: 98008,
+      checked_in_at: requests[0].vehicle_checked_in_at,
+      delivered_at: new Date(Date.now() - 12 * 3600000).toISOString(),
+      requested_work: ['Contrôle du freinage avant'],
+      diagnostic_summary: 'Usure des plaquettes et des disques avant constatée.',
+      completed_work: ['Remplacement des plaquettes de frein avant', 'Contrôle du liquide de frein'],
+      accepted_recommendations: ['Remplacement des disques de frein avant'],
+      deferred_recommendations: ['Contrôle des pneumatiques sous 3 000 km'],
+      parts: ['Jeu de plaquettes avant'], authorized_attachment_ids: [attachments[0].id],
+      observations: 'Essai routier et contrôle final conformes.', next_due_date: isoIn(180),
+      next_due_mileage: 108000, warranty_terms: 'Pièces et main-d’œuvre garanties 12 mois.',
+      final_validation: 'Contrôle qualité validé par Sophie Martin.', finalized_by: DEMO_STAFF_ID,
+      finalized_at: new Date(Date.now() - 12 * 3600000).toISOString(),
+      created_at: new Date(Date.now() - 13 * 3600000).toISOString(), updated_at: new Date(Date.now() - 12 * 3600000).toISOString(),
+    },
+  ]
+  const maintenanceReminders: MaintenanceReminder[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      client_id: DEMO_CLIENT_ID, vehicle_id: null, client_vehicle_id: clientVehicles[0].id,
+      service_request_id: requests[0].id, reminder_type: 'date_or_mileage',
+      title: 'Prochaine révision', due_date: isoIn(180), due_mileage: 108000,
+      status: 'scheduled', scheduled_at: isoIn(170), sent_at: null,
+      converted_request_id: null, source: 'delivery_report', created_by: DEMO_STAFF_ID,
+      created_at: new Date().toISOString(),
+    },
+  ]
   const repair = (title: string, status: string, vehicle_id: string | null, symptom: string): Repair => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, vehicle_id, customer_id: null, appointment_id: null,
     title, symptom, diagnostic: null, status, assigned_to: null, notes: null,
@@ -403,7 +440,7 @@ function seed(brand: DemoBrand = 'default'): Store {
   return {
     garages: [g], centers, services, news, hours, customers, vehicles, clientVehicles, requests,
     messages: [], workshopTimeline, recommendations, recommendationDecisions,
-    attachments, notificationOutbox,
+    attachments, notificationOutbox, deliveryReports, maintenanceReminders,
     appointments: [], repairs, tasks, quotes, quoteLines,
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
     reqSeq: 1, quoteSeq: qseq,
@@ -451,6 +488,8 @@ export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): St
     recommendationDecisions: arr('recommendationDecisions'),
     attachments: arr('attachments'),
     notificationOutbox: arr('notificationOutbox'),
+    deliveryReports: arr('deliveryReports'),
+    maintenanceReminders: arr('maintenanceReminders'),
     appointments: arr('appointments'),
     repairs: arr('repairs'),
     tasks: arr('tasks'),
@@ -642,6 +681,15 @@ export const demo = {
   notificationOutbox: (garageId: string) => clone(
     load().notificationOutbox.filter((item) => item.garage_id === garageId)
       .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)),
+  ),
+  deliveryReport: (requestId: string, customerView = false) => clone(
+    load().deliveryReports.find((report) => report.service_request_id === requestId
+      && (!customerView || report.status === 'finalized')) ?? null,
+  ),
+  maintenanceReminders: (garageId?: string, clientId?: string) => clone(
+    load().maintenanceReminders.filter((reminder) => (!garageId || reminder.garage_id === garageId)
+      && (!clientId || reminder.client_id === clientId))
+      .sort((a, b) => +new Date(a.scheduled_at) - +new Date(b.scheduled_at)),
   ),
   clientVehicles: () => clone(load().clientVehicles),
   clientProfile: () => clone(load().clientProfile),
@@ -894,6 +942,100 @@ export const demo = {
     s.attachments.push(row)
     save()
     return clone(row)
+  },
+  saveDeliveryReport: (requestId: string, patch: Partial<DeliveryReport>, finalize = false) => {
+    const s = load()
+    const request = s.requests.find((item) => item.id === requestId)
+    if (!request) throw new Error('Service request not found')
+    const existing = s.deliveryReports.find((item) => item.service_request_id === requestId)
+    if (existing?.status === 'finalized') throw new Error('Finalized delivery report is immutable')
+    const now = new Date().toISOString()
+    const row: DeliveryReport = Object.assign(existing ? { ...existing } : {
+      id: uid(), garage_id: request.garage_id, center_id: request.center_id,
+      service_request_id: request.id, report_number: `RI-${today().getFullYear()}-${String(s.deliveryReports.length + 1).padStart(4, '0')}`,
+      status: 'draft' as const, customer_snapshot: {}, vehicle_snapshot: {},
+      entry_mileage: null, exit_mileage: null, checked_in_at: request.vehicle_checked_in_at,
+      delivered_at: request.vehicle_delivered_at, requested_work: [], diagnostic_summary: null,
+      completed_work: [], accepted_recommendations: [], deferred_recommendations: [], parts: [],
+      authorized_attachment_ids: [], observations: null, next_due_date: null,
+      next_due_mileage: null, warranty_terms: null, final_validation: null,
+      finalized_by: null, finalized_at: null, created_at: now, updated_at: now,
+    }, patch, {
+      status: finalize ? 'finalized' : 'draft', finalized_by: finalize ? DEMO_STAFF_ID : null,
+      finalized_at: finalize ? now : null, updated_at: now,
+    })
+    if ((row.entry_mileage ?? 0) < 0 || (row.exit_mileage ?? 0) < 0
+      || (row.entry_mileage !== null && row.exit_mileage !== null && row.exit_mileage < row.entry_mileage)) {
+      throw new Error('Invalid report mileage')
+    }
+    if (existing) Object.assign(existing, row)
+    else s.deliveryReports.push(row)
+    save()
+    return clone(row)
+  },
+  createMaintenanceReminder: (input: {
+    garageId: string
+    centerId?: string | null
+    clientId: string
+    vehicleId?: string | null
+    clientVehicleId?: string | null
+    serviceRequestId?: string | null
+    reminderType: ReminderType
+    title: string
+    dueDate?: string | null
+    dueMileage?: number | null
+    scheduledAt?: string
+    source?: string
+    language?: 'fr' | 'en' | 'ar'
+  }) => {
+    const s = load()
+    if (!input.dueDate && input.dueMileage == null) throw new Error('A date or mileage is required')
+    const row: MaintenanceReminder = {
+      id: uid(), garage_id: input.garageId, center_id: input.centerId ?? null,
+      client_id: input.clientId, vehicle_id: input.vehicleId ?? null,
+      client_vehicle_id: input.clientVehicleId ?? null,
+      service_request_id: input.serviceRequestId ?? null, reminder_type: input.reminderType,
+      title: input.title, due_date: input.dueDate ?? null, due_mileage: input.dueMileage ?? null,
+      status: 'scheduled', scheduled_at: input.scheduledAt ?? new Date().toISOString(),
+      sent_at: null, converted_request_id: null, source: input.source ?? 'manual',
+      created_by: DEMO_STAFF_ID, created_at: new Date().toISOString(),
+    }
+    s.maintenanceReminders.push(row)
+    const notificationTime = new Date().toISOString()
+    s.notificationOutbox.unshift({
+      id: uid(), garage_id: input.garageId, center_id: input.centerId ?? null,
+      service_request_id: input.serviceRequestId ?? null, recipient_user_id: input.clientId,
+      recipient_address: 'client@demo.fr', channel: 'in_app', template_key: 'maintenance_reminder',
+      language: input.language ?? 'fr', payload: { reminder_id: row.id }, status: 'simulated',
+      provider: 'demo-simulator', provider_message_id: `simulated-maintenance_reminder-in_app`,
+      attempts: 1, scheduled_at: notificationTime, sent_at: notificationTime,
+      failed_at: null, error_code: null, created_at: notificationTime,
+    })
+    save()
+    return clone(row)
+  },
+  convertMaintenanceReminder: (reminderId: string) => {
+    const s = load()
+    const reminder = s.maintenanceReminders.find((item) => item.id === reminderId)
+    if (!reminder) throw new Error('Reminder not found')
+    s.reqSeq += 1
+    const vehicle = s.clientVehicles.find((item) => item.id === reminder.client_vehicle_id)
+    const request: ServiceRequest = {
+      id: uid(), reference: 'GF-' + String(s.reqSeq).padStart(5, '0'), garage_id: reminder.garage_id,
+      center_id: reminder.center_id, client_id: reminder.client_id, client_stage: 'request_sent',
+      service_id: null, service_name: reminder.title, client_vehicle_id: reminder.client_vehicle_id,
+      vehicle_label: vehicle ? `${vehicle.brand} ${vehicle.model} · ${vehicle.registration ?? ''}`.trim() : null,
+      requested_date: reminder.due_date, requested_time: null, proposed_date: null, proposed_time: null,
+      note: 'Demande créée depuis un rappel d’entretien.', contact_name: 'Julie Durand',
+      contact_phone: '+33 6 55 44 33 22', contact_email: 'client@demo.fr', status: 'pending',
+      customer_id: null, appointment_id: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      workshop_stage: null, estimated_completion_at: null, vehicle_checked_in_at: null, vehicle_delivered_at: null,
+    }
+    s.requests.unshift(request)
+    reminder.status = 'converted'
+    reminder.converted_request_id = request.id
+    save()
+    return { reminder: clone(reminder), request: clone(request) }
   },
   addRequestMessage: (input: Partial<ServiceRequestMessage>): ServiceRequestMessage => {
     const s = load()

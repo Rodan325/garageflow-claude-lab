@@ -11,7 +11,7 @@ import { useTransitionWorkshopStage } from '@/data/workshop'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useLang } from '@/i18n'
 import { dateTime } from '@/lib/format'
-import { recommendationsEnabled } from '@/lib/features'
+import { deliveryReportsEnabled, recommendationsEnabled } from '@/lib/features'
 import type { ServiceRequest, WorkshopStage } from '@/types/domain'
 import {
   allowedWorkshopTransitions,
@@ -168,6 +168,14 @@ function WorkshopRequestCard({
             className="inline-flex w-full items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium text-primary hover:bg-muted"
           >
             {tr('Diagnostic et recommandations')}
+          </Link>
+        )}
+        {deliveryReportsEnabled() && currentStage !== null && (
+          <Link
+            to={`/pro/workshop/${request.id}/report`}
+            className="inline-flex w-full items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium text-primary hover:bg-muted"
+          >
+            {tr('Rapport de restitution')}
           </Link>
         )}
       </div>

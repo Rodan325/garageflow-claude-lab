@@ -42,6 +42,14 @@ export function notificationsEnabled(): boolean {
   return isDemo() || env.enableNotifications
 }
 
+export function deliveryReportsEnabled(): boolean {
+  return isDemo() || env.enableDeliveryReports
+}
+
+export function maintenanceRemindersEnabled(): boolean {
+  return isDemo() || env.enableMaintenanceReminders
+}
+
 /**
  * True when a PostgREST/Postgres error means the queried table or column does
  * not exist yet (migration not applied). Used to fail soft instead of throwing.

@@ -30,6 +30,8 @@ import { TeamPage } from '@/features/pro/TeamPage'
 import { SettingsPage } from '@/features/pro/SettingsPage'
 import { RecommendationsPage } from '@/features/recommendations/RecommendationsPage'
 import { NotificationsPage } from '@/features/notifications/NotificationsPage'
+import { DeliveryReportPage } from '@/features/reports/DeliveryReportPage'
+import { RemindersPage } from '@/features/reminders/RemindersPage'
 // Client
 import { ClientHomePage } from '@/features/client/ClientHomePage'
 import { ClientNewsPage } from '@/features/client/ClientNewsPage'
@@ -72,7 +74,9 @@ export function App() {
           <Route path="clients" element={<ClientsPage />} />
           <Route path="workshop" element={<WorkshopPage />} />
           <Route path="workshop/:requestId/recommendations" element={<RecommendationsPage />} />
+          <Route path="workshop/:requestId/report" element={<DeliveryReportPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="reminders" element={<RemindersPage />} />
           <Route path="services" element={<ServicesPage />} />
           <Route path="quotes" element={<QuotesPage />} />
           <Route path="quotes/new" element={<QuoteEditorPage />} />

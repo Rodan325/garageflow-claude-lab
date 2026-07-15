@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  Bell, CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, ScrollText, Settings, Tags, Users, Wrench, X,
+  Bell, BellRing, CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, ScrollText, Settings, Tags, Users, Wrench, X,
 } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
@@ -17,7 +17,7 @@ import { roleLabel } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
-import { notificationsEnabled } from '@/lib/features'
+import { maintenanceRemindersEnabled, notificationsEnabled } from '@/lib/features'
 
 const essentiel = [
   { to: '/pro', label: 'Tableau de bord', icon: Gauge, end: true },
@@ -42,9 +42,11 @@ export function ProShell() {
   const { mode, set } = useProMode()
   const [open, setOpen] = useState(false)
   const { lang, tr } = useLang()
-  const advancedItems = notificationsEnabled()
-    ? [...avance, { to: '/pro/notifications', label: 'Notifications', icon: Bell, end: false }]
-    : avance
+  const advancedItems = [
+    ...avance,
+    ...(maintenanceRemindersEnabled() ? [{ to: '/pro/reminders', label: 'Rappels d’entretien', icon: BellRing, end: false }] : []),
+    ...(notificationsEnabled() ? [{ to: '/pro/notifications', label: 'Notifications', icon: Bell, end: false }] : []),
+  ]
 
   const itemClass = ({ isActive }: { isActive: boolean }) =>
     cn(

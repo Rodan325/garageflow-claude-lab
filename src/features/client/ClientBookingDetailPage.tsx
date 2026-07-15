@@ -13,10 +13,11 @@ import { requestStatusMeta } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { localizeDemoText } from '@/i18n/demoContent'
 import { shortDate, shortTime, fromNow } from '@/lib/format'
-import { attachmentsEnabled, recommendationsEnabled, workshopTimelineEnabled } from '@/lib/features'
+import { attachmentsEnabled, deliveryReportsEnabled, recommendationsEnabled, workshopTimelineEnabled } from '@/lib/features'
 import { CustomerWorkshopTimeline } from '@/features/workshop/CustomerWorkshopTimeline'
 import { CustomerRecommendations } from '@/features/recommendations/CustomerRecommendations'
 import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
+import { CustomerDeliveryReport } from '@/features/reports/CustomerDeliveryReport'
 
 export function ClientBookingDetailPage() {
   const { lang, tr } = useLang()
@@ -78,6 +79,7 @@ export function ClientBookingDetailPage() {
       {workshopTimelineEnabled() && <CustomerWorkshopTimeline requestId={request.id} />}
       {recommendationsEnabled() && <CustomerRecommendations requestId={request.id} />}
       {attachmentsEnabled() && <AttachmentsPanel garageId={request.garage_id} requestId={request.id} customerView />}
+      {deliveryReportsEnabled() && <CustomerDeliveryReport request={request} />}
 
       <div className="mt-5">
         <p className="mb-2 text-sm font-semibold">{tr('Échanges avec le garage')}</p>

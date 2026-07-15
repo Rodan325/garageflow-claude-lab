@@ -770,6 +770,157 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_reports: {
+        Row: {
+          accepted_recommendations: Json
+          authorized_attachment_ids: string[]
+          center_id: string | null
+          checked_in_at: string | null
+          completed_work: Json
+          created_at: string
+          customer_snapshot: Json
+          deferred_recommendations: Json
+          delivered_at: string | null
+          diagnostic_summary: string | null
+          entry_mileage: number | null
+          exit_mileage: number | null
+          final_validation: string | null
+          finalized_at: string | null
+          finalized_by: string | null
+          garage_id: string
+          id: string
+          next_due_date: string | null
+          next_due_mileage: number | null
+          observations: string | null
+          parts: Json
+          report_number: string
+          requested_work: Json
+          service_request_id: string
+          status: string
+          updated_at: string
+          vehicle_snapshot: Json
+          warranty_terms: string | null
+        }
+        Insert: {
+          accepted_recommendations?: Json
+          authorized_attachment_ids?: string[]
+          center_id?: string | null
+          checked_in_at?: string | null
+          completed_work?: Json
+          created_at?: string
+          customer_snapshot?: Json
+          deferred_recommendations?: Json
+          delivered_at?: string | null
+          diagnostic_summary?: string | null
+          entry_mileage?: number | null
+          exit_mileage?: number | null
+          final_validation?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          garage_id: string
+          id?: string
+          next_due_date?: string | null
+          next_due_mileage?: number | null
+          observations?: string | null
+          parts?: Json
+          report_number: string
+          requested_work?: Json
+          service_request_id: string
+          status?: string
+          updated_at?: string
+          vehicle_snapshot?: Json
+          warranty_terms?: string | null
+        }
+        Update: {
+          accepted_recommendations?: Json
+          authorized_attachment_ids?: string[]
+          center_id?: string | null
+          checked_in_at?: string | null
+          completed_work?: Json
+          customer_snapshot?: Json
+          deferred_recommendations?: Json
+          delivered_at?: string | null
+          diagnostic_summary?: string | null
+          entry_mileage?: number | null
+          exit_mileage?: number | null
+          final_validation?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          next_due_date?: string | null
+          next_due_mileage?: number | null
+          observations?: string | null
+          parts?: Json
+          requested_work?: Json
+          status?: string
+          updated_at?: string
+          vehicle_snapshot?: Json
+          warranty_terms?: string | null
+        }
+        Relationships: []
+      }
+      maintenance_reminders: {
+        Row: {
+          center_id: string | null
+          client_id: string
+          client_vehicle_id: string | null
+          converted_request_id: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          due_mileage: number | null
+          garage_id: string
+          id: string
+          reminder_type: string
+          scheduled_at: string
+          sent_at: string | null
+          service_request_id: string | null
+          source: string
+          status: string
+          title: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          center_id?: string | null
+          client_id: string
+          client_vehicle_id?: string | null
+          converted_request_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          due_mileage?: number | null
+          garage_id: string
+          id?: string
+          reminder_type: string
+          scheduled_at?: string
+          sent_at?: string | null
+          service_request_id?: string | null
+          source?: string
+          status?: string
+          title: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          center_id?: string | null
+          client_id?: string
+          client_vehicle_id?: string | null
+          converted_request_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          due_mileage?: number | null
+          garage_id?: string
+          id?: string
+          reminder_type?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          service_request_id?: string | null
+          source?: string
+          status?: string
+          title?: string
+          vehicle_id?: string | null
+        }
+        Relationships: []
+      }
       notification_outbox: {
         Row: {
           attempts: number
@@ -1796,6 +1947,24 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["workshop_recommendations"]["Row"]
       }
+      create_maintenance_reminder: {
+        Args: {
+          p_garage_id: string
+          p_center_id: string | null
+          p_client_id: string
+          p_vehicle_id: string | null
+          p_client_vehicle_id: string | null
+          p_service_request_id: string | null
+          p_reminder_type: string
+          p_title: string
+          p_due_date: string | null
+          p_due_mileage: number | null
+          p_scheduled_at?: string
+          p_source?: string
+          p_language?: string
+        }
+        Returns: Database["public"]["Tables"]["maintenance_reminders"]["Row"]
+      }
       decide_workshop_recommendation: {
         Args: {
           p_recommendation_id: string
@@ -1868,6 +2037,10 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["quotes"]["Row"]
       }
+      mark_maintenance_reminder_converted: {
+        Args: { p_reminder_id: string; p_request_id: string }
+        Returns: Database["public"]["Tables"]["maintenance_reminders"]["Row"]
+      }
       next_quote_number: { Args: { p_garage_id: string }; Returns: string }
       transition_workshop_stage: {
         Args: {
@@ -1930,6 +2103,10 @@ export type Database = {
           p_document_type?: string
         }
         Returns: Database["public"]["Tables"]["service_request_attachments"]["Row"]
+      }
+      save_delivery_report: {
+        Args: { p_request_id: string; p_report: Json; p_finalize?: boolean }
+        Returns: Database["public"]["Tables"]["delivery_reports"]["Row"]
       }
       set_workshop_recommendation_status: {
         Args: { p_recommendation_id: string; p_new_status: string; p_note?: string | null }
