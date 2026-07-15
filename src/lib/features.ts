@@ -34,6 +34,14 @@ export function recommendationsEnabled(): boolean {
   return isDemo() || env.enableRecommendations
 }
 
+export function attachmentsEnabled(): boolean {
+  return isDemo() || env.enableAttachments
+}
+
+export function notificationsEnabled(): boolean {
+  return isDemo() || env.enableNotifications
+}
+
 /**
  * True when a PostgREST/Postgres error means the queried table or column does
  * not exist yet (migration not applied). Used to fail soft instead of throwing.

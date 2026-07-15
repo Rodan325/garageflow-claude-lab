@@ -181,6 +181,48 @@ describe('demo diagnostic recommendations', () => {
   })
 })
 
+describe('demo attachments and notifications', () => {
+  function loadFreshDemo() {
+    const store = ensureStoreShape('force-reseed', 'default')
+    localStorage.setItem(STORE_KEY, JSON.stringify(store))
+    reloadDemoCache()
+    return demo.garageRequests()[0]
+  }
+
+  it('keeps internal files hidden from the customer while exposing shared files', () => {
+    const request = loadFreshDemo()
+    demo.addAttachment({
+      requestId: request.id,
+      fileName: 'controle-interne.pdf',
+      mimeType: 'application/pdf',
+      fileSize: 1200,
+      visibility: 'internal',
+      documentType: 'diagnostic',
+    })
+
+    expect(demo.attachments(request.id).map((item) => item.file_name)).toContain('controle-interne.pdf')
+    expect(demo.attachments(request.id, true).map((item) => item.file_name)).not.toContain('controle-interne.pdf')
+    expect(demo.attachments(request.id, true).some((item) => item.visibility === 'both')).toBe(true)
+  })
+
+  it('queues a simulated notification without an external provider call', () => {
+    const request = loadFreshDemo()
+    const before = demo.notificationOutbox(request.garage_id).length
+
+    demo.transitionWorkshopStage({
+      requestId: request.id,
+      newStage: 'customer_approval_required',
+      customerMessage: 'Votre accord est requis.',
+    })
+
+    const outbox = demo.notificationOutbox(request.garage_id)
+    expect(outbox).toHaveLength(before + 1)
+    expect(outbox[0]).toMatchObject({
+      template_key: 'approval_required', status: 'simulated', provider: 'demo-simulator', attempts: 1,
+    })
+  })
+})
+
 describe('demo quote token detection', () => {
   function saveQuoteStore(brand: DemoBrand, key: string, token: string) {
     const store = ensureStoreShape('force-reseed', brand)

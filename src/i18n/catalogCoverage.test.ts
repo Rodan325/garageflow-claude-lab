@@ -13,6 +13,8 @@ const roots = [
   'src/features/legal',
   'src/features/workshop',
   'src/features/recommendations',
+  'src/features/attachments',
+  'src/features/notifications',
   'src/components',
   'src/lib',
 ]

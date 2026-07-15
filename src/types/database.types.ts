@@ -770,6 +770,87 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_outbox: {
+        Row: {
+          attempts: number
+          center_id: string | null
+          channel: string
+          created_at: string
+          error_code: string | null
+          failed_at: string | null
+          garage_id: string
+          id: string
+          language: string
+          payload: Json
+          provider: string | null
+          provider_message_id: string | null
+          recipient_address: string | null
+          recipient_user_id: string | null
+          scheduled_at: string
+          sent_at: string | null
+          service_request_id: string | null
+          status: string
+          template_key: string
+        }
+        Insert: {
+          attempts?: number
+          center_id?: string | null
+          channel: string
+          created_at?: string
+          error_code?: string | null
+          failed_at?: string | null
+          garage_id: string
+          id?: string
+          language?: string
+          payload?: Json
+          provider?: string | null
+          provider_message_id?: string | null
+          recipient_address?: string | null
+          recipient_user_id?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          service_request_id?: string | null
+          status?: string
+          template_key: string
+        }
+        Update: {
+          attempts?: number
+          center_id?: string | null
+          channel?: string
+          created_at?: string
+          error_code?: string | null
+          failed_at?: string | null
+          garage_id?: string
+          id?: string
+          language?: string
+          payload?: Json
+          provider?: string | null
+          provider_message_id?: string | null
+          recipient_address?: string | null
+          recipient_user_id?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          service_request_id?: string | null
+          status?: string
+          template_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_outbox_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "notification_outbox_request_garage_fk"
+            columns: ["service_request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           account_type: string
@@ -1170,6 +1251,76 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_request_attachments: {
+        Row: {
+          center_id: string | null
+          created_at: string
+          document_type: string
+          file_name: string
+          file_size: number
+          garage_id: string
+          id: string
+          mime_type: string
+          recommendation_id: string | null
+          service_request_id: string
+          storage_path: string
+          uploaded_by: string | null
+          visibility: string
+        }
+        Insert: {
+          center_id?: string | null
+          created_at?: string
+          document_type?: string
+          file_name: string
+          file_size: number
+          garage_id: string
+          id?: string
+          mime_type: string
+          recommendation_id?: string | null
+          service_request_id: string
+          storage_path: string
+          uploaded_by?: string | null
+          visibility?: string
+        }
+        Update: {
+          center_id?: string | null
+          created_at?: string
+          document_type?: string
+          file_name?: string
+          file_size?: number
+          garage_id?: string
+          id?: string
+          mime_type?: string
+          recommendation_id?: string | null
+          service_request_id?: string
+          storage_path?: string
+          uploaded_by?: string | null
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_request_attachments_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "service_request_attachments_recommendation_garage_fk"
+            columns: ["recommendation_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "workshop_recommendations"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "service_request_attachments_request_garage_fk"
+            columns: ["service_request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
           },
         ]
       }
@@ -1766,6 +1917,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      register_service_request_attachment: {
+        Args: {
+          p_request_id: string
+          p_recommendation_id: string | null
+          p_file_name: string
+          p_mime_type: string
+          p_file_size: number
+          p_storage_path: string
+          p_visibility?: string
+          p_document_type?: string
+        }
+        Returns: Database["public"]["Tables"]["service_request_attachments"]["Row"]
       }
       set_workshop_recommendation_status: {
         Args: { p_recommendation_id: string; p_new_status: string; p_note?: string | null }

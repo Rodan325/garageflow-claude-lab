@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, ScrollText, Settings, Tags, Users, Wrench, X,
+  Bell, CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, ScrollText, Settings, Tags, Users, Wrench, X,
 } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
@@ -17,6 +17,7 @@ import { roleLabel } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
+import { notificationsEnabled } from '@/lib/features'
 
 const essentiel = [
   { to: '/pro', label: 'Tableau de bord', icon: Gauge, end: true },
@@ -41,6 +42,9 @@ export function ProShell() {
   const { mode, set } = useProMode()
   const [open, setOpen] = useState(false)
   const { lang, tr } = useLang()
+  const advancedItems = notificationsEnabled()
+    ? [...avance, { to: '/pro/notifications', label: 'Notifications', icon: Bell, end: false }]
+    : avance
 
   const itemClass = ({ isActive }: { isActive: boolean }) =>
     cn(
@@ -73,7 +77,7 @@ export function ProShell() {
             <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
               {tr('Atelier & gestion')}
             </p>
-            {avance.map(({ to, label, icon: Icon, end }) => (
+            {advancedItems.map(({ to, label, icon: Icon, end }) => (
               <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)} className={itemClass}>
                 <Icon className="h-[18px] w-[18px]" />
                 <span className="flex-1">{tr(label)}</span>

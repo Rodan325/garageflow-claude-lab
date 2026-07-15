@@ -25,6 +25,8 @@ import {
   type RecommendationUrgency,
   type WorkshopRecommendation,
 } from '@/features/recommendations/model'
+import type { AttachmentDocumentType, AttachmentVisibility, ServiceRequestAttachment } from '@/features/attachments/model'
+import type { NotificationEvent, NotificationOutboxItem } from '@/features/notifications/model'
 
 const totalsFrom = (lines: Partial<QuoteLine>[]) =>
   computeQuoteTotals(lines.map((l) => ({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 })))
@@ -121,6 +123,8 @@ interface Store {
   workshopTimeline: ServiceRequestTimelineEvent[]
   recommendations: WorkshopRecommendation[]
   recommendationDecisions: RecommendationDecisionEvent[]
+  attachments: ServiceRequestAttachment[]
+  notificationOutbox: NotificationOutboxItem[]
   appointments: Appointment[]
   repairs: Repair[]
   tasks: Task[]
@@ -274,6 +278,36 @@ function seed(brand: DemoBrand = 'default'): Store {
       legal_privacy_version: null, displayed_language: null, note: null, visible_to_customer: true,
     },
   ]
+  const attachments: ServiceRequestAttachment[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      service_request_id: requests[0].id, recommendation_id: recommendations[0].id,
+      uploaded_by: DEMO_STAFF_ID, file_name: 'controle-freins-avant.jpg',
+      mime_type: 'image/jpeg', file_size: 248000, storage_path: 'demo://controle-freins-avant.jpg',
+      visibility: 'both', document_type: 'photo', created_at: recommendations[0].created_at,
+    },
+  ]
+  const notificationOutbox: NotificationOutboxItem[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      service_request_id: requests[0].id, recipient_user_id: DEMO_CLIENT_ID,
+      recipient_address: null, channel: 'in_app', template_key: 'vehicle_received',
+      language: 'fr', payload: { stage: 'vehicle_received' }, status: 'simulated',
+      provider: 'demo-simulator', provider_message_id: `simulated-vehicle_received-in_app`,
+      attempts: 1, scheduled_at: new Date(Date.now() - 100 * 60000).toISOString(),
+      sent_at: new Date(Date.now() - 100 * 60000).toISOString(), failed_at: null,
+      error_code: null, created_at: new Date(Date.now() - 100 * 60000).toISOString(),
+    },
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      service_request_id: requests[0].id, recipient_user_id: DEMO_CLIENT_ID,
+      recipient_address: null, channel: 'in_app', template_key: 'recommendation_available',
+      language: 'fr', payload: { recommendation_id: recommendations[0].id }, status: 'simulated',
+      provider: 'demo-simulator', provider_message_id: `simulated-recommendation_available-in_app`,
+      attempts: 1, scheduled_at: recommendations[0].created_at, sent_at: recommendations[0].created_at,
+      failed_at: null, error_code: null, created_at: recommendations[0].created_at,
+    },
+  ]
   const repair = (title: string, status: string, vehicle_id: string | null, symptom: string): Repair => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, vehicle_id, customer_id: null, appointment_id: null,
     title, symptom, diagnostic: null, status, assigned_to: null, notes: null,
@@ -369,6 +403,7 @@ function seed(brand: DemoBrand = 'default'): Store {
   return {
     garages: [g], centers, services, news, hours, customers, vehicles, clientVehicles, requests,
     messages: [], workshopTimeline, recommendations, recommendationDecisions,
+    attachments, notificationOutbox,
     appointments: [], repairs, tasks, quotes, quoteLines,
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
     reqSeq: 1, quoteSeq: qseq,
@@ -414,6 +449,8 @@ export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): St
     workshopTimeline: arr('workshopTimeline'),
     recommendations: arr('recommendations'),
     recommendationDecisions: arr('recommendationDecisions'),
+    attachments: arr('attachments'),
+    notificationOutbox: arr('notificationOutbox'),
     appointments: arr('appointments'),
     repairs: arr('repairs'),
     tasks: arr('tasks'),
@@ -548,6 +585,30 @@ function buildPublicQuote(s: Store, token: string) {
   })
 }
 
+function queueDemoNotification(
+  store: Store,
+  input: {
+    garageId: string
+    centerId?: string | null
+    requestId?: string | null
+    recipientUserId?: string | null
+    templateKey: NotificationEvent
+    payload?: Record<string, unknown>
+  },
+) {
+  const now = new Date().toISOString()
+  const row: NotificationOutboxItem = {
+    id: uid(), garage_id: input.garageId, center_id: input.centerId ?? null,
+    service_request_id: input.requestId ?? null, recipient_user_id: input.recipientUserId ?? null,
+    recipient_address: null, channel: 'in_app', template_key: input.templateKey,
+    language: 'fr', payload: input.payload ?? {}, status: 'simulated', provider: 'demo-simulator',
+    provider_message_id: `simulated-${input.templateKey}-in_app`, attempts: 1,
+    scheduled_at: now, sent_at: now, failed_at: null, error_code: null, created_at: now,
+  }
+  store.notificationOutbox.unshift(row)
+  return row
+}
+
 // ---------- query helpers (mirror the real hooks) ----------
 export const demo = {
   garages: () => clone(load().garages),
@@ -573,6 +634,14 @@ export const demo = {
   recommendationDecisions: (recommendationId: string, customerView = false) => clone(
     load().recommendationDecisions.filter((event) => event.recommendation_id === recommendationId
       && (!customerView || event.visible_to_customer)),
+  ),
+  attachments: (requestId: string, customerView = false) => clone(
+    load().attachments.filter((attachment) => attachment.service_request_id === requestId
+      && (!customerView || ['customer', 'both'].includes(attachment.visibility))),
+  ),
+  notificationOutbox: (garageId: string) => clone(
+    load().notificationOutbox.filter((item) => item.garage_id === garageId)
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)),
   ),
   clientVehicles: () => clone(load().clientVehicles),
   clientProfile: () => clone(load().clientProfile),
@@ -664,6 +733,18 @@ export const demo = {
     }
     request.updated_at = occurredAt
     s.workshopTimeline.push(event)
+    const notificationByStage: Partial<Record<WorkshopStage, NotificationEvent>> = {
+      appointment_confirmed: 'appointment_confirmed', vehicle_received: 'vehicle_received',
+      customer_approval_required: 'approval_required', vehicle_ready: 'vehicle_ready',
+      vehicle_delivered: 'vehicle_delivered',
+    }
+    const templateKey = notificationByStage[input.newStage]
+    if (templateKey && event.visible_to_customer) {
+      queueDemoNotification(s, {
+        garageId: request.garage_id, centerId: request.center_id, requestId: request.id,
+        recipientUserId: request.client_id, templateKey, payload: { stage: input.newStage },
+      })
+    }
     save()
     return clone(event)
   },
@@ -720,6 +801,14 @@ export const demo = {
       note: note?.trim() || null, visible_to_customer: true,
     }
     s.recommendationDecisions.push(event)
+    if (newStatus === 'proposed') {
+      const request = s.requests.find((item) => item.id === recommendation.service_request_id)
+      queueDemoNotification(s, {
+        garageId: recommendation.garage_id, centerId: recommendation.center_id,
+        requestId: recommendation.service_request_id, recipientUserId: request?.client_id,
+        templateKey: 'recommendation_available', payload: { recommendation_id: recommendation.id },
+      })
+    }
     save()
     return clone(recommendation)
   },
@@ -747,6 +836,12 @@ export const demo = {
       note: input.note?.trim() || null, visible_to_customer: true,
     }
     s.recommendationDecisions.push(event)
+    queueDemoNotification(s, {
+      garageId: recommendation.garage_id, centerId: recommendation.center_id,
+      requestId: recommendation.service_request_id, recipientUserId: DEMO_STAFF_ID,
+      templateKey: 'message_received',
+      payload: { recommendation_id: recommendation.id, action: input.action },
+    })
     save()
     return clone(recommendation)
   },
@@ -768,6 +863,37 @@ export const demo = {
     quote.supplemental_to_quote_id = parentQuoteId ?? null
     save()
     return clone(quote)
+  },
+  addAttachment: (input: {
+    requestId: string
+    recommendationId?: string | null
+    fileName: string
+    mimeType: string
+    fileSize: number
+    visibility: AttachmentVisibility
+    documentType: AttachmentDocumentType
+  }): ServiceRequestAttachment => {
+    const s = load()
+    const request = s.requests.find((item) => item.id === input.requestId)
+    if (!request) throw new Error('Service request not found')
+    if (s.attachments.filter((item) => item.service_request_id === request.id).length >= 20) {
+      throw new Error('Attachment limit reached')
+    }
+    if (input.recommendationId && !s.recommendations.some((item) => item.id === input.recommendationId
+      && item.service_request_id === request.id)) {
+      throw new Error('Invalid recommendation attachment')
+    }
+    const row: ServiceRequestAttachment = {
+      id: uid(), garage_id: request.garage_id, center_id: request.center_id,
+      service_request_id: request.id, recommendation_id: input.recommendationId ?? null,
+      uploaded_by: DEMO_STAFF_ID, file_name: input.fileName, mime_type: input.mimeType,
+      file_size: input.fileSize, storage_path: `demo://${uid()}-${input.fileName}`,
+      visibility: input.visibility, document_type: input.documentType,
+      created_at: new Date().toISOString(),
+    }
+    s.attachments.push(row)
+    save()
+    return clone(row)
   },
   addRequestMessage: (input: Partial<ServiceRequestMessage>): ServiceRequestMessage => {
     const s = load()
@@ -1010,6 +1136,15 @@ export const demo = {
     q.status = 'sent'
     q.sent_at = new Date().toISOString()
     q.client_token = q.client_token ?? ('demo' + uid().replace(/-/g, '') + uid().replace(/-/g, ''))
+    if (q.service_request_id) {
+      const request = s.requests.find((item) => item.id === q.service_request_id)
+      if (request) {
+        queueDemoNotification(s, {
+          garageId: q.garage_id, centerId: request.center_id, requestId: request.id,
+          recipientUserId: request.client_id, templateKey: 'quote_available', payload: { quote_id: q.id },
+        })
+      }
+    }
     save()
     return clone(q)
   },

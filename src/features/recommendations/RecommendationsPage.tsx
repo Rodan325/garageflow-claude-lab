@@ -20,6 +20,8 @@ import {
   type RecommendationStatus,
   type RecommendationUrgency,
 } from './model'
+import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
+import { attachmentsEnabled } from '@/lib/features'
 
 export function RecommendationsPage() {
   const { requestId } = useParams()
@@ -113,6 +115,9 @@ export function RecommendationsPage() {
             )
           })}
         </div>
+      )}
+      {request && attachmentsEnabled() && (
+        <AttachmentsPanel garageId={request.garage_id} requestId={request.id} />
       )}
       {open && requestId && <NewRecommendationModal requestId={requestId} onClose={() => setOpen(false)} />}
     </div>
