@@ -12,6 +12,11 @@ export function euro(value?: number | null, lang: Lang = 'fr') {
   return new Intl.NumberFormat(LOCALES[lang], { style: 'currency', currency: 'EUR' }).format(value)
 }
 
+export function percent(value?: number | null, lang: Lang = 'fr') {
+  if (value === null || value === undefined) return dash
+  return new Intl.NumberFormat(LOCALES[lang], { style: 'percent', maximumFractionDigits: 1 }).format(value)
+}
+
 export function shortDate(value?: string | null, lang: Lang = 'fr') {
   if (!value) return dash
   const date = parseDate(value)
