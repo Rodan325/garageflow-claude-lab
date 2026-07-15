@@ -1,16 +1,12 @@
 import { env } from '@/lib/env'
-import { getActiveBrand } from '@/branding'
-import { isDemo } from '@/lib/demo'
+import { getDemoOrganizationKind, isDemo } from '@/lib/demo'
 
 /**
  * Whether the multi-center feature is active in the CURRENT context.
  *
- * Enabled ONLY when:
- *  - the active brand is `speedy` (the multi-center demo skin), OR
- *  - VITE_ENABLE_CENTERS='true' (a real deployment where 0022/0023 are applied).
- *
- * The plain Clikarage demo is therefore UNCHANGED: no center step, no forced
- * car-service catalog. This gates BOTH reads (garage_centers) AND writes
+ * Enabled only for a generic network demo account or by an explicit deployment
+ * flag once the center migrations are applied. Branding never changes business
+ * capabilities. This gates BOTH reads (garage_centers) AND writes
  * (center_id / client_stage on service_requests), so a production DB without
  * the migrations is never queried with columns/tables it does not have.
  *
@@ -18,7 +14,11 @@ import { isDemo } from '@/lib/demo'
  * not exist" errors (see isMissingSchemaError) and degrade to empty results.
  */
 export function centersEnabled(): boolean {
-  return getActiveBrand().id === 'speedy' || env.enableCenters
+  return (isDemo() && getDemoOrganizationKind() === 'network') || env.enableCenters || env.enableNetworkDashboard
+}
+
+export function networkDashboardEnabled(): boolean {
+  return (isDemo() && getDemoOrganizationKind() === 'network') || env.enableNetworkDashboard
 }
 
 /**

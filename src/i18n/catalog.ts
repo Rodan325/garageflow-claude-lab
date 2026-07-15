@@ -3,6 +3,18 @@ import type { Lang } from './index'
 type Variables = Record<string, string | number>
 
 const en: Record<string, string> = {
+  'Aucune donnée réseau disponible': 'No network data available',
+  'Vue réseau': 'Network overview',
+  'Comparez l’activité de vos établissements sans mélanger les organisations.': 'Compare your locations without mixing organization data.',
+  'Rendez-vous': 'Appointments',
+  'Interventions': 'Jobs',
+  'Montant des devis': 'Quote amount',
+  'Délai de décision': 'Decision time',
+  '{hours} h': '{hours} h',
+  'Durée moyenne': 'Average duration',
+  'Véhicules en attente': 'Vehicles waiting',
+  'Rappels convertis': 'Converted reminders',
+  'La satisfaction n’est pas affichée tant qu’aucun questionnaire n’est connecté.': 'Satisfaction is not shown until a survey is connected.',
   'Pilotez l’activité de votre atelier en temps réel.': 'Manage your workshop activity in real time.',
   'Période': 'Period',
   '7 derniers jours': 'Last 7 days',
@@ -389,6 +401,18 @@ const en: Record<string, string> = {
 }
 
 const ar: Record<string, string> = {
+  'Aucune donnée réseau disponible': 'لا توجد بيانات للشبكة',
+  'Vue réseau': 'نظرة عامة على الشبكة',
+  'Comparez l’activité de vos établissements sans mélanger les organisations.': 'قارن نشاط فروعك دون خلط بيانات المؤسسات.',
+  'Rendez-vous': 'المواعيد',
+  'Interventions': 'التدخلات',
+  'Montant des devis': 'قيمة عروض الأسعار',
+  'Délai de décision': 'مدة اتخاذ القرار',
+  '{hours} h': '{hours} س',
+  'Durée moyenne': 'متوسط المدة',
+  'Véhicules en attente': 'السيارات المنتظرة',
+  'Rappels convertis': 'التذكيرات المحولة',
+  'La satisfaction n’est pas affichée tant qu’aucun questionnaire n’est connecté.': 'لا يظهر رضا العملاء حتى يتم ربط استبيان.',
   'Pilotez l’activité de votre atelier en temps réel.': 'أدر نشاط ورشتك في الوقت الفعلي.',
   'Période': 'الفترة',
   '7 derniers jours': 'آخر 7 أيام',

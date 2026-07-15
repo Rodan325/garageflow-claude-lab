@@ -32,6 +32,7 @@ import { RecommendationsPage } from '@/features/recommendations/RecommendationsP
 import { NotificationsPage } from '@/features/notifications/NotificationsPage'
 import { DeliveryReportPage } from '@/features/reports/DeliveryReportPage'
 import { RemindersPage } from '@/features/reminders/RemindersPage'
+import { NetworkDashboardPage } from '@/features/network/NetworkDashboardPage'
 // Client
 import { ClientHomePage } from '@/features/client/ClientHomePage'
 import { ClientNewsPage } from '@/features/client/ClientNewsPage'
@@ -77,6 +78,7 @@ export function App() {
           <Route path="workshop/:requestId/report" element={<DeliveryReportPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="reminders" element={<RemindersPage />} />
+          <Route path="network" element={<NetworkDashboardPage />} />
           <Route path="services" element={<ServicesPage />} />
           <Route path="quotes" element={<QuotesPage />} />
           <Route path="quotes/new" element={<QuoteEditorPage />} />

@@ -40,6 +40,7 @@ export const DEMO_CLIENT_ID = 'demo-client'
 // Active role is PER-TAB (sessionStorage) so two tabs can run different roles
 // (client + garage) side by side; the demo DATA is shared (localStorage).
 const KIND_KEY = 'gf-demo'
+const ORGANIZATION_KIND_KEY = 'gf-demo-organization-kind'
 // Base key; brand-scoped at runtime (see storeKey()) so the default Clikarage
 // demo and the Speedy demo keep completely separate data.
 // v6: brand-scoped store; default brand reverts to the original catalog.
@@ -47,6 +48,17 @@ export const STORE_KEY = 'gf-demo-store-v6'
 export const SPEEDY_STORE_KEY = `${STORE_KEY}-speedy`
 
 export type DemoKind = 'garage' | 'client'
+export type DemoOrganizationKind = 'independent' | 'network'
+
+export function getDemoOrganizationKind(): DemoOrganizationKind {
+  return sessionStorage.getItem(ORGANIZATION_KIND_KEY) === 'network' ? 'network' : 'independent'
+}
+
+export function setDemoOrganizationKind(kind: DemoOrganizationKind) {
+  sessionStorage.setItem(ORGANIZATION_KIND_KEY, kind)
+  reloadDemoCache()
+  window.dispatchEvent(new Event('gf-demo-role'))
+}
 
 /** Which demo dataset to use: 'speedy' (car-service network) or 'default'. */
 export type DemoBrand = 'default' | 'speedy'
@@ -72,6 +84,7 @@ export function setDemoKind(kind: DemoKind) {
 }
 export function clearDemo() {
   sessionStorage.removeItem(KIND_KEY)
+  sessionStorage.removeItem(ORGANIZATION_KIND_KEY)
   window.dispatchEvent(new Event('gf-demo-role'))
 }
 
@@ -169,15 +182,15 @@ function seed(brand: DemoBrand = 'default'): Store {
     address: null, city, postal_code, phone: g.phone,
     is_active: true, sort_order, created_at: today().toISOString(),
   })
-  // Centers exist ONLY in the multi-center (Speedy) demo. The plain Clikarage
-  // demo has none → the booking flow stays the legacy 3-step flow.
-  const centers: GarageCenter[] = isSpeedy
-    ? [
-        ctr('lyon-part-dieu', 'Centre Part-Dieu', 'Lyon', '69003', 1),
-        ctr('villeurbanne', 'Centre Villeurbanne', 'Villeurbanne', '69100', 2),
-        ctr('lyon-gerland', 'Centre Gerland', 'Lyon', '69007', 3),
-      ]
-    : []
+  // Every demo dataset can represent the same generic organization. The
+  // account capability, never the white-label brand, decides whether centers
+  // are exposed in the product flow.
+  const centers: GarageCenter[] = [
+    ctr('atelier-central', 'Atelier Central', 'Lyon', '69003', 1),
+    ctr('atelier-nord', 'Atelier Nord', 'Villeurbanne', '69100', 2),
+    ctr('atelier-sud', 'Atelier Sud', 'Vénissieux', '69200', 3),
+  ]
+  const networkDemo = getDemoOrganizationKind() === 'network'
   const svc = (name: string, description: string, category: string, duration_minutes: number, price_from: number, sort_order: number): GarageService => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, name, description, category, duration_minutes,
     price_from, is_active: true, sort_order, created_at: today().toISOString(),
@@ -211,7 +224,7 @@ function seed(brand: DemoBrand = 'default'): Store {
   const requests: ServiceRequest[] = [
     {
       id: uid(), reference: 'GF-00001', garage_id: DEMO_GARAGE_ID, client_id: DEMO_CLIENT_ID,
-      center_id: isSpeedy ? centers[0].id : null, client_stage: isSpeedy ? 'request_sent' : null,
+      center_id: networkDemo ? centers[0].id : null, client_stage: networkDemo ? 'request_sent' : null,
       service_id: freinage.id, service_name: freinage.name,
       client_vehicle_id: 'demo-cv-1', vehicle_label: 'Volkswagen Golf 7 · IJ-789-KL',
       requested_date: isoIn(3), requested_time: '09:00', proposed_date: null, proposed_time: null,
@@ -1062,7 +1075,7 @@ export const demo = {
     const date = r.proposed_date ?? r.requested_date ?? isoIn(2)
     const time = (r.proposed_time ?? r.requested_time ?? '09:00').slice(0, 5)
     const appt: Appointment = {
-      id: uid(), garage_id: DEMO_GARAGE_ID, customer_id: customer.id, vehicle_id: null,
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: r.center_id, customer_id: customer.id, vehicle_id: null,
       service_request_id: r.id, assigned_to: null, title: `${r.service_name} — ${r.vehicle_label ?? ''}`.trim(),
       starts_at: new Date(`${date}T${time}:00`).toISOString(), ends_at: null, status: 'scheduled',
       notes: null, created_at: new Date().toISOString(),
@@ -1167,7 +1180,7 @@ export const demo = {
   createAppointment: (input: Partial<Appointment>): Appointment => {
     const s = load()
     const row: Appointment = {
-      id: uid(), garage_id: DEMO_GARAGE_ID, customer_id: null, vehicle_id: null, service_request_id: null,
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: input.center_id ?? null, customer_id: null, vehicle_id: null, service_request_id: null,
       assigned_to: null, title: input.title ?? '', starts_at: input.starts_at ?? new Date().toISOString(),
       ends_at: null, status: input.status ?? 'scheduled', notes: input.notes ?? null, created_at: new Date().toISOString(),
     }

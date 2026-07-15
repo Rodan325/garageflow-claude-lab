@@ -17,6 +17,7 @@ export type Database = {
       appointments: {
         Row: {
           assigned_to: string | null
+          center_id: string | null
           created_at: string
           customer_id: string | null
           ends_at: string | null
@@ -31,6 +32,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          center_id?: string | null
           created_at?: string
           customer_id?: string | null
           ends_at?: string | null
@@ -45,6 +47,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          center_id?: string | null
           created_at?: string
           customer_id?: string | null
           ends_at?: string | null
@@ -986,6 +989,13 @@ export type Database = {
           template_key?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "appointments_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
           {
             foreignKeyName: "notification_outbox_center_garage_fk"
             columns: ["center_id", "garage_id"]
@@ -1964,6 +1974,24 @@ export type Database = {
           p_language?: string
         }
         Returns: Database["public"]["Tables"]["maintenance_reminders"]["Row"]
+      }
+      get_network_dashboard: {
+        Args: { p_garage_id: string; p_start?: string | null; p_end?: string | null }
+        Returns: {
+          center_id: string
+          center_name: string
+          appointments: number
+          interventions: number
+          quote_amount: number
+          accepted_amount: number
+          acceptance_rate: number | null
+          average_decision_hours: number | null
+          average_intervention_hours: number | null
+          vehicles_waiting: number
+          delays: number
+          reminders_converted: number
+          satisfaction: number | null
+        }[]
       }
       decide_workshop_recommendation: {
         Args: {

@@ -17,6 +17,7 @@ const roots = [
   'src/features/notifications',
   'src/features/reports',
   'src/features/reminders',
+  'src/features/network',
   'src/components',
   'src/lib',
 ]

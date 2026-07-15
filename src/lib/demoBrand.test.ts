@@ -21,9 +21,10 @@ function withBrand(brand: 'default' | 'speedy', fn: () => void) {
 }
 
 describe('demo data is brand-scoped', () => {
-  it('the default Clikarage demo has NO centers and the original catalog', () => {
+  it('keeps generic center data available while preserving the original default catalog', () => {
     withBrand('default', () => {
-      expect(demo.centers()).toHaveLength(0)
+      expect(demo.centers()).toHaveLength(3)
+      expect(demo.garageRequests()[0].center_id).toBeNull()
       const names = demo.services().map((s) => s.name)
       expect(names).toContain('Révision constructeur')
       expect(names).not.toContain('Amortisseurs') // car-service-only
@@ -42,7 +43,8 @@ describe('demo data is brand-scoped', () => {
   it('keeps the two datasets isolated (separate storage keys)', () => {
     withBrand('speedy', () => { void demo.centers() }) // seeds + persists speedy store
     withBrand('default', () => {
-      expect(demo.centers()).toHaveLength(0) // default store untouched by speedy
+      expect(demo.centers()).toHaveLength(3)
+      expect(demo.services().map((service) => service.name)).toContain('Révision constructeur')
     })
   })
 })

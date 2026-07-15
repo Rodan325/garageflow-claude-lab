@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { centersEnabled, isMissingSchemaError } from './features'
-import { setDemoKind, clearDemo } from './demo'
+import { centersEnabled, isMissingSchemaError, networkDashboardEnabled } from './features'
+import { setDemoKind, clearDemo, setDemoOrganizationKind } from './demo'
 
 afterEach(() => {
   clearDemo()
@@ -36,8 +36,15 @@ describe('centersEnabled', () => {
     expect(centersEnabled()).toBe(false)
   })
 
-  it('is on under the Speedy brand', () => {
+  it('does not derive business capabilities from the Speedy branding', () => {
     localStorage.setItem('gf-brand', 'speedy')
+    expect(centersEnabled()).toBe(false)
+  })
+
+  it('is on for a generic network demo account', () => {
+    setDemoOrganizationKind('network')
+    setDemoKind('garage')
     expect(centersEnabled()).toBe(true)
+    expect(networkDashboardEnabled()).toBe(true)
   })
 })
