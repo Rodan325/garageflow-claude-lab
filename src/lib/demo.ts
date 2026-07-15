@@ -6,7 +6,8 @@
  */
 import type {
   Appointment, ClientProfile, ClientVehicle, Customer, Garage, GarageCenter, GarageHours,
-  GarageNews, GarageService, Quote, QuoteLine, Repair, ServiceRequest, ServiceRequestMessage, Task,
+  GarageNews, GarageService, Quote, QuoteLine, Repair, ServiceRequest, ServiceRequestMessage,
+  ServiceRequestTimelineEvent, Task, WorkshopStage,
 } from '@/types/domain'
 import type { DashboardStats, TeamMember } from '@/data/proData'
 import { DEFAULT_AUTO_SERVICES } from '@/data/defaultAutoServices'
@@ -14,6 +15,7 @@ import { resolveBrandId } from '@/branding'
 import { computeQuoteTotals, lineTotal } from '@/lib/quoteTotals'
 import { quoteSendBlockReason } from '@/lib/quoteStatus'
 import { legalVersions } from '@/config/legal'
+import { assertWorkshopTransition, isWorkshopStage } from '@/features/workshop/lifecycle'
 
 const totalsFrom = (lines: Partial<QuoteLine>[]) =>
   computeQuoteTotals(lines.map((l) => ({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 })))
@@ -107,6 +109,7 @@ interface Store {
   clientVehicles: ClientVehicle[]
   requests: ServiceRequest[]
   messages: ServiceRequestMessage[]
+  workshopTimeline: ServiceRequestTimelineEvent[]
   appointments: Appointment[]
   repairs: Repair[]
   tasks: Task[]
@@ -196,6 +199,47 @@ function seed(brand: DemoBrand = 'default'): Store {
       note: 'Bruit au freinage côté avant droit.', contact_name: 'Julie Durand',
       contact_phone: '+33 6 55 44 33 22', contact_email: 'client@demo.fr', status: 'pending',
       customer_id: null, appointment_id: null, created_at: today().toISOString(), updated_at: today().toISOString(),
+      workshop_stage: 'diagnosis_in_progress', estimated_completion_at: new Date(Date.now() + 4 * 3600000).toISOString(),
+      vehicle_checked_in_at: new Date(Date.now() - 2 * 3600000).toISOString(), vehicle_delivered_at: null,
+    },
+  ]
+  const workshopTimeline: ServiceRequestTimelineEvent[] = [
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: null, new_stage: 'appointment_confirmed',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 26 * 3600000).toISOString(),
+      internal_note: null, customer_message: 'Votre rendez-vous est confirmé.',
+      estimated_completion_at: null, visible_to_customer: true, notification_status: 'simulated',
+    },
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: 'appointment_confirmed', new_stage: 'vehicle_expected',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 24 * 3600000).toISOString(),
+      internal_note: null, customer_message: null, estimated_completion_at: null,
+      visible_to_customer: true, notification_status: 'simulated',
+    },
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: 'vehicle_expected', new_stage: 'vehicle_checked_in',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 2 * 3600000).toISOString(),
+      internal_note: 'Kilométrage et état du véhicule relevés.', customer_message: 'Votre véhicule a bien été déposé.',
+      estimated_completion_at: requests[0].estimated_completion_at, visible_to_customer: true,
+      notification_status: 'simulated',
+    },
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: 'vehicle_checked_in', new_stage: 'vehicle_received',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 100 * 60000).toISOString(),
+      internal_note: null, customer_message: null, estimated_completion_at: requests[0].estimated_completion_at,
+      visible_to_customer: true, notification_status: 'simulated',
+    },
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: 'vehicle_received', new_stage: 'diagnosis_in_progress',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 70 * 60000).toISOString(),
+      internal_note: 'Contrôle du train avant en cours.', customer_message: 'Le diagnostic de votre véhicule a commencé.',
+      estimated_completion_at: requests[0].estimated_completion_at, visible_to_customer: true,
+      notification_status: 'simulated',
     },
   ]
   const repair = (title: string, status: string, vehicle_id: string | null, symptom: string): Repair => ({
@@ -291,7 +335,7 @@ function seed(brand: DemoBrand = 'default'): Store {
 
   return {
     garages: [g], centers, services, news, hours, customers, vehicles, clientVehicles, requests,
-    messages: [], appointments: [], repairs, tasks, quotes, quoteLines,
+    messages: [], workshopTimeline, appointments: [], repairs, tasks, quotes, quoteLines,
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
     reqSeq: 1, quoteSeq: qseq,
   }
@@ -332,6 +376,7 @@ export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): St
     clientVehicles: arr('clientVehicles'),
     requests: arr('requests'),
     messages: arr('messages'),
+    workshopTimeline: arr('workshopTimeline'),
     appointments: arr('appointments'),
     repairs: arr('repairs'),
     tasks: arr('tasks'),
@@ -344,6 +389,12 @@ export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): St
   }
   // Backfill quote columns introduced after the store was first saved.
   store.quotes = store.quotes.map((q) => ({ ...QUOTE_LIFECYCLE_DEFAULTS, ...q }) as Quote)
+  store.requests = store.requests.map((request) => Object.assign({
+    workshop_stage: null,
+    estimated_completion_at: null,
+    vehicle_checked_in_at: null,
+    vehicle_delivered_at: null,
+  }, request))
   return store
 }
 
@@ -473,6 +524,11 @@ export const demo = {
   garageRequests: () => clone([...load().requests].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))),
   clientRequests: () => clone(load().requests.filter((r) => r.client_id === DEMO_CLIENT_ID).sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))),
   requestMessages: (requestId: string) => clone(load().messages.filter((m) => m.request_id === requestId)),
+  workshopTimeline: (requestId: string) => clone(
+    load().workshopTimeline
+      .filter((event) => event.request_id === requestId)
+      .sort((a, b) => +new Date(a.occurred_at) - +new Date(b.occurred_at)),
+  ),
   clientVehicles: () => clone(load().clientVehicles),
   clientProfile: () => clone(load().clientProfile),
   vehicles: () => clone([...load().vehicles].sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at))),
@@ -515,6 +571,8 @@ export const demo = {
       contact_phone: input.contact_phone ?? null, contact_email: input.contact_email ?? 'client@demo.fr',
       status: 'pending', customer_id: null, appointment_id: null,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      workshop_stage: null, estimated_completion_at: null,
+      vehicle_checked_in_at: null, vehicle_delivered_at: null,
     }
     s.requests.unshift(row)
     save()
@@ -526,6 +584,43 @@ export const demo = {
     if (r) Object.assign(r, patch, { updated_at: new Date().toISOString() })
     save()
     return r
+  },
+  transitionWorkshopStage: (input: {
+    requestId: string
+    newStage: WorkshopStage
+    internalNote?: string | null
+    customerMessage?: string | null
+    estimatedCompletionAt?: string | null
+    visibleToCustomer?: boolean
+  }): ServiceRequestTimelineEvent => {
+    const s = load()
+    const request = s.requests.find((row) => row.id === input.requestId)
+    if (!request) throw new Error('Service request not found')
+    const previousStage = isWorkshopStage(request.workshop_stage) ? request.workshop_stage : null
+    assertWorkshopTransition(previousStage, input.newStage)
+    const occurredAt = new Date().toISOString()
+    const event: ServiceRequestTimelineEvent = {
+      id: uid(), request_id: request.id, garage_id: request.garage_id,
+      center_id: request.center_id, previous_stage: previousStage, new_stage: input.newStage,
+      changed_by: DEMO_STAFF_ID, occurred_at: occurredAt,
+      internal_note: input.internalNote?.trim() || null,
+      customer_message: input.customerMessage?.trim() || null,
+      estimated_completion_at: input.estimatedCompletionAt ?? request.estimated_completion_at,
+      visible_to_customer: input.visibleToCustomer ?? true,
+      notification_status: 'simulated',
+    }
+    request.workshop_stage = input.newStage
+    request.estimated_completion_at = input.estimatedCompletionAt ?? request.estimated_completion_at
+    if (input.newStage === 'vehicle_checked_in' && !request.vehicle_checked_in_at) {
+      request.vehicle_checked_in_at = occurredAt
+    }
+    if (input.newStage === 'vehicle_delivered' && !request.vehicle_delivered_at) {
+      request.vehicle_delivered_at = occurredAt
+    }
+    request.updated_at = occurredAt
+    s.workshopTimeline.push(event)
+    save()
+    return clone(event)
   },
   addRequestMessage: (input: Partial<ServiceRequestMessage>): ServiceRequestMessage => {
     const s = load()

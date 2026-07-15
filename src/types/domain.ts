@@ -14,6 +14,7 @@ export type GarageNews = Tables<'garage_news'>
 export type GarageHours = Tables<'garage_hours'>
 export type ServiceRequest = Tables<'service_requests'>
 export type ServiceRequestMessage = Tables<'service_request_messages'>
+export type ServiceRequestTimelineEvent = Tables<'service_request_timeline'>
 export type Appointment = Tables<'appointments'>
 export type Repair = Tables<'repairs'>
 export type Quote = Tables<'quotes'>
@@ -57,6 +58,20 @@ export type RepairStatus =
   | 'delivered'
 
 export type Tone = 'neutral' | 'primary' | 'info' | 'success' | 'warning' | 'danger'
+
+export type WorkshopStage =
+  | 'appointment_confirmed'
+  | 'vehicle_expected'
+  | 'vehicle_checked_in'
+  | 'vehicle_received'
+  | 'diagnosis_in_progress'
+  | 'customer_approval_required'
+  | 'work_authorized'
+  | 'work_in_progress'
+  | 'quality_control'
+  | 'vehicle_ready'
+  | 'vehicle_delivered'
+  | 'closed'
 
 export const REQUEST_STATUS_META: Record<RequestStatus, { label: string; tone: Tone }> = {
   pending: { label: 'En attente', tone: 'warning' },

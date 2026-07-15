@@ -86,6 +86,40 @@ describe('demo centers — multi-center foundation', () => {
   })
 })
 
+describe('demo workshop timeline', () => {
+  it('persists a valid transition and appends a history event', () => {
+    const store = ensureStoreShape('force-reseed', 'default')
+    localStorage.setItem(STORE_KEY, JSON.stringify(store))
+    reloadDemoCache()
+    const request = demo.garageRequests()[0]
+    const before = demo.workshopTimeline(request.id)
+
+    const event = demo.transitionWorkshopStage({
+      requestId: request.id,
+      newStage: 'customer_approval_required',
+      customerMessage: 'Votre accord est requis.',
+    })
+
+    expect(event.previous_stage).toBe('diagnosis_in_progress')
+    expect(event.new_stage).toBe('customer_approval_required')
+    expect(event.notification_status).toBe('simulated')
+    expect(demo.workshopTimeline(request.id)).toHaveLength(before.length + 1)
+    expect(demo.garageRequests()[0].workshop_stage).toBe('customer_approval_required')
+  })
+
+  it('rejects an invalid transition without changing request or timeline', () => {
+    const store = ensureStoreShape('force-reseed', 'default')
+    localStorage.setItem(STORE_KEY, JSON.stringify(store))
+    reloadDemoCache()
+    const request = demo.garageRequests()[0]
+    const before = demo.workshopTimeline(request.id)
+
+    expect(() => demo.transitionWorkshopStage({ requestId: request.id, newStage: 'vehicle_ready' })).toThrow()
+    expect(demo.garageRequests()[0].workshop_stage).toBe('diagnosis_in_progress')
+    expect(demo.workshopTimeline(request.id)).toEqual(before)
+  })
+})
+
 describe('demo quote token detection', () => {
   function saveQuoteStore(brand: DemoBrand, key: string, token: string) {
     const store = ensureStoreShape('force-reseed', brand)

@@ -3,6 +3,18 @@ import type { Lang } from './index'
 type Variables = Record<string, string | number>
 
 const en: Record<string, string> = {
+  'Cycle atelier': 'Workshop lifecycle',
+  'Suivez chaque véhicule, de la confirmation du rendez-vous à sa restitution.': 'Track every vehicle from appointment confirmation to handover.',
+  'Aucun dossier atelier actif': 'No active workshop cases',
+  'Les demandes confirmées apparaîtront ici dès leur prise en charge.': 'Confirmed requests will appear here as soon as work begins.',
+  'Mise à jour enregistrée': 'Update saved',
+  'Transition impossible': 'Transition unavailable',
+  'Cette étape ne peut pas être appliquée à ce dossier.': 'This stage cannot be applied to this case.',
+  'Restitution estimée : {date}': 'Estimated handover: {date}',
+  'En retard': 'Delayed',
+  'Validation finale en cours': 'Final inspection in progress',
+  'Suivi de l’intervention': 'Work progress',
+  'Les étapes visibles sont mises à jour par votre atelier.': 'Visible stages are updated by your workshop.',
   'Clikarage': 'Clikarage',
   'Chargement…': 'Loading…', 'Une erreur est survenue': 'Something went wrong', 'Réessayer': 'Try again',
   'Annuler': 'Cancel', 'Confirmer': 'Confirm', 'Enregistrer': 'Save', 'Ajouter': 'Add', 'Modifier': 'Edit',
@@ -258,6 +270,18 @@ const en: Record<string, string> = {
 }
 
 const ar: Record<string, string> = {
+  'Cycle atelier': 'دورة العمل في الورشة',
+  'Suivez chaque véhicule, de la confirmation du rendez-vous à sa restitution.': 'تابع كل سيارة من تأكيد الموعد إلى تسليمها.',
+  'Aucun dossier atelier actif': 'لا توجد ملفات ورشة نشطة',
+  'Les demandes confirmées apparaîtront ici dès leur prise en charge.': 'ستظهر الطلبات المؤكدة هنا فور بدء معالجتها.',
+  'Mise à jour enregistrée': 'تم حفظ التحديث',
+  'Transition impossible': 'لا يمكن الانتقال',
+  'Cette étape ne peut pas être appliquée à ce dossier.': 'لا يمكن تطبيق هذه المرحلة على هذا الملف.',
+  'Restitution estimée : {date}': 'موعد التسليم المتوقع: {date}',
+  'En retard': 'متأخر',
+  'Validation finale en cours': 'الفحص النهائي جارٍ',
+  'Suivi de l’intervention': 'متابعة الأشغال',
+  'Les étapes visibles sont mises à jour par votre atelier.': 'تقوم الورشة بتحديث المراحل الظاهرة.',
   'Clikarage': 'Clikarage',
   'Chargement…': 'جارٍ التحميل…', 'Une erreur est survenue': 'حدث خطأ', 'Réessayer': 'إعادة المحاولة',
   'Annuler': 'إلغاء', 'Confirmer': 'تأكيد', 'Enregistrer': 'حفظ', 'Ajouter': 'إضافة', 'Modifier': 'تعديل',

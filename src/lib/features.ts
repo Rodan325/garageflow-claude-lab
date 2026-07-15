@@ -1,5 +1,6 @@
 import { env } from '@/lib/env'
 import { getActiveBrand } from '@/branding'
+import { isDemo } from '@/lib/demo'
 
 /**
  * Whether the multi-center feature is active in the CURRENT context.
@@ -18,6 +19,15 @@ import { getActiveBrand } from '@/branding'
  */
 export function centersEnabled(): boolean {
   return getActiveBrand().id === 'speedy' || env.enableCenters
+}
+
+/**
+ * The lifecycle tables are opt-in in real deployments until their additive
+ * migration has been applied. Local demo stores implement the same contract
+ * without touching Supabase, so they can safely exercise the complete flow.
+ */
+export function workshopTimelineEnabled(): boolean {
+  return isDemo() || env.enableWorkshopTimeline
 }
 
 /**

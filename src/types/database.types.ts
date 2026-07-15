@@ -1132,6 +1132,69 @@ export type Database = {
           },
         ]
       }
+      service_request_timeline: {
+        Row: {
+          center_id: string | null
+          changed_by: string | null
+          customer_message: string | null
+          estimated_completion_at: string | null
+          garage_id: string
+          id: string
+          internal_note: string | null
+          new_stage: string
+          notification_status: string
+          occurred_at: string
+          previous_stage: string | null
+          request_id: string
+          visible_to_customer: boolean
+        }
+        Insert: {
+          center_id?: string | null
+          changed_by?: string | null
+          customer_message?: string | null
+          estimated_completion_at?: string | null
+          garage_id: string
+          id?: string
+          internal_note?: string | null
+          new_stage: string
+          notification_status?: string
+          occurred_at?: string
+          previous_stage?: string | null
+          request_id: string
+          visible_to_customer?: boolean
+        }
+        Update: {
+          center_id?: string | null
+          changed_by?: string | null
+          customer_message?: string | null
+          estimated_completion_at?: string | null
+          garage_id?: string
+          id?: string
+          internal_note?: string | null
+          new_stage?: string
+          notification_status?: string
+          occurred_at?: string
+          previous_stage?: string | null
+          request_id?: string
+          visible_to_customer?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_request_timeline_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "service_request_timeline_request_garage_fk"
+            columns: ["request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
+          },
+        ]
+      }
       service_requests: {
         Row: {
           appointment_id: string | null
@@ -1156,7 +1219,11 @@ export type Database = {
           service_name: string
           status: string
           updated_at: string
+          estimated_completion_at: string | null
+          vehicle_checked_in_at: string | null
+          vehicle_delivered_at: string | null
           vehicle_label: string | null
+          workshop_stage: string | null
         }
         Insert: {
           appointment_id?: string | null
@@ -1181,7 +1248,11 @@ export type Database = {
           service_name: string
           status?: string
           updated_at?: string
+          estimated_completion_at?: string | null
+          vehicle_checked_in_at?: string | null
+          vehicle_delivered_at?: string | null
           vehicle_label?: string | null
+          workshop_stage?: string | null
         }
         Update: {
           appointment_id?: string | null
@@ -1206,7 +1277,11 @@ export type Database = {
           service_name?: string
           status?: string
           updated_at?: string
+          estimated_completion_at?: string | null
+          vehicle_checked_in_at?: string | null
+          vehicle_delivered_at?: string | null
           vehicle_label?: string | null
+          workshop_stage?: string | null
         }
         Relationships: [
           {
@@ -1435,12 +1510,27 @@ export type Database = {
       }
       expire_quotes: { Args: never; Returns: number }
       get_quote_public: { Args: { p_token: string }; Returns: Json }
+      get_workshop_timeline: {
+        Args: { p_request_id: string }
+        Returns: Database["public"]["Tables"]["service_request_timeline"]["Row"][]
+      }
       has_garage_role: {
         Args: { p_garage_id: string; p_roles: string[] }
         Returns: boolean
       }
       is_garage_member: { Args: { p_garage_id: string }; Returns: boolean }
       next_quote_number: { Args: { p_garage_id: string }; Returns: string }
+      transition_workshop_stage: {
+        Args: {
+          p_request_id: string
+          p_new_stage: string
+          p_internal_note?: string | null
+          p_customer_message?: string | null
+          p_estimated_completion_at?: string | null
+          p_visible_to_customer?: boolean
+        }
+        Returns: Database["public"]["Tables"]["service_request_timeline"]["Row"]
+      }
       revise_quote: {
         Args: { p_id: string }
         Returns: {
