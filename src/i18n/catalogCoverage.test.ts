@@ -86,6 +86,8 @@ describe('demo content localization', () => {
     expect(arabic).toBe('صيانة حسب توصيات الصانع')
     expect(localizeDemoText(arabic, 'en')).toBe('Manufacturer service')
     expect(localizeDemoText('Manufacturer service', 'fr')).toBe('Révision constructeur')
+    expect(localizeDemoText('Prochaine révision', 'en')).toBe('Next service')
+    expect(localizeDemoText('Prochaine révision', 'ar')).toBe('الصيانة القادمة')
     expect(localizeDemoText('Texte libre du garage', 'ar')).toBe('Texte libre du garage')
   })
 

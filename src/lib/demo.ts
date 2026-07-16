@@ -1,8 +1,7 @@
 /**
- * Local demo mode — lets anyone explore Clikarage WITHOUT Supabase.
- * Data lives in localStorage (shared between tabs), so a booking made in the
- * "client" demo shows up in the "garage" demo inbox. This never replaces the
- * real Supabase mode: it only activates when explicitly entered.
+ * Product presentation data — lets anyone explore Clikarage without touching
+ * operational records. Shared browser storage keeps client and staff views in
+ * sync, and activation remains explicit.
  */
 import type {
   Appointment, ClientProfile, ClientVehicle, Customer, Garage, GarageCenter, GarageHours, GarageMember,
@@ -48,9 +47,8 @@ export const DEMO_CLIENT_ID = 'demo-client'
 const KIND_KEY = 'gf-demo'
 const ORGANIZATION_KIND_KEY = 'gf-demo-organization-kind'
 const ACCOUNT_KEY = 'gf-demo-account'
-// Base key; brand-scoped at runtime (see storeKey()) so the default Clikarage
-// demo and the Speedy demo keep completely separate data.
-// v6: brand-scoped store; default brand reverts to the original catalog.
+// Base key; brand-scoped at runtime (see storeKey()) so Clikarage and each
+// white-label presentation keep completely separate data.
 export const STORE_KEY = 'gf-demo-store-v6'
 export const SPEEDY_STORE_KEY = `${STORE_KEY}-speedy`
 
@@ -78,7 +76,7 @@ export function setDemoOrganizationKind(kind: DemoOrganizationKind) {
   window.dispatchEvent(new Event('gf-demo-role'))
 }
 
-/** Which demo dataset to use: 'speedy' (car-service network) or 'default'. */
+/** Brand-scoped presentation store; branding never changes product behavior. */
 export type DemoBrand = 'default' | 'speedy'
 export function getDemoBrand(): DemoBrand {
   return resolveBrandId() === 'speedy' ? 'speedy' : 'default'

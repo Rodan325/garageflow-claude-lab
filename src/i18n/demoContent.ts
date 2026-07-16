@@ -37,6 +37,7 @@ const content: Record<Exclude<Lang, 'fr'>, Record<string, string>> = {
     'La capacité mesurée est insuffisante pour garantir les prochains démarrages.': 'The measured capacity is too low to ensure reliable starts.',
     'Capacité résiduelle mesurée à 38 %.': 'Measured remaining capacity: 38%.',
     'Accord confirmé depuis l’espace client.': 'Approval confirmed in the customer workspace.',
+    'Prochaine révision': 'Next service',
   },
   ar: {
     'Révision constructeur': 'صيانة حسب توصيات الصانع', 'Vidange, filtres et points de contrôle complets.': 'تغيير الزيت والفلاتر وفحص شامل.',
@@ -73,6 +74,7 @@ const content: Record<Exclude<Lang, 'fr'>, Record<string, string>> = {
     'La capacité mesurée est insuffisante pour garantir les prochains démarrages.': 'السعة المقاسة غير كافية لضمان عمليات التشغيل القادمة.',
     'Capacité résiduelle mesurée à 38 %.': 'السعة المتبقية المقاسة 38٪.',
     'Accord confirmé depuis l’espace client.': 'تم تأكيد الموافقة من مساحة العميل.',
+    'Prochaine révision': 'الصيانة القادمة',
   },
 }
 

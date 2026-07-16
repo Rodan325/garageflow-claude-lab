@@ -20,8 +20,9 @@ export const env = {
   demoGarageSlug: clean(import.meta.env.VITE_DEMO_GARAGE_SLUG) || 'garage-central-lyon',
   /**
    * Multi-center feature flag (raw). Off unless explicitly 'true'. Real Supabase
-   * mode must keep this false until migrations 0022/0023 are applied, so the app
-   * never queries garage_centers or sends center_id to a schema without them.
+   * mode must keep this false until the timestamped center migrations are
+   * applied, so the app never queries garage_centers or sends center_id to a
+   * schema without them.
    */
   enableCenters: clean(import.meta.env.VITE_ENABLE_CENTERS) === 'true',
   enableWorkshopTimeline: clean(import.meta.env.VITE_ENABLE_WORKSHOP_TIMELINE) === 'true',

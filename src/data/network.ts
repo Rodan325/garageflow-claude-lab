@@ -7,6 +7,15 @@ import { demo, isDemo } from '@/lib/demo'
 import { networkDashboardEnabled } from '@/lib/features'
 import { supabase } from '@/lib/supabase'
 import { aggregateNetworkDashboard, type CenterNetworkMetrics } from '@/features/network/model'
+import type { GarageCenter } from '@/types/domain'
+
+export function resolveNetworkCenters(
+  demoMode: boolean,
+  queriedCenters: GarageCenter[] | undefined,
+  presentationCenters: GarageCenter[],
+) {
+  return demoMode ? presentationCenters : queriedCenters ?? []
+}
 
 export function useNetworkDashboard(garageId?: string) {
   const demoMode = isDemo()
@@ -26,16 +35,21 @@ export function useNetworkDashboard(garageId?: string) {
       return data as CenterNetworkMetrics[]
     },
   })
+  const availableCenters = resolveNetworkCenters(
+    demoMode,
+    centers.data,
+    demoMode ? demo.allCenters() : [],
+  )
   const demoRows = demoMode && networkDashboardEnabled()
     ? aggregateNetworkDashboard({
-        centers: centers.data ?? demo.allCenters(), requests: requests.data ?? demo.garageRequests(),
+        centers: availableCenters, requests: requests.data ?? demo.garageRequests(),
         quotes: quotes.data ?? demo.quotes(), appointments: appointments.data ?? demo.appointments(),
         reminders: reminders.data ?? demo.maintenanceReminders(garageId),
       })
     : []
   return {
     data: demoMode ? demoRows : remote.data,
-    centers: centers.data ?? [],
+    centers: availableCenters,
     isLoading: demoMode ? false : remote.isLoading || centers.isLoading,
     error: remote.error,
   }

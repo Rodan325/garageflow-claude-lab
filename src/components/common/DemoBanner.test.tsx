@@ -8,9 +8,10 @@ vi.mock('@/features/auth/AuthProvider', () => ({
 
 describe('DemoBanner', () => {
   it('shows a discreet product account notice without permanent reset actions', () => {
-    render(<DemoBanner />)
+    const { container } = render(<DemoBanner />)
 
     expect(screen.getByText('Compte de démonstration — les actions n’affectent aucune donnée réelle.')).toBeInTheDocument()
+    expect(container.firstChild).toHaveClass('bottom-20', 'sm:bottom-4')
     expect(screen.queryByRole('button', { name: 'Réinitialiser les données' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Quitter la démo' })).toBeNull()
   })

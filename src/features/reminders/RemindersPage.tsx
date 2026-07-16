@@ -11,6 +11,7 @@ import { useCreateMaintenanceReminder, useMaintenanceReminders } from '@/data/re
 import { useGarageRequests } from '@/data/requests'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useLang } from '@/i18n'
+import { localizeDemoText } from '@/i18n/demoContent'
 import { shortDate } from '@/lib/format'
 import { reminderStatusMeta, type ReminderType } from './model'
 
@@ -86,7 +87,7 @@ export function RemindersPage() {
               <Card key={reminder.id} className="flex flex-wrap items-center gap-3 p-3">
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary"><BellRing className="h-4 w-4" /></span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{reminder.title}</p>
+                  <p className="text-sm font-medium">{localizeDemoText(reminder.title, lang)}</p>
                   <p className="text-xs text-muted-foreground">
                     {[reminder.due_date ? shortDate(reminder.due_date, lang) : null, reminder.due_mileage !== null ? `${reminder.due_mileage} km` : null].filter(Boolean).join(' · ')}
                   </p>

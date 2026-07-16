@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card'
 import { useConvertMaintenanceReminder, useMaintenanceReminders } from '@/data/reminders'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useLang } from '@/i18n'
+import { localizeDemoText } from '@/i18n/demoContent'
 import { shortDate } from '@/lib/format'
 import { isDemo } from '@/lib/demo'
 
@@ -35,7 +36,7 @@ export function ClientMaintenanceReminders() {
           <Card key={reminder.id} className="flex flex-wrap items-center gap-3 p-3.5">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-warning/10 text-warning"><BellRing className="h-4 w-4" /></span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{reminder.title}</p>
+              <p className="text-sm font-medium">{localizeDemoText(reminder.title, lang)}</p>
               <p className="text-xs text-muted-foreground">{reminder.due_date ? shortDate(reminder.due_date, lang) : `${reminder.due_mileage} km`}</p>
             </div>
             <Button size="sm" variant="secondary" loading={convert.isPending} onClick={() => book(reminder.id)}>{tr('Prendre rendez-vous')}</Button>

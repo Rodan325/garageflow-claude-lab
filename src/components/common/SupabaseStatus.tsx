@@ -1,4 +1,4 @@
-import { Database, FlaskConical, WifiOff } from 'lucide-react'
+import { Database, WifiOff } from 'lucide-react'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { cn } from '@/lib/utils'
@@ -13,15 +13,7 @@ export function SupabaseStatus({ className }: { className?: string }) {
   const base = 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium'
 
   if (demo) {
-    return (
-      <span
-        className={cn(base, 'bg-amber-500/15 text-warning-foreground', className)}
-        title={t.common.demoAccountNotice}
-      >
-        <FlaskConical className="h-3.5 w-3.5" />
-        {t.common.demoAccountNotice}
-      </span>
-    )
+    return null
   }
 
   const connected = isSupabaseConfigured && !!session

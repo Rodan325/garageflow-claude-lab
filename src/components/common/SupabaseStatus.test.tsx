@@ -12,10 +12,10 @@ vi.mock('@/features/auth/AuthProvider', () => ({ useAuth: () => mockAuth() }))
 describe('SupabaseStatus', () => {
   beforeEach(() => mockAuth.mockReset())
 
-  it('shows a product demo account notice without technical provider wording', () => {
+  it('leaves the single global product notice to DemoBanner in presentation mode', () => {
     mockAuth.mockReturnValue({ demo: 'garage', session: null })
-    render(<SupabaseStatus />)
-    expect(screen.getByText('Compte de démonstration — les actions n’affectent aucune donnée réelle.')).toBeInTheDocument()
+    const { container } = render(<SupabaseStatus />)
+    expect(container).toBeEmptyDOMElement()
     expect(document.body).not.toHaveTextContent('Supabase')
   })
 
