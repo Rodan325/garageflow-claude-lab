@@ -12,7 +12,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:rls": "node --env-file=.env scripts/rls-antileak.mjs",
+    "test:rls": "node --env-file=.env.local scripts/rls-antileak.mjs",
     "security:scan": "node scripts/security-scan.mjs"
   },
   "dependencies": {
