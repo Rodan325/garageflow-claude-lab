@@ -21,6 +21,14 @@ export function networkDashboardEnabled(): boolean {
   return (isDemo() && getDemoOrganizationKind() === 'network') || env.enableNetworkDashboard
 }
 
+export function centerTransfersEnabled(): boolean {
+  return networkDashboardEnabled()
+}
+
+export function integrationsEnabled(): boolean {
+  return isDemo() || env.enableIntegrations
+}
+
 /**
  * The lifecycle tables are opt-in in real deployments until their additive
  * migration has been applied. Local demo stores implement the same contract

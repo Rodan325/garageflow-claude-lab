@@ -11,7 +11,8 @@ import { useTransitionWorkshopStage } from '@/data/workshop'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useLang } from '@/i18n'
 import { dateTime } from '@/lib/format'
-import { deliveryReportsEnabled, recommendationsEnabled } from '@/lib/features'
+import { centerTransfersEnabled, deliveryReportsEnabled, recommendationsEnabled } from '@/lib/features'
+import { CenterTransferControl } from '@/features/transfers/CenterTransferControl'
 import type { ServiceRequest, WorkshopStage } from '@/types/domain'
 import {
   allowedWorkshopTransitions,
@@ -178,6 +179,7 @@ function WorkshopRequestCard({
             {tr('Rapport de restitution')}
           </Link>
         )}
+        {centerTransfersEnabled() && <CenterTransferControl request={request} />}
       </div>
     </Card>
   )

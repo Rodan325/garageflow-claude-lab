@@ -13,11 +13,12 @@ import { requestStatusMeta } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { localizeDemoText } from '@/i18n/demoContent'
 import { shortDate, shortTime, fromNow } from '@/lib/format'
-import { attachmentsEnabled, deliveryReportsEnabled, recommendationsEnabled, workshopTimelineEnabled } from '@/lib/features'
+import { attachmentsEnabled, centerTransfersEnabled, deliveryReportsEnabled, recommendationsEnabled, workshopTimelineEnabled } from '@/lib/features'
 import { CustomerWorkshopTimeline } from '@/features/workshop/CustomerWorkshopTimeline'
 import { CustomerRecommendations } from '@/features/recommendations/CustomerRecommendations'
 import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
 import { CustomerDeliveryReport } from '@/features/reports/CustomerDeliveryReport'
+import { CustomerTransferDecision } from '@/features/transfers/CustomerTransferDecision'
 
 export function ClientBookingDetailPage() {
   const { lang, tr } = useLang()
@@ -77,6 +78,7 @@ export function ClientBookingDetailPage() {
       </Card>
 
       {workshopTimelineEnabled() && <CustomerWorkshopTimeline requestId={request.id} />}
+      {centerTransfersEnabled() && <CustomerTransferDecision request={request} />}
       {recommendationsEnabled() && <CustomerRecommendations requestId={request.id} />}
       {attachmentsEnabled() && <AttachmentsPanel garageId={request.garage_id} requestId={request.id} customerView />}
       {deliveryReportsEnabled() && <CustomerDeliveryReport request={request} />}

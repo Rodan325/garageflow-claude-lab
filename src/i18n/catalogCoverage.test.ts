@@ -18,6 +18,8 @@ const roots = [
   'src/features/reports',
   'src/features/reminders',
   'src/features/network',
+  'src/features/transfers',
+  'src/features/integrations',
   'src/components',
   'src/lib',
 ]

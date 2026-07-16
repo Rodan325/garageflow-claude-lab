@@ -31,6 +31,7 @@ export const env = {
   enableDeliveryReports: clean(import.meta.env.VITE_ENABLE_DELIVERY_REPORTS) === 'true',
   enableMaintenanceReminders: clean(import.meta.env.VITE_ENABLE_MAINTENANCE_REMINDERS) === 'true',
   enableNetworkDashboard: clean(import.meta.env.VITE_ENABLE_NETWORK_DASHBOARD) === 'true',
+  enableIntegrations: clean(import.meta.env.VITE_ENABLE_INTEGRATIONS) === 'true',
   /** Optional white-label brand for a dedicated build/preview (e.g. 'speedy'). Empty = default. */
   brand: clean(import.meta.env.VITE_BRAND),
 }

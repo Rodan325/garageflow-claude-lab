@@ -1530,6 +1530,81 @@ export type Database = {
           },
         ]
       }
+      service_request_transfer_events: {
+        Row: {
+          changed_by: string
+          garage_id: string
+          id: string
+          new_status: string
+          note: string | null
+          occurred_at: string
+          previous_status: string | null
+          transfer_id: string
+        }
+        Insert: {
+          changed_by: string
+          garage_id: string
+          id?: string
+          new_status: string
+          note?: string | null
+          occurred_at?: string
+          previous_status?: string | null
+          transfer_id: string
+        }
+        Update: {
+          changed_by?: string
+          garage_id?: string
+          id?: string
+          new_status?: string
+          note?: string | null
+          occurred_at?: string
+          previous_status?: string | null
+          transfer_id?: string
+        }
+        Relationships: []
+      }
+      service_request_transfers: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          customer_confirmed_at: string | null
+          from_center_id: string
+          garage_id: string
+          id: string
+          reason: string | null
+          requested_by: string
+          service_request_id: string
+          status: string
+          to_center_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          customer_confirmed_at?: string | null
+          from_center_id: string
+          garage_id: string
+          id?: string
+          reason?: string | null
+          requested_by: string
+          service_request_id: string
+          status?: string
+          to_center_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          customer_confirmed_at?: string | null
+          from_center_id?: string
+          garage_id?: string
+          id?: string
+          reason?: string | null
+          requested_by?: string
+          service_request_id?: string
+          status?: string
+          to_center_id?: string
+        }
+        Relationships: []
+      }
       service_request_timeline: {
         Row: {
           center_id: string | null
@@ -1975,6 +2050,14 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["maintenance_reminders"]["Row"]
       }
+      complete_center_transfer: {
+        Args: { p_transfer_id: string }
+        Returns: Database["public"]["Tables"]["service_request_transfers"]["Row"]
+      }
+      decide_center_transfer: {
+        Args: { p_transfer_id: string; p_accept: boolean; p_note?: string | null }
+        Returns: Database["public"]["Tables"]["service_request_transfers"]["Row"]
+      }
       get_network_dashboard: {
         Args: { p_garage_id: string; p_start?: string | null; p_end?: string | null }
         Returns: {
@@ -2070,6 +2153,10 @@ export type Database = {
         Returns: Database["public"]["Tables"]["maintenance_reminders"]["Row"]
       }
       next_quote_number: { Args: { p_garage_id: string }; Returns: string }
+      propose_center_transfer: {
+        Args: { p_request_id: string; p_to_center_id: string; p_reason?: string | null }
+        Returns: Database["public"]["Tables"]["service_request_transfers"]["Row"]
+      }
       transition_workshop_stage: {
         Args: {
           p_request_id: string

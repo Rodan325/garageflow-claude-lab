@@ -29,6 +29,13 @@ import type { AttachmentDocumentType, AttachmentVisibility, ServiceRequestAttach
 import type { NotificationEvent, NotificationOutboxItem } from '@/features/notifications/model'
 import type { DeliveryReport } from '@/features/reports/model'
 import type { MaintenanceReminder, ReminderType } from '@/features/reminders/model'
+import {
+  assertTransferScope,
+  transitionTransferStatus,
+  type CenterTransferAction,
+  type ServiceRequestTransfer,
+  type ServiceRequestTransferEvent,
+} from '@/features/transfers/model'
 
 const totalsFrom = (lines: Partial<QuoteLine>[]) =>
   computeQuoteTotals(lines.map((l) => ({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 })))
@@ -142,6 +149,8 @@ interface Store {
   notificationOutbox: NotificationOutboxItem[]
   deliveryReports: DeliveryReport[]
   maintenanceReminders: MaintenanceReminder[]
+  serviceRequestTransfers: ServiceRequestTransfer[]
+  serviceRequestTransferEvents: ServiceRequestTransferEvent[]
   appointments: Appointment[]
   repairs: Repair[]
   tasks: Task[]
@@ -454,6 +463,7 @@ function seed(brand: DemoBrand = 'default'): Store {
     garages: [g], centers, services, news, hours, customers, vehicles, clientVehicles, requests,
     messages: [], workshopTimeline, recommendations, recommendationDecisions,
     attachments, notificationOutbox, deliveryReports, maintenanceReminders,
+    serviceRequestTransfers: [], serviceRequestTransferEvents: [],
     appointments: [], repairs, tasks, quotes, quoteLines,
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
     reqSeq: 1, quoteSeq: qseq,
@@ -503,6 +513,8 @@ export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): St
     notificationOutbox: arr('notificationOutbox'),
     deliveryReports: arr('deliveryReports'),
     maintenanceReminders: arr('maintenanceReminders'),
+    serviceRequestTransfers: arr('serviceRequestTransfers'),
+    serviceRequestTransferEvents: arr('serviceRequestTransferEvents'),
     appointments: arr('appointments'),
     repairs: arr('repairs'),
     tasks: arr('tasks'),
@@ -704,6 +716,14 @@ export const demo = {
       && (!clientId || reminder.client_id === clientId))
       .sort((a, b) => +new Date(a.scheduled_at) - +new Date(b.scheduled_at)),
   ),
+  serviceRequestTransfers: (requestId: string) => clone(
+    load().serviceRequestTransfers.filter((transfer) => transfer.service_request_id === requestId)
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)),
+  ),
+  serviceRequestTransferEvents: (transferId: string) => clone(
+    load().serviceRequestTransferEvents.filter((event) => event.transfer_id === transferId)
+      .sort((a, b) => +new Date(a.occurred_at) - +new Date(b.occurred_at)),
+  ),
   clientVehicles: () => clone(load().clientVehicles),
   clientProfile: () => clone(load().clientProfile),
   vehicles: () => clone([...load().vehicles].sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at))),
@@ -759,6 +779,62 @@ export const demo = {
     if (r) Object.assign(r, patch, { updated_at: new Date().toISOString() })
     save()
     return r
+  },
+  proposeCenterTransfer: (requestId: string, destinationCenterId: string, reason?: string | null) => {
+    const s = load()
+    const request = s.requests.find((row) => row.id === requestId)
+    const source = s.centers.find((center) => center.id === request?.center_id)
+    const destination = s.centers.find((center) => center.id === destinationCenterId)
+    if (!request) throw new Error('Service request not found')
+    if (!source || !destination) throw new Error('TRANSFER_CENTER_NOT_FOUND')
+    assertTransferScope(request, source, destination)
+    if (s.serviceRequestTransfers.some((transfer) => transfer.service_request_id === requestId
+      && ['proposed', 'customer_confirmed'].includes(transfer.status))) {
+      throw new Error('TRANSFER_ALREADY_OPEN')
+    }
+    const createdAt = new Date().toISOString()
+    const transfer: ServiceRequestTransfer = {
+      id: uid(), garage_id: request.garage_id, service_request_id: request.id,
+      from_center_id: source.id, to_center_id: destination.id, status: 'proposed',
+      requested_by: DEMO_STAFF_ID, reason: reason?.trim() || null, created_at: createdAt,
+      customer_confirmed_at: null, completed_at: null,
+    }
+    s.serviceRequestTransfers.unshift(transfer)
+    s.serviceRequestTransferEvents.push({
+      id: uid(), transfer_id: transfer.id, garage_id: transfer.garage_id,
+      previous_status: null, new_status: 'proposed', changed_by: DEMO_STAFF_ID,
+      occurred_at: createdAt, note: transfer.reason,
+    })
+    save()
+    return clone(transfer)
+  },
+  transitionCenterTransfer: (transferId: string, action: CenterTransferAction, note?: string | null) => {
+    const s = load()
+    const transfer = s.serviceRequestTransfers.find((row) => row.id === transferId)
+    if (!transfer) throw new Error('Center transfer not found')
+    const previousStatus = transfer.status
+    const nextStatus = transitionTransferStatus(previousStatus, action)
+    const occurredAt = new Date().toISOString()
+    transfer.status = nextStatus
+    if (nextStatus === 'customer_confirmed') transfer.customer_confirmed_at = occurredAt
+    if (nextStatus === 'completed') {
+      transfer.completed_at = occurredAt
+      const request = s.requests.find((row) => row.id === transfer.service_request_id)
+      if (request) {
+        request.center_id = transfer.to_center_id
+        request.updated_at = occurredAt
+      }
+      s.appointments.filter((appointment) => appointment.service_request_id === transfer.service_request_id)
+        .forEach((appointment) => { appointment.center_id = transfer.to_center_id })
+    }
+    s.serviceRequestTransferEvents.push({
+      id: uid(), transfer_id: transfer.id, garage_id: transfer.garage_id,
+      previous_status: previousStatus, new_status: nextStatus,
+      changed_by: action === 'complete' ? DEMO_STAFF_ID : DEMO_CLIENT_ID,
+      occurred_at: occurredAt, note: note?.trim() || null,
+    })
+    save()
+    return clone(transfer)
   },
   transitionWorkshopStage: (input: {
     requestId: string

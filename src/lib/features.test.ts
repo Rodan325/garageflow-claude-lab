@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { centersEnabled, isMissingSchemaError, networkDashboardEnabled } from './features'
+import { centersEnabled, integrationsEnabled, isMissingSchemaError, networkDashboardEnabled } from './features'
 import { setDemoKind, clearDemo, setDemoOrganizationKind } from './demo'
 
 afterEach(() => {
@@ -46,5 +46,13 @@ describe('centersEnabled', () => {
     setDemoKind('garage')
     expect(centersEnabled()).toBe(true)
     expect(networkDashboardEnabled()).toBe(true)
+  })
+})
+
+describe('integrationsEnabled', () => {
+  it('is opt-in outside demo and available in the local demo', () => {
+    expect(integrationsEnabled()).toBe(false)
+    setDemoKind('garage')
+    expect(integrationsEnabled()).toBe(true)
   })
 })

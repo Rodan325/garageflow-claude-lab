@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  Bell, BellRing, Building2, CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, ScrollText, Settings, Tags, Users, Wrench, X,
+  Bell, BellRing, Building2, CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, PlugZap, ScrollText, Settings, Tags, Users, Wrench, X,
 } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
@@ -17,7 +17,7 @@ import { roleLabel } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
-import { maintenanceRemindersEnabled, networkDashboardEnabled, notificationsEnabled } from '@/lib/features'
+import { integrationsEnabled, maintenanceRemindersEnabled, networkDashboardEnabled, notificationsEnabled } from '@/lib/features'
 import { useManageCenters } from '@/data/centers'
 import { canViewNetworkDashboard } from '@/features/network/model'
 
@@ -48,6 +48,7 @@ export function ProShell() {
     ...avance,
     ...(maintenanceRemindersEnabled() ? [{ to: '/pro/reminders', label: 'Rappels d’entretien', icon: BellRing, end: false }] : []),
     ...(notificationsEnabled() ? [{ to: '/pro/notifications', label: 'Notifications', icon: Bell, end: false }] : []),
+    ...(integrationsEnabled() ? [{ to: '/pro/integrations', label: 'Intégrations', icon: PlugZap, end: false }] : []),
   ]
 
   const itemClass = ({ isActive }: { isActive: boolean }) =>
