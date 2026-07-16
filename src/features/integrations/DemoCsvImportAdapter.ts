@@ -1,12 +1,15 @@
 import type { BookingImportAdapter, ImportReport } from './adapters'
-import { previewCsvImport, type CsvImportRow } from './csvImport'
+import { previewCsvImport, type CsvImportOptions, type CsvImportRow } from './csvImport'
 
 export class DemoCsvImportAdapter implements BookingImportAdapter {
   readonly source = 'demo-csv'
-  constructor(private readonly existingKeys: Iterable<string> = []) {}
+  constructor(
+    private readonly existingKeys: Iterable<string> = [],
+    private readonly options: CsvImportOptions = {},
+  ) {}
 
   async preview(input: string) {
-    return previewCsvImport(input, this.existingKeys)
+    return previewCsvImport(input, this.existingKeys, this.options)
   }
 
   async import(rows: CsvImportRow[]): Promise<ImportReport> {

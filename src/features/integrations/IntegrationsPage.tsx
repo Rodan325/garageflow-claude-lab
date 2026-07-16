@@ -21,11 +21,11 @@ appointment,,,,,,,,,nora@example.fr,Revision,2026-08-10T09:00:00Z,,,
 service,Revision,,,,,,,,,,,Entretien,60,99`
 
 export function IntegrationsPage() {
-  const { tr } = useLang()
+  const { lang, tr } = useLang()
   const [source, setSource] = useState(SAMPLE)
   const [preview, setPreview] = useState<CsvImportPreview | null>(null)
   const [report, setReport] = useState<ImportReport | null>(null)
-  const adapter = new DemoCsvImportAdapter()
+  const adapter = new DemoCsvImportAdapter([], { locale: lang })
   if (!integrationsEnabled()) return <Navigate to="/pro" replace />
 
   async function inspect() {

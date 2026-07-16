@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { previewCsvImport } from './csvImport'
+import { DEFAULT_CSV_IMPORT_LIMITS, previewCsvImport } from './csvImport'
 
 const csv = `entity_type,name,city,first_name,last_name,email,brand,model,registration,customer_email,title,starts_at,category,duration_minutes,price_from
 center,Atelier Est,Lyon,,,,,,,,,,,,
@@ -39,5 +39,84 @@ describe('CSV import preview', () => {
   it('rejects malformed CSV and missing entity type columns', () => {
     expect(previewCsvImport('entity_type,name\nservice,"broken').issues[0].code).toBe('invalid_csv')
     expect(previewCsvImport('name\nAtelier').issues[0].field).toBe('entity_type')
+  })
+
+  it.each([
+    '=HYPERLINK("https://example.invalid")',
+    '+SUM(1;2)',
+    '-1+2',
+    '@commande',
+    '   =HYPERLINK("https://example.invalid")',
+  ])('neutralizes spreadsheet formulas before preview: %s', (dangerousValue) => {
+    const source = `entity_type,name,category,duration_minutes,price_from\nservice,"${dangerousValue.split('"').join('""')}",Entretien,60,99`
+    const result = previewCsvImport(source)
+
+    expect(result.issues).toEqual([])
+    expect(result.rows[0].data.name).toMatch(/^'/)
+    expect(result.rows[0].data.name.slice(1)).toBe(dangerousValue.trim())
+  })
+
+  it('keeps ordinary cell values unchanged', () => {
+    const source = 'entity_type,name,category,duration_minutes,price_from\nservice,Révision complète,Entretien,60,99'
+    const result = previewCsvImport(source)
+
+    expect(result.issues).toEqual([])
+    expect(result.rows[0].data.name).toBe('Révision complète')
+  })
+
+  it('uses the explicit safe defaults for CSV limits', () => {
+    expect(DEFAULT_CSV_IMPORT_LIMITS).toEqual({
+      maxFileBytes: 5 * 1024 * 1024,
+      maxRows: 10_000,
+      maxColumns: 100,
+      maxCellCharacters: 10_000,
+    })
+  })
+
+  it('rejects files exceeding the configured byte limit', () => {
+    const result = previewCsvImport('entity_type,name\ncenter,Atelier', [], {
+      limits: { maxFileBytes: 10 },
+    })
+
+    expect(result.issues[0]).toEqual(expect.objectContaining({ code: 'file_too_large', line: 1 }))
+    expect(result.rows).toEqual([])
+  })
+
+  it('rejects files exceeding the configured row limit', () => {
+    const source = 'entity_type,name,city\ncenter,Atelier A,Lyon\ncenter,Atelier B,Paris'
+    const result = previewCsvImport(source, [], { limits: { maxRows: 1 } })
+
+    expect(result.issues[0]).toEqual(expect.objectContaining({ code: 'too_many_rows', line: 1 }))
+    expect(result.totalRows).toBe(2)
+  })
+
+  it('rejects rows exceeding the configured column limit', () => {
+    const source = 'entity_type,name,city,extra\ncenter,Atelier,Lyon,value'
+    const result = previewCsvImport(source, [], { limits: { maxColumns: 3 } })
+
+    expect(result.issues[0]).toEqual(expect.objectContaining({ code: 'too_many_columns', line: 1 }))
+  })
+
+  it('rejects an oversized cell without accepting the row', () => {
+    const source = 'entity_type,name,city\ncenter,Atelier beaucoup trop long,Lyon'
+    const result = previewCsvImport(source, [], { limits: { maxCellCharacters: 10 } })
+
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: 'cell_too_long',
+      line: 2,
+      field: 'name',
+    }))
+    expect(result.rows).toEqual([])
+  })
+
+  it.each([
+    ['fr', /limite de 1 lignes/],
+    ['en', /limit of 1 rows/],
+    ['ar', /1 صف/],
+  ] as const)('localizes limit errors in %s', (locale, message) => {
+    const source = 'entity_type,name,city\ncenter,Atelier A,Lyon\ncenter,Atelier B,Paris'
+    const result = previewCsvImport(source, [], { locale, limits: { maxRows: 1 } })
+
+    expect(result.issues[0].message).toMatch(message)
   })
 })
