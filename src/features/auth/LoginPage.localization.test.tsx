@@ -9,14 +9,14 @@ import { LoginPage } from './LoginPage'
 const appStyles = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
 
 const mocks = vi.hoisted(() => ({
-  enterDemo: vi.fn(),
+  enterDemoAccount: vi.fn(),
   signIn: vi.fn(async () => ({ error: null })),
 }))
 
 vi.mock('./AuthProvider', () => ({
   useAuth: () => ({
     signIn: mocks.signIn,
-    enterDemo: mocks.enterDemo,
+    enterDemoAccount: mocks.enterDemoAccount,
     ready: true,
     session: null,
     accountType: null,
@@ -67,13 +67,22 @@ afterEach(() => {
 })
 
 describe('LoginPage localization', () => {
+  it('offers all four product presentation accounts', () => {
+    renderLogin('fr')
+    expect(screen.getByRole('button', { name: /Client Parcours et historique/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Garage indépendant Pilotage quotidien/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Organisation multi-centres Activité des établissements/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Responsable réseau Comparaison et supervision/ }))
+    expect(mocks.enterDemoAccount).toHaveBeenCalledWith('network_manager')
+  })
+
   it('renders the complete Arabic login in RTL', () => {
     const { container } = renderLogin('ar')
 
     expect(document.documentElement.dir).toBe('rtl')
     expect(screen.getByRole('heading', { name: 'تسجيل الدخول' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /مساحة الورشة/ })).toBeInTheDocument()
-    expect(screen.getAllByText('حساب تجريبي')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: /ورشة مستقلة الإدارة اليومية/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /مسؤول الشبكة المقارنة والإشراف/ })).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/Supabase|Se connecter|Configuration Supabase manquante|Démo garage|Pas encore de compte/)
   })
 
@@ -107,8 +116,8 @@ describe('LoginPage localization', () => {
 
     expect(document.documentElement.dir).toBe('ltr')
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Garage workspace/ })).toBeInTheDocument()
-    expect(screen.getAllByText('Demo account')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: /Independent garage Daily operations/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Network manager Comparison and oversight/ })).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/Supabase|Se connecter|Configuration Supabase manquante|Démo garage|Pas encore de compte/)
   })
 })

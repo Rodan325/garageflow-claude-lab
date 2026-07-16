@@ -6,6 +6,12 @@ import {
   ensureStoreShape,
   isDemoQuoteToken,
   reloadDemoCache,
+  getDemoAccount,
+  getDemoKind,
+  getDemoOrganizationKind,
+  demoMembership,
+  demoProfile,
+  setDemoAccount,
   setDemoOrganizationKind,
   SPEEDY_STORE_KEY,
   STORE_KEY,
@@ -72,16 +78,16 @@ describe('demo centers — multi-center foundation', () => {
   it('keeps generic center data hidden from an independent default account', () => {
     const s = ensureStoreShape('force-reseed') // default brand
     expect(s.centers.length).toBe(3)
-    expect(s.requests[0].center_id).toBeNull()
-    expect(s.requests[0].client_stage).toBeNull()
+    expect(s.requests[0].center_id).toBeTruthy()
+    expect(s.requests[0].client_stage).toBe('in_progress')
   })
 
   it('does not activate multi-center business logic from Speedy branding', () => {
     const s = ensureStoreShape('force-reseed', 'speedy')
     expect(s.centers.length).toBe(3)
     expect(s.centers.every((c) => c.garage_id && c.slug && c.name)).toBe(true)
-    expect(s.requests[0].center_id).toBeNull()
-    expect(s.requests[0].client_stage).toBeNull()
+    expect(s.requests[0].center_id).toBeTruthy()
+    expect(s.requests[0].client_stage).toBe('in_progress')
   })
 
   it('links requests to an establishment for a generic network account', () => {
@@ -89,7 +95,7 @@ describe('demo centers — multi-center foundation', () => {
     const s = ensureStoreShape('force-reseed')
     expect(s.requests[0].center_id).toBeTruthy()
     expect(s.centers.some((center) => center.id === s.requests[0].center_id)).toBe(true)
-    expect(s.requests[0].client_stage).toBe('request_sent')
+    expect(s.requests[0].client_stage).toBe('in_progress')
   })
 })
 
@@ -124,6 +130,44 @@ describe('demo workshop timeline', () => {
     expect(() => demo.transitionWorkshopStage({ requestId: request.id, newStage: 'vehicle_ready' })).toThrow()
     expect(demo.garageRequests()[0].workshop_stage).toBe('diagnosis_in_progress')
     expect(demo.workshopTimeline(request.id)).toEqual(before)
+  })
+})
+
+describe('realistic demo accounts and scenarios', () => {
+  it('exposes client, independent, multi-center and network-manager identities', () => {
+    setDemoAccount('client')
+    expect([getDemoAccount(), getDemoKind(), getDemoOrganizationKind()]).toEqual(['client', 'client', 'independent'])
+    expect(demoMembership()).toBeNull()
+
+    setDemoAccount('independent_garage')
+    expect([getDemoAccount(), getDemoKind(), getDemoOrganizationKind()]).toEqual(['independent_garage', 'garage', 'independent'])
+    expect(demoProfile('garage').full_name).toBe('Sophie Martin')
+
+    setDemoAccount('network_garage')
+    expect(getDemoOrganizationKind()).toBe('network')
+    expect(demoMembership()?.organization_role).toBe('organization_owner')
+
+    setDemoAccount('network_manager')
+    expect(demoProfile('garage').full_name).toBe('Amina El Mansouri')
+    expect(demoMembership()?.organization_role).toBe('regional_manager')
+  })
+
+  it('covers the full presentation journey with linked product records', () => {
+    setDemoAccount('network_manager')
+    const requests = demo.garageRequests()
+    for (const stage of [
+      'appointment_confirmed', 'vehicle_received', 'diagnosis_in_progress', 'customer_approval_required',
+      'work_in_progress', 'quality_control', 'vehicle_ready', 'vehicle_delivered',
+    ]) expect(requests.some((request) => request.workshop_stage === stage)).toBe(true)
+    expect(requests.every((request) => !!request.center_id)).toBe(true)
+
+    const accepted = requests.find((request) => demo.recommendations(request.id).some((item) => item.status === 'accepted'))
+    expect(accepted).toBeDefined()
+    expect(demo.attachments(accepted!.id, true).some((item) => item.document_type === 'photo')).toBe(true)
+    const delivered = requests.find((request) => request.workshop_stage === 'vehicle_delivered')!
+    expect(demo.deliveryReport(delivered.id, true)?.status).toBe('finalized')
+    expect(demo.maintenanceReminders(delivered.garage_id).some((reminder) => reminder.service_request_id === delivered.id)).toBe(true)
+    expect(demo.appointments().length).toBeGreaterThan(0)
   })
 })
 

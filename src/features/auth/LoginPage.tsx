@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Building2, Smartphone } from 'lucide-react'
+import { Building2, Network, Smartphone, UserRoundCog } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
@@ -19,7 +19,7 @@ import { useAuth } from './AuthProvider'
 type Form = { email: string; password: string }
 
 export function LoginPage() {
-  const { signIn, enterDemo, ready, session, accountType, isStaff, configured } = useAuth()
+  const { signIn, enterDemoAccount, ready, session, accountType, isStaff, configured } = useAuth()
   const toast = useToast()
   const t = useT()
   const { lang, tr } = useLang()
@@ -60,9 +60,9 @@ export function LoginPage() {
     setJustLoggedIn(true)
   }
 
-  const goDemo = (kind: 'garage' | 'client') => {
-    enterDemo(kind)
-    navigate(kind === 'garage' ? '/pro' : '/app', { replace: true })
+  const goDemo = (account: 'client' | 'independent_garage' | 'network_garage' | 'network_manager') => {
+    enterDemoAccount(account)
+    navigate(account === 'client' ? '/app' : account === 'network_manager' ? '/pro/network' : '/pro', { replace: true })
   }
 
   return (
@@ -89,14 +89,10 @@ export function LoginPage() {
 
           {/* Product presentation accounts — always available. */}
           <div className="mt-5 grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => goDemo('garage')} className="h-auto flex-col gap-1 py-3">
-              <Building2 className="h-5 w-5" /> <span className="text-sm font-semibold">{t.login.demoGarage}</span>
-              <span className="text-[11px] font-normal text-muted-foreground">{t.login.withoutSupabase}</span>
-            </Button>
-            <Button variant="outline" onClick={() => goDemo('client')} className="h-auto flex-col gap-1 py-3">
-              <Smartphone className="h-5 w-5" /> <span className="text-sm font-semibold">{t.login.demoClient}</span>
-              <span className="text-[11px] font-normal text-muted-foreground">{t.login.withoutSupabase}</span>
-            </Button>
+            <DemoAccountButton icon={Smartphone} label={tr('Client')} detail={tr('Parcours et historique')} onClick={() => goDemo('client')} />
+            <DemoAccountButton icon={Building2} label={tr('Garage indépendant')} detail={tr('Pilotage quotidien')} onClick={() => goDemo('independent_garage')} />
+            <DemoAccountButton icon={Network} label={tr('Organisation multi-centres')} detail={tr('Activité des établissements')} onClick={() => goDemo('network_garage')} />
+            <DemoAccountButton icon={UserRoundCog} label={tr('Responsable réseau')} detail={tr('Comparaison et supervision')} onClick={() => goDemo('network_manager')} />
           </div>
 
           <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
@@ -124,5 +120,20 @@ export function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+function DemoAccountButton({ icon: Icon, label, detail, onClick }: {
+  icon: typeof Building2
+  label: string
+  detail: string
+  onClick: () => void
+}) {
+  return (
+    <Button variant="outline" onClick={onClick} className="h-auto min-w-0 flex-col gap-1 whitespace-normal py-3 text-center">
+      <Icon className="h-5 w-5" />
+      <span className="text-sm font-semibold leading-tight">{label}</span>
+      <span className="text-[11px] font-normal leading-tight text-muted-foreground">{detail}</span>
+    </Button>
   )
 }

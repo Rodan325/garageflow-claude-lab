@@ -5,12 +5,11 @@
  * real Supabase mode: it only activates when explicitly entered.
  */
 import type {
-  Appointment, ClientProfile, ClientVehicle, Customer, Garage, GarageCenter, GarageHours,
+  Appointment, ClientProfile, ClientVehicle, Customer, Garage, GarageCenter, GarageHours, GarageMember,
   GarageNews, GarageService, Quote, QuoteLine, Repair, ServiceRequest, ServiceRequestMessage,
   ServiceRequestTimelineEvent, Task, WorkshopStage,
 } from '@/types/domain'
 import type { DashboardStats, TeamMember } from '@/data/proData'
-import { DEFAULT_AUTO_SERVICES } from '@/data/defaultAutoServices'
 import { resolveBrandId } from '@/branding'
 import { computeQuoteTotals, lineTotal } from '@/lib/quoteTotals'
 import { quoteSendBlockReason } from '@/lib/quoteStatus'
@@ -48,6 +47,7 @@ export const DEMO_CLIENT_ID = 'demo-client'
 // (client + garage) side by side; the demo DATA is shared (localStorage).
 const KIND_KEY = 'gf-demo'
 const ORGANIZATION_KIND_KEY = 'gf-demo-organization-kind'
+const ACCOUNT_KEY = 'gf-demo-account'
 // Base key; brand-scoped at runtime (see storeKey()) so the default Clikarage
 // demo and the Speedy demo keep completely separate data.
 // v6: brand-scoped store; default brand reverts to the original catalog.
@@ -56,9 +56,20 @@ export const SPEEDY_STORE_KEY = `${STORE_KEY}-speedy`
 
 export type DemoKind = 'garage' | 'client'
 export type DemoOrganizationKind = 'independent' | 'network'
+export type DemoAccount = 'client' | 'independent_garage' | 'network_garage' | 'network_manager'
+
+const DEMO_ACCOUNTS: DemoAccount[] = ['client', 'independent_garage', 'network_garage', 'network_manager']
 
 export function getDemoOrganizationKind(): DemoOrganizationKind {
   return sessionStorage.getItem(ORGANIZATION_KIND_KEY) === 'network' ? 'network' : 'independent'
+}
+
+export function getDemoAccount(): DemoAccount | null {
+  if (typeof window === 'undefined' || !getDemoKind()) return null
+  const stored = sessionStorage.getItem(ACCOUNT_KEY) as DemoAccount | null
+  if (stored && DEMO_ACCOUNTS.includes(stored)) return stored
+  if (getDemoKind() === 'client') return 'client'
+  return getDemoOrganizationKind() === 'network' ? 'network_garage' : 'independent_garage'
 }
 
 export function setDemoOrganizationKind(kind: DemoOrganizationKind) {
@@ -85,13 +96,29 @@ export function isDemo() {
   return getDemoKind() !== null
 }
 export function setDemoKind(kind: DemoKind) {
+  if (kind === 'client') {
+    sessionStorage.setItem(ACCOUNT_KEY, 'client')
+    sessionStorage.setItem(ORGANIZATION_KIND_KEY, 'independent')
+  } else if (!['network_garage', 'network_manager'].includes(sessionStorage.getItem(ACCOUNT_KEY) ?? '')) {
+    sessionStorage.setItem(ACCOUNT_KEY, getDemoOrganizationKind() === 'network' ? 'network_garage' : 'independent_garage')
+  }
   ensureStore()
   sessionStorage.setItem(KIND_KEY, kind) // per-tab → never propagated to other tabs
+  window.dispatchEvent(new Event('gf-demo-role'))
+}
+export function setDemoAccount(account: DemoAccount) {
+  const staff = account !== 'client'
+  sessionStorage.setItem(ACCOUNT_KEY, account)
+  sessionStorage.setItem(ORGANIZATION_KIND_KEY, ['network_garage', 'network_manager'].includes(account) ? 'network' : 'independent')
+  sessionStorage.setItem(KIND_KEY, staff ? 'garage' : 'client')
+  ensureStore()
+  reloadDemoCache()
   window.dispatchEvent(new Event('gf-demo-role'))
 }
 export function clearDemo() {
   sessionStorage.removeItem(KIND_KEY)
   sessionStorage.removeItem(ORGANIZATION_KIND_KEY)
+  sessionStorage.removeItem(ACCOUNT_KEY)
   window.dispatchEvent(new Event('gf-demo-role'))
 }
 
@@ -162,8 +189,7 @@ interface Store {
 }
 type Vehicle = Customer extends never ? never : import('@/types/domain').Vehicle
 
-// Original Clikarage demo catalog — kept for the DEFAULT brand so its demo is
-// unchanged. The Speedy demo uses DEFAULT_AUTO_SERVICES (car-service catalog).
+// Shared demo catalog: white-label branding never changes product capabilities.
 const ORIGINAL_SERVICES = [
   { name: 'Révision constructeur', description: 'Vidange, filtres et points de contrôle complets.', category: 'Entretien', duration_minutes: 90, price_from: 149 },
   { name: 'Vidange + filtre', description: 'Vidange huile et remplacement du filtre à huile.', category: 'Entretien', duration_minutes: 45, price_from: 79 },
@@ -199,14 +225,13 @@ function seed(brand: DemoBrand = 'default'): Store {
     ctr('atelier-nord', 'Atelier Nord', 'Villeurbanne', '69100', 2),
     ctr('atelier-sud', 'Atelier Sud', 'Vénissieux', '69200', 3),
   ]
-  const networkDemo = getDemoOrganizationKind() === 'network'
   const svc = (name: string, description: string, category: string, duration_minutes: number, price_from: number, sort_order: number): GarageService => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, name, description, category, duration_minutes,
     price_from, is_active: true, sort_order, created_at: today().toISOString(),
     tax_rate: 20, labor_hours: null, price_type: 'from', default_lines: [],
   })
-  // Speedy demo → car-service catalog; default demo → the original catalog.
-  const serviceDefs = isSpeedy ? DEFAULT_AUTO_SERVICES : ORIGINAL_SERVICES
+  // White-label branding never changes product capabilities or seeded services.
+  const serviceDefs = ORIGINAL_SERVICES
   const services = serviceDefs.map((s, i) =>
     svc(s.name, s.description, s.category, s.duration_minutes, s.price_from, i + 1),
   )
@@ -233,7 +258,7 @@ function seed(brand: DemoBrand = 'default'): Store {
   const requests: ServiceRequest[] = [
     {
       id: uid(), reference: 'GF-00001', garage_id: DEMO_GARAGE_ID, client_id: DEMO_CLIENT_ID,
-      center_id: networkDemo ? centers[0].id : null, client_stage: networkDemo ? 'request_sent' : null,
+      center_id: centers[0].id, client_stage: 'in_progress',
       service_id: freinage.id, service_name: freinage.name,
       client_vehicle_id: 'demo-cv-1', vehicle_label: 'Volkswagen Golf 7 · IJ-789-KL',
       requested_date: isoIn(3), requested_time: '09:00', proposed_date: null, proposed_time: null,
@@ -244,6 +269,43 @@ function seed(brand: DemoBrand = 'default'): Store {
       vehicle_checked_in_at: new Date(Date.now() - 2 * 3600000).toISOString(), vehicle_delivered_at: null,
     },
   ]
+  const scenarioRequest = (
+    reference: string,
+    stage: WorkshopStage,
+    center: GarageCenter,
+    service: GarageService,
+    dayOffset: number,
+    estimatedHours: number | null,
+  ): ServiceRequest => {
+    const checkedIn = !['appointment_confirmed', 'vehicle_expected'].includes(stage)
+    const delivered = ['vehicle_delivered', 'closed'].includes(stage)
+    const now = new Date()
+    return {
+      id: uid(), reference, garage_id: DEMO_GARAGE_ID, client_id: DEMO_CLIENT_ID,
+      center_id: center.id,
+      client_stage: delivered ? 'done' : stage === 'vehicle_ready' ? 'ready' : stage === 'work_in_progress' ? 'in_progress' : 'appointment_confirmed',
+      service_id: service.id, service_name: service.name,
+      client_vehicle_id: clientVehicles[0].id, vehicle_label: 'Volkswagen Golf 7 · IJ-789-KL',
+      requested_date: isoIn(dayOffset), requested_time: dayOffset > 0 ? '10:30' : '08:30',
+      proposed_date: null, proposed_time: null, note: null, contact_name: 'Julie Durand',
+      contact_phone: '+33 6 55 44 33 22', contact_email: 'client@demo.fr',
+      status: delivered ? 'completed' : 'confirmed', customer_id: null, appointment_id: null,
+      created_at: new Date(now.getTime() - Math.max(1, 8 - dayOffset) * 3600000).toISOString(),
+      updated_at: now.toISOString(), workshop_stage: stage,
+      estimated_completion_at: estimatedHours === null ? null : new Date(now.getTime() + estimatedHours * 3600000).toISOString(),
+      vehicle_checked_in_at: checkedIn ? new Date(now.getTime() - 3 * 3600000).toISOString() : null,
+      vehicle_delivered_at: delivered ? new Date(now.getTime() - 12 * 3600000).toISOString() : null,
+    }
+  }
+  requests.push(
+    scenarioRequest('GF-00002', 'appointment_confirmed', centers[0], services[0], 1, null),
+    scenarioRequest('GF-00003', 'vehicle_received', centers[1], services[1], 0, 5),
+    scenarioRequest('GF-00004', 'customer_approval_required', centers[1], services[2] ?? services[0], 0, 4),
+    scenarioRequest('GF-00005', 'work_in_progress', centers[2], services[3] ?? services[0], 0, -1),
+    scenarioRequest('GF-00006', 'quality_control', centers[0], services[0], 0, 1),
+    scenarioRequest('GF-00007', 'vehicle_ready', centers[1], services[1], 0, 0),
+    scenarioRequest('GF-00008', 'vehicle_delivered', centers[2], services[0], -1, null),
+  )
   const workshopTimeline: ServiceRequestTimelineEvent[] = [
     {
       id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
@@ -283,6 +345,17 @@ function seed(brand: DemoBrand = 'default'): Store {
       notification_status: 'simulated',
     },
   ]
+  requests.slice(1).forEach((request, index) => {
+    workshopTimeline.push({
+      id: uid(), request_id: request.id, garage_id: request.garage_id,
+      center_id: request.center_id, previous_stage: null, new_stage: request.workshop_stage as WorkshopStage,
+      changed_by: DEMO_STAFF_ID,
+      occurred_at: new Date(Date.now() - (index + 1) * 45 * 60000).toISOString(),
+      internal_note: null, customer_message: null,
+      estimated_completion_at: request.estimated_completion_at,
+      visible_to_customer: true, notification_status: 'simulated',
+    })
+  })
   const recommendations: WorkshopRecommendation[] = [
     {
       id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
@@ -294,6 +367,17 @@ function seed(brand: DemoBrand = 'default'): Store {
       created_by: DEMO_STAFF_ID, created_at: new Date(Date.now() - 45 * 60000).toISOString(),
       decided_at: null, customer_decision_note: null,
     },
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[4].center_id,
+      service_request_id: requests[4].id, title: 'Remplacement de la batterie 12 V',
+      description: 'La capacité mesurée est insuffisante pour garantir les prochains démarrages.',
+      category: 'Électricité', urgency: 'recommended', reason: 'Capacité résiduelle mesurée à 38 %.',
+      estimated_price: 189, estimated_duration_minutes: 30, affects_delivery_time: false,
+      proposed_delivery_at: requests[4].estimated_completion_at, status: 'accepted',
+      created_by: DEMO_STAFF_ID, created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+      decided_at: new Date(Date.now() - 2 * 3600000).toISOString(),
+      customer_decision_note: 'Accord confirmé depuis l’espace client.',
+    },
   ]
   const recommendationDecisions: RecommendationDecisionEvent[] = [
     {
@@ -303,6 +387,14 @@ function seed(brand: DemoBrand = 'default'): Store {
       occurred_at: recommendations[0].created_at, legal_terms_version: null,
       legal_privacy_version: null, displayed_language: null, note: null, visible_to_customer: true,
     },
+    {
+      id: uid(), recommendation_id: recommendations[1].id, garage_id: DEMO_GARAGE_ID,
+      service_request_id: requests[4].id, action: 'accepted', previous_status: 'proposed',
+      new_status: 'accepted', decided_by: DEMO_CLIENT_ID,
+      occurred_at: recommendations[1].decided_at!, legal_terms_version: legalVersions.terms,
+      legal_privacy_version: legalVersions.privacy, displayed_language: 'fr',
+      note: recommendations[1].customer_decision_note, visible_to_customer: true,
+    },
   ]
   const attachments: ServiceRequestAttachment[] = [
     {
@@ -311,6 +403,13 @@ function seed(brand: DemoBrand = 'default'): Store {
       uploaded_by: DEMO_STAFF_ID, file_name: 'controle-freins-avant.jpg',
       mime_type: 'image/jpeg', file_size: 248000, storage_path: 'demo://controle-freins-avant.jpg',
       visibility: 'both', document_type: 'photo', created_at: recommendations[0].created_at,
+    },
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[4].center_id,
+      service_request_id: requests[4].id, recommendation_id: recommendations[1].id,
+      uploaded_by: DEMO_STAFF_ID, file_name: 'test-batterie.jpg',
+      mime_type: 'image/jpeg', file_size: 186000, storage_path: 'demo://test-batterie.jpg',
+      visibility: 'both', document_type: 'photo', created_at: recommendations[1].created_at,
     },
   ]
   const notificationOutbox: NotificationOutboxItem[] = [
@@ -336,13 +435,13 @@ function seed(brand: DemoBrand = 'default'): Store {
   ]
   const deliveryReports: DeliveryReport[] = [
     {
-      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
-      service_request_id: requests[0].id, report_number: `RI-${today().getFullYear()}-0001`,
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[7].center_id,
+      service_request_id: requests[7].id, report_number: `RI-${today().getFullYear()}-0001`,
       status: 'finalized', customer_snapshot: { name: 'Julie Durand', phone: '+33 6 55 44 33 22' },
       vehicle_snapshot: { label: 'Volkswagen Golf 7', registration: 'IJ-789-KL' },
       entry_mileage: 98000, exit_mileage: 98008,
-      checked_in_at: requests[0].vehicle_checked_in_at,
-      delivered_at: new Date(Date.now() - 12 * 3600000).toISOString(),
+      checked_in_at: requests[7].vehicle_checked_in_at,
+      delivered_at: requests[7].vehicle_delivered_at,
       requested_work: ['Contrôle du freinage avant'],
       diagnostic_summary: 'Usure des plaquettes et des disques avant constatée.',
       completed_work: ['Remplacement des plaquettes de frein avant', 'Contrôle du liquide de frein'],
@@ -358,15 +457,28 @@ function seed(brand: DemoBrand = 'default'): Store {
   ]
   const maintenanceReminders: MaintenanceReminder[] = [
     {
-      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[7].center_id,
       client_id: DEMO_CLIENT_ID, vehicle_id: null, client_vehicle_id: clientVehicles[0].id,
-      service_request_id: requests[0].id, reminder_type: 'date_or_mileage',
+      service_request_id: requests[7].id, reminder_type: 'date_or_mileage',
       title: 'Prochaine révision', due_date: isoIn(180), due_mileage: 108000,
       status: 'scheduled', scheduled_at: isoIn(170), sent_at: null,
       converted_request_id: null, source: 'delivery_report', created_by: DEMO_STAFF_ID,
       created_at: new Date().toISOString(),
     },
   ]
+  const appointments: Appointment[] = [requests[1], requests[2], requests[3]].map((request, index) => {
+    const startsAt = new Date()
+    startsAt.setDate(startsAt.getDate() + (index === 0 ? 1 : 0))
+    startsAt.setHours(9 + index, 0, 0, 0)
+    return {
+      id: uid(), garage_id: request.garage_id, center_id: request.center_id,
+      customer_id: null, vehicle_id: null, service_request_id: request.id,
+      title: request.service_name, starts_at: startsAt.toISOString(),
+      ends_at: new Date(startsAt.getTime() + 60 * 60000).toISOString(),
+      status: index === 0 ? 'confirmed' : 'in_progress', assigned_to: DEMO_STAFF_ID,
+      notes: null, created_at: new Date().toISOString(),
+    }
+  })
   const repair = (title: string, status: string, vehicle_id: string | null, symptom: string): Repair => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, vehicle_id, customer_id: null, appointment_id: null,
     title, symptom, diagnostic: null, status, assigned_to: null, notes: null,
@@ -408,7 +520,7 @@ function seed(brand: DemoBrand = 'default'): Store {
     lines: { label: string; quantity: number; unit_price: number; tax_rate: number }[]
     validIn?: number | null; createdAgo?: number; token?: string | null
     sentAgo?: number | null; acceptedAgo?: number | null; declinedAgo?: number | null
-    declineReason?: string | null; revisedFrom?: string | null
+    declineReason?: string | null; revisedFrom?: string | null; serviceRequestId?: string | null
   }): Quote => {
     qseq += 1
     const id = uid()
@@ -426,7 +538,7 @@ function seed(brand: DemoBrand = 'default'): Store {
       valid_until: o.validIn == null ? null : isoIn(o.validIn),
       client_name: `${o.customer.first_name} ${o.customer.last_name}`, client_phone: o.customer.phone, client_email: o.customer.email,
       vehicle_label: `${o.vehicle.brand} ${o.vehicle.model}${o.vehicle.registration ? ` · ${o.vehicle.registration}` : ''}`,
-      customer_id: o.customer.id, vehicle_id: o.vehicle.id, service_request_id: null, repair_id: null,
+      customer_id: o.customer.id, vehicle_id: o.vehicle.id, service_request_id: o.serviceRequestId ?? null, repair_id: null,
       created_at: daysAgoIso(o.createdAgo ?? 0),
       client_token: o.token ?? null,
       sent_at: o.sentAgo == null ? null : daysAgoIso(o.sentAgo),
@@ -464,9 +576,9 @@ function seed(brand: DemoBrand = 'default'): Store {
     messages: [], workshopTimeline, recommendations, recommendationDecisions,
     attachments, notificationOutbox, deliveryReports, maintenanceReminders,
     serviceRequestTransfers: [], serviceRequestTransferEvents: [],
-    appointments: [], repairs, tasks, quotes, quoteLines,
+    appointments, repairs, tasks, quotes, quoteLines,
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
-    reqSeq: 1, quoteSeq: qseq,
+    reqSeq: requests.length, quoteSeq: qseq,
   }
 }
 
@@ -614,15 +726,32 @@ const clone = <T>(v: T): T =>
 
 export const demoGarage = (): Garage => load().garages[0]
 
-export function demoProfile(kind: DemoKind) {
+export function demoProfile(kind: DemoKind, account: DemoAccount | null = getDemoAccount()) {
+  const staffName = account === 'network_manager'
+    ? 'Amina El Mansouri'
+    : account === 'network_garage' ? 'Mehdi Laurent' : 'Sophie Martin'
   return {
     id: kind === 'garage' ? DEMO_STAFF_ID : DEMO_CLIENT_ID,
-    full_name: kind === 'garage' ? 'Sophie Martin' : 'Julie Durand',
+    full_name: kind === 'garage' ? staffName : 'Julie Durand',
     phone: kind === 'garage' ? null : '+33 6 55 44 33 22',
     avatar_url: null,
     account_type: kind === 'garage' ? 'staff' : 'client',
     created_at: today().toISOString(),
   }
+}
+
+export function demoMembership(account: DemoAccount | null = getDemoAccount()) {
+  if (!account || account === 'client') return null
+  const center = load().centers[0]
+  const network = account === 'network_garage' || account === 'network_manager'
+  return {
+    id: `demo-membership-${account}`, garage_id: DEMO_GARAGE_ID,
+    center_id: account === 'network_garage' ? center?.id ?? null : null,
+    user_id: DEMO_STAFF_ID, role: account === 'network_manager' ? 'admin' : 'owner',
+    status: 'active', invited_at: null, created_at: today().toISOString(),
+    organization_role: account === 'network_manager' ? 'regional_manager' : network ? 'organization_owner' : null,
+    center_role: account === 'network_garage' ? 'center_manager' : null,
+  } as GarageMember
 }
 
 /** Build the tokenised public-quote payload (mirror of get_quote_public). */

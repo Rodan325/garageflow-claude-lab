@@ -12,8 +12,8 @@ import { Avatar } from '@/components/ui/avatar'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useGarageRequests } from '@/data/requests'
 import { useProMode } from '@/features/pro/useProMode'
-import type { GarageRole } from '@/types/domain'
-import { roleLabel } from '@/i18n/domainLabels'
+import type { CenterRole, GarageRole, OrganizationRole } from '@/types/domain'
+import { centerRoleLabel, organizationRoleLabel, roleLabel } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
@@ -132,7 +132,13 @@ export function ProShell() {
           <Avatar name={profile?.full_name} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{profile?.full_name ?? tr('Utilisateur')}</p>
-            <p className="truncate text-xs text-muted-foreground">{role ? roleLabel(role as GarageRole, lang) : tr('Membre')}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {membership?.organization_role
+                ? organizationRoleLabel(membership.organization_role as OrganizationRole, lang)
+                : membership?.center_role
+                  ? centerRoleLabel(membership.center_role as CenterRole, lang)
+                  : role ? roleLabel(role as GarageRole, lang) : tr('Membre')}
+            </p>
           </div>
           <button
             onClick={async () => { await signOut(); navigate('/login') }}

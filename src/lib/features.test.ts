@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { centersEnabled, integrationsEnabled, isMissingSchemaError, networkDashboardEnabled } from './features'
-import { setDemoKind, clearDemo, setDemoOrganizationKind } from './demo'
+import { setDemoAccount, setDemoKind, clearDemo, setDemoOrganizationKind } from './demo'
 
 afterEach(() => {
   clearDemo()
@@ -45,6 +45,14 @@ describe('centersEnabled', () => {
     setDemoOrganizationKind('network')
     setDemoKind('garage')
     expect(centersEnabled()).toBe(true)
+    expect(networkDashboardEnabled()).toBe(true)
+  })
+
+  it('keeps network controls hidden for an independent account', () => {
+    setDemoAccount('independent_garage')
+    expect(centersEnabled()).toBe(false)
+    expect(networkDashboardEnabled()).toBe(false)
+    setDemoAccount('network_manager')
     expect(networkDashboardEnabled()).toBe(true)
   })
 })

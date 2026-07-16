@@ -33,6 +33,10 @@ const content: Record<Exclude<Lang, 'fr'>, Record<string, string>> = {
     'Révision constructeur (vidange + filtres)': 'Manufacturer service (oil and filters)', 'Main-d’œuvre': 'Labour',
     'Plaquettes de frein avant (jeu)': 'Front brake-pad set', 'Recharge climatisation (offre revue)': 'Air-conditioning recharge (revised offer)',
     'Pneu 205/55 R16 (monté)': '205/55 R16 tyre (fitted)',
+    'Remplacement de la batterie 12 V': '12 V battery replacement',
+    'La capacité mesurée est insuffisante pour garantir les prochains démarrages.': 'The measured capacity is too low to ensure reliable starts.',
+    'Capacité résiduelle mesurée à 38 %.': 'Measured remaining capacity: 38%.',
+    'Accord confirmé depuis l’espace client.': 'Approval confirmed in the customer workspace.',
   },
   ar: {
     'Révision constructeur': 'صيانة حسب توصيات الصانع', 'Vidange, filtres et points de contrôle complets.': 'تغيير الزيت والفلاتر وفحص شامل.',
@@ -65,6 +69,10 @@ const content: Record<Exclude<Lang, 'fr'>, Record<string, string>> = {
     'Révision constructeur (vidange + filtres)': 'صيانة الصانع (زيت وفلاتر)', 'Main-d’œuvre': 'اليد العاملة',
     'Plaquettes de frein avant (jeu)': 'طقم بطانات الفرامل الأمامية', 'Recharge climatisation (offre revue)': 'تعبئة المكيف (عرض مُراجع)',
     'Pneu 205/55 R16 (monté)': 'إطار 205/55 R16 مع التركيب',
+    'Remplacement de la batterie 12 V': 'استبدال بطارية 12 فولت',
+    'La capacité mesurée est insuffisante pour garantir les prochains démarrages.': 'السعة المقاسة غير كافية لضمان عمليات التشغيل القادمة.',
+    'Capacité résiduelle mesurée à 38 %.': 'السعة المتبقية المقاسة 38٪.',
+    'Accord confirmé depuis l’espace client.': 'تم تأكيد الموافقة من مساحة العميل.',
   },
 }
 

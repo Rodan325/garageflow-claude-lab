@@ -799,6 +799,20 @@ const ar: Record<string, string> = {
 }
 
 Object.assign(en, {
+  'Parcours et historique': 'Journey and history',
+  'Garage indépendant': 'Independent garage',
+  'Pilotage quotidien': 'Daily operations',
+  'Organisation multi-centres': 'Multi-location organization',
+  'Activité des établissements': 'Location activity',
+  'Responsable réseau': 'Network manager',
+  'Comparaison et supervision': 'Comparison and oversight',
+  'Propriétaire de l’organisation': 'Organization owner',
+  'Administrateur réseau': 'Network administrator',
+  'Responsable régional': 'Regional manager',
+  'Observateur': 'Viewer',
+  'Responsable d’établissement': 'Location manager',
+  'Conseiller service': 'Service advisor',
+  'Technicien': 'Technician',
   'Transfert proposé': 'Transfer proposed',
   'La confirmation du client est requise avant le changement d’établissement.': 'Customer confirmation is required before changing location.',
   'Transfert impossible': 'Transfer unavailable',
@@ -858,6 +872,20 @@ Object.assign(en, {
 })
 
 Object.assign(ar, {
+  'Parcours et historique': 'المسار والسجل',
+  'Garage indépendant': 'ورشة مستقلة',
+  'Pilotage quotidien': 'الإدارة اليومية',
+  'Organisation multi-centres': 'مؤسسة متعددة المراكز',
+  'Activité des établissements': 'نشاط المراكز',
+  'Responsable réseau': 'مسؤول الشبكة',
+  'Comparaison et supervision': 'المقارنة والإشراف',
+  'Propriétaire de l’organisation': 'مالك المؤسسة',
+  'Administrateur réseau': 'مسؤول الشبكة',
+  'Responsable régional': 'مدير إقليمي',
+  'Observateur': 'مراقب',
+  'Responsable d’établissement': 'مدير المركز',
+  'Conseiller service': 'مستشار الخدمة',
+  'Technicien': 'فني',
   'Transfert proposé': 'تم اقتراح النقل',
   'La confirmation du client est requise avant le changement d’établissement.': 'يلزم تأكيد العميل قبل تغيير المركز.',
   'Transfert impossible': 'تعذر النقل',
