@@ -9,11 +9,11 @@ export const en: Messages = {
     serviceConnected: 'Service synchronised', sessionRequired: 'Session required', serviceUnavailable: 'Service unavailable',
   },
   nav: {
-    problems: 'Challenges', solution: 'Solution', journey: 'How it works', pilotOffer: 'Solutions',
+    problems: 'Challenges', solution: 'Solution', journey: 'How it works', solutions: 'Solutions',
     accessAccount: 'Access your account',
   },
   footer: {
-    pilotDemo: 'Automotive after-sales platform', pilotVersion: 'Online service', legal: 'Legal notice', privacy: 'Privacy', terms: 'Terms',
+    productDescriptor: 'Automotive after-sales platform', serviceAvailability: 'Online service', legal: 'Legal notice', privacy: 'Privacy', terms: 'Terms',
     pilotAgreement: 'Pilot agreement', dpa: 'DPA', contact: 'Contact',
     serviceEditor: 'Clikarage is a service published by RODANBTECH.',
   },
@@ -50,7 +50,7 @@ export const en: Messages = {
     garageSteps: ['Plan the appointment', 'Check in the vehicle', 'Diagnose and recommend', 'Complete and inspect the work', 'Hand over and retain the customer'],
     ctaTitle: 'Structure the complete customer experience in your workshop',
     ctaText: 'Discover a platform built for daily operations and adaptable to your organisation.',
-    discoverPilot: 'Discover Clikarage',
+    discoverProduct: 'Discover Clikarage',
   },
   solutions: {
     eyebrow: 'Automotive after-sales platform',

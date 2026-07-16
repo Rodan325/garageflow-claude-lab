@@ -28,7 +28,7 @@ export function LegalFooter({ className, brandOverride }: { className?: string; 
         className,
       )}
     >
-      <span className="font-medium">{displayedBrand.official ? t.footer.serviceEditor : tr(displayedBrand.legalDisplayName)} — {t.footer.pilotVersion}</span>
+      <span className="font-medium">{displayedBrand.official ? t.footer.serviceEditor : tr(displayedBrand.legalDisplayName)} — {t.footer.serviceAvailability}</span>
       {links.map(({ to, label }) => (
         <span key={to} className="inline-flex items-center gap-x-2">
           <span aria-hidden>·</span>

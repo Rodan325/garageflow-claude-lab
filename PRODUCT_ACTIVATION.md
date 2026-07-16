@@ -103,6 +103,16 @@ No migration-history repair, database push, manual production SQL or direct data
 
 Email, SMS, push, DMS, CRM, calendar, webhook and REST providers are interfaces only. No provider credentials exist in the frontend and no external API is called by presentation mode. A real integration requires a server-side secret store, retry and idempotency strategy, provider agreement, observability, rate limits and data-processing review.
 
+## Blocking legal review
+
+The current legal documents remain versioned working documents and must not be represented as legally finalized for commercial onboarding.
+
+Legal review required before production onboarding:
+- replace pilot-specific contractual wording;
+- align DPA with attachment/document processing;
+- define retention for notification recipient addresses;
+- validate marketing reminder consent and legal basis.
+
 ## Validation boundary
 
 Static TypeScript, lint, unit, build and security checks can run locally. Database reconstruction, RLS anti-leak tests, Storage policy tests and advisor output require an explicitly non-production migrated database. They must not be reported as successful until that environment has been used.

@@ -9,11 +9,11 @@ export const ar: Messages = {
     serviceConnected: 'الخدمة متزامنة', sessionRequired: 'يلزم تسجيل الدخول', serviceUnavailable: 'الخدمة غير متاحة',
   },
   nav: {
-    problems: 'التحديات', solution: 'الحل', journey: 'طريقة العمل', pilotOffer: 'الحلول',
+    problems: 'التحديات', solution: 'الحل', journey: 'طريقة العمل', solutions: 'الحلول',
     accessAccount: 'الدخول إلى حسابك',
   },
   footer: {
-    pilotDemo: 'منصة لخدمات ما بعد البيع للسيارات', pilotVersion: 'خدمة عبر الإنترنت', legal: 'الإشعار القانوني', privacy: 'الخصوصية', terms: 'شروط الاستخدام',
+    productDescriptor: 'منصة لخدمات ما بعد البيع للسيارات', serviceAvailability: 'خدمة عبر الإنترنت', legal: 'الإشعار القانوني', privacy: 'الخصوصية', terms: 'شروط الاستخدام',
     pilotAgreement: 'اتفاق التجربة', dpa: 'اتفاق معالجة البيانات', contact: 'اتصل بنا',
     serviceEditor: 'Clikarage خدمة تنشرها RODANBTECH.',
   },
@@ -49,7 +49,7 @@ export const ar: Messages = {
     garageSide: 'للورش', garageTitle: 'أدر التدخل من البداية إلى النهاية',
     garageSteps: ['خطط للموعد', 'استلم المركبة', 'شخّص واقترح', 'نفّذ الأعمال وافحصها', 'سلّم المركبة وحافظ على العميل'],
     ctaTitle: 'نظّم تجربة العميل الكاملة داخل ورشتك', ctaText: 'اكتشف منصة مصممة للعمليات اليومية وقابلة للتكيف مع مؤسستك.',
-    discoverPilot: 'اكتشف Clikarage',
+    discoverProduct: 'اكتشف Clikarage',
   },
   solutions: {
     eyebrow: 'منصة لخدمات ما بعد البيع للسيارات',

@@ -144,7 +144,7 @@ export function HomePage() {
             {t.home.ctaText}
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Link to="/solutions"><Button size="lg">{t.home.discoverPilot}</Button></Link>
+            <Link to="/solutions"><Button size="lg">{t.home.discoverProduct}</Button></Link>
             <Link to="/login"><Button size="lg" variant="outline">{t.nav.accessAccount}</Button></Link>
           </div>
         </div>
