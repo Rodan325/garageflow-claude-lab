@@ -14,6 +14,17 @@ function clean(value?: string): string {
 const url = clean(import.meta.env.VITE_SUPABASE_URL)
 const anonKey = clean(import.meta.env.VITE_SUPABASE_ANON_KEY)
 
+export function isAllowedSupabaseUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value)
+    if (parsed.protocol === 'https:') return true
+
+    return parsed.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
+  } catch {
+    return false
+  }
+}
+
 export const env = {
   supabaseUrl: url,
   supabaseAnonKey: anonKey,
@@ -44,7 +55,7 @@ export const env = {
 export const isSupabaseConfigured = Boolean(
   url &&
     anonKey &&
-    url.startsWith('https://') &&
+    isAllowedSupabaseUrl(url) &&
     !url.includes('YOUR_PROJECT') &&
     anonKey.length > 20 &&
     !anonKey.includes('xxx'),
