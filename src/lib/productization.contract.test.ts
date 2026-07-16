@@ -60,6 +60,12 @@ describe('commercial product contract', () => {
     for (const flag of flags) expect(example).toContain(`${flag}=false`)
   })
 
+  it('lets operational dashboard cards shrink on narrow RTL layouts', () => {
+    const dashboard = read('src', 'features', 'pro', 'DashboardPage.tsx')
+    expect(dashboard).toContain('<Card className="min-w-0 lg:col-span-2">')
+    expect(dashboard).toContain('<Card className="min-w-0">')
+  })
+
   it('keeps Clikarage and white-label stores isolated with identical capabilities', () => {
     expect(STORE_KEY).toBe('gf-demo-store-v6')
     expect(SPEEDY_STORE_KEY).toBe('gf-demo-store-v6-speedy')

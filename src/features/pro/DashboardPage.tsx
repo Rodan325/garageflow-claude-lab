@@ -110,7 +110,7 @@ export function DashboardPage() {
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>{tr('À traiter maintenant')}</CardTitle>
             <Link to="/pro/bookings" className="inline-flex items-center gap-1 text-sm font-medium text-primary">{tr('Tout voir')} <ArrowRight className="h-4 w-4 rtl:rotate-180" /></Link>
@@ -132,7 +132,7 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader><CardTitle>{tr('À faire aujourd’hui')}</CardTitle></CardHeader>
           <CardContent>
             {!openTasks.length ? <EmptyState icon={CheckSquare} title={tr('Rien à faire')} /> : (
