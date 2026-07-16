@@ -27,6 +27,16 @@ create table public.service_request_transfers (
 
 create index service_request_transfers_request_idx
   on public.service_request_transfers(service_request_id, created_at desc);
+create index service_request_transfers_request_garage_fk_idx
+  on public.service_request_transfers(service_request_id, garage_id);
+create index service_request_transfers_from_center_garage_fk_idx
+  on public.service_request_transfers(from_center_id, garage_id);
+create index service_request_transfers_to_center_garage_fk_idx
+  on public.service_request_transfers(to_center_id, garage_id);
+create index service_request_transfers_requested_by_fk_idx
+  on public.service_request_transfers(requested_by);
+create index service_request_transfers_garage_idx
+  on public.service_request_transfers(garage_id, created_at desc);
 
 create unique index service_request_transfers_one_open_idx
   on public.service_request_transfers(service_request_id)
@@ -51,6 +61,12 @@ create table public.service_request_transfer_events (
 
 create index service_request_transfer_events_timeline_idx
   on public.service_request_transfer_events(transfer_id, occurred_at);
+create index service_request_transfer_events_transfer_garage_fk_idx
+  on public.service_request_transfer_events(transfer_id, garage_id);
+create index service_request_transfer_events_garage_idx
+  on public.service_request_transfer_events(garage_id, occurred_at desc);
+create index service_request_transfer_events_changed_by_fk_idx
+  on public.service_request_transfer_events(changed_by);
 
 create function public.prevent_transfer_event_mutation()
 returns trigger
@@ -71,7 +87,8 @@ alter table public.service_request_transfer_events enable row level security;
 
 create policy service_request_transfers_select on public.service_request_transfers
 for select to authenticated using (
-  public.is_garage_member(garage_id)
+  public.can_manage_garage_center(garage_id, from_center_id)
+  or public.can_manage_garage_center(garage_id, to_center_id)
   or exists (
     select 1 from public.service_requests request
     where request.id = service_request_transfers.service_request_id
@@ -82,7 +99,16 @@ for select to authenticated using (
 
 create policy service_request_transfer_events_select on public.service_request_transfer_events
 for select to authenticated using (
-  public.is_garage_member(garage_id)
+  exists (
+    select 1
+    from public.service_request_transfers transfer
+    where transfer.id = service_request_transfer_events.transfer_id
+      and transfer.garage_id = service_request_transfer_events.garage_id
+      and (
+        public.can_manage_garage_center(transfer.garage_id, transfer.from_center_id)
+        or public.can_manage_garage_center(transfer.garage_id, transfer.to_center_id)
+      )
+  )
   or exists (
     select 1
     from public.service_request_transfers transfer
@@ -117,7 +143,8 @@ begin
   if v_actor is null then raise exception 'Authentication required' using errcode = '42501'; end if;
   select * into v_request from public.service_requests where id = p_request_id for update;
   if not found then raise exception 'Service request not found' using errcode = 'P0002'; end if;
-  if not public.is_garage_member(v_request.garage_id) then
+  if not public.can_manage_garage_center(v_request.garage_id, v_request.center_id)
+    or not public.can_manage_garage_center(v_request.garage_id, p_to_center_id) then
     raise exception 'Center transfer not permitted' using errcode = '42501';
   end if;
   if v_request.center_id is null then
@@ -211,7 +238,8 @@ begin
   select * into v_transfer
   from public.service_request_transfers where id = p_transfer_id for update;
   if not found then raise exception 'Center transfer not found' using errcode = 'P0002'; end if;
-  if not public.is_garage_member(v_transfer.garage_id) then
+  if not public.can_manage_garage_center(v_transfer.garage_id, v_transfer.from_center_id)
+    or not public.can_manage_garage_center(v_transfer.garage_id, v_transfer.to_center_id) then
     raise exception 'Center transfer completion not permitted' using errcode = '42501';
   end if;
   if v_transfer.status <> 'customer_confirmed' then
@@ -295,16 +323,58 @@ create table public.external_entity_references (
 
 create index external_entity_references_source_idx
   on public.external_entity_references(garage_id, external_source, sync_status);
+create index integration_connections_garage_idx
+  on public.integration_connections(garage_id, integration_type);
+create index integration_connections_center_garage_fk_idx
+  on public.integration_connections(center_id, garage_id)
+  where center_id is not null;
+create index integration_connections_created_by_fk_idx
+  on public.integration_connections(created_by)
+  where created_by is not null;
+create index external_entity_references_center_garage_fk_idx
+  on public.external_entity_references(center_id, garage_id)
+  where center_id is not null;
 
 alter table public.integration_connections enable row level security;
 alter table public.external_entity_references enable row level security;
 
 create policy integration_connections_member_select on public.integration_connections
-for select to authenticated using (public.is_garage_member(garage_id));
+for select to authenticated using (public.can_view_network_dashboard(garage_id));
 create policy external_entity_references_member_select on public.external_entity_references
-for select to authenticated using (public.is_garage_member(garage_id));
+for select to authenticated using (public.can_view_network_dashboard(garage_id));
 
 revoke all on public.integration_connections from public, anon, authenticated;
 revoke all on public.external_entity_references from public, anon, authenticated;
 grant select on public.integration_connections to authenticated;
 grant select on public.external_entity_references to authenticated;
+
+-- Reproduce the minimum Data API privileges expected by the historical RLS
+-- policies. A fresh local database otherwise has policies but no usable DML
+-- privileges, while every operation below remains constrained by RLS.
+grant select on public.garages to anon, authenticated;
+grant select on public.garage_services, public.garage_news, public.garage_hours
+  to anon, authenticated;
+
+grant update on public.garages to authenticated;
+grant select, insert, update on public.profiles to authenticated;
+grant select, insert, update, delete on public.garage_members to authenticated;
+grant select, insert, update, delete on public.client_profiles to authenticated;
+grant select, insert, update, delete on public.customers to authenticated;
+grant select, insert, update, delete on public.vehicles to authenticated;
+grant select, insert, update, delete on public.client_vehicles to authenticated;
+grant select, insert, update, delete on public.client_vehicle_shares to authenticated;
+grant insert, update, delete on public.garage_services to authenticated;
+grant insert, update, delete on public.garage_news to authenticated;
+grant insert, update, delete on public.garage_hours to authenticated;
+grant select, insert, update, delete on public.service_requests to authenticated;
+grant select, insert on public.service_request_messages to authenticated;
+grant select, insert, update, delete on public.appointments to authenticated;
+grant select, insert, update, delete on public.repairs to authenticated;
+grant select, insert, update, delete on public.quotes to authenticated;
+grant select, insert, update, delete on public.quote_lines to authenticated;
+grant select, insert, update, delete on public.documents to authenticated;
+grant select, insert, update, delete on public.tasks to authenticated;
+grant select, insert, update, delete on public.consents to authenticated;
+grant select, insert on public.audit_logs to authenticated;
+grant select on public.quote_counters, public.platform_admins to authenticated;
+grant select, insert on public.legal_acceptances to authenticated;

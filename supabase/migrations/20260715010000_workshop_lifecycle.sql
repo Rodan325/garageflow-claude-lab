@@ -83,17 +83,50 @@ create index service_request_timeline_request_occurred_idx
   on public.service_request_timeline (request_id, occurred_at);
 create index service_request_timeline_garage_stage_idx
   on public.service_request_timeline (garage_id, new_stage, occurred_at desc);
+create index service_request_timeline_request_garage_fk_idx
+  on public.service_request_timeline (request_id, garage_id);
+create index service_request_timeline_center_garage_fk_idx
+  on public.service_request_timeline (center_id, garage_id)
+  where center_id is not null;
+create index service_request_timeline_changed_by_fk_idx
+  on public.service_request_timeline (changed_by)
+  where changed_by is not null;
 create index service_requests_workshop_stage_idx
   on public.service_requests (garage_id, workshop_stage, updated_at desc)
   where workshop_stage is not null;
 
 alter table public.service_request_timeline enable row level security;
 
+-- Organization-wide legacy members have no center assignment. Center-scoped
+-- members may administer only rows belonging to their assigned center.
+create or replace function public.can_manage_garage_center(
+  p_garage_id uuid,
+  p_center_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select exists (
+    select 1
+    from public.garage_members member
+    where member.garage_id = p_garage_id
+      and member.user_id = (select auth.uid())
+      and member.status = 'active'
+      and (member.center_id is null or member.center_id = p_center_id)
+  );
+$$;
+
+revoke all on function public.can_manage_garage_center(uuid, uuid) from public, anon;
+grant execute on function public.can_manage_garage_center(uuid, uuid) to authenticated;
+
 create policy service_request_timeline_staff_select
   on public.service_request_timeline
   for select
   to authenticated
-  using (public.is_garage_member(garage_id));
+  using (public.can_manage_garage_center(garage_id, center_id));
 
 create policy service_request_timeline_customer_select
   on public.service_request_timeline
@@ -220,6 +253,9 @@ begin
   if not public.has_garage_role(
     current_request.garage_id,
     array['owner', 'admin', 'advisor', 'front_desk', 'mechanic']
+  ) or not public.can_manage_garage_center(
+    current_request.garage_id,
+    current_request.center_id
   ) then
     raise exception 'Workshop transition not permitted' using errcode = '42501';
   end if;

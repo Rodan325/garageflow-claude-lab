@@ -93,17 +93,38 @@ create index workshop_recommendations_request_idx
   on public.workshop_recommendations (service_request_id, created_at desc);
 create index workshop_recommendations_garage_status_idx
   on public.workshop_recommendations (garage_id, status, created_at desc);
+create index workshop_recommendations_request_garage_fk_idx
+  on public.workshop_recommendations (service_request_id, garage_id);
+create index workshop_recommendations_center_garage_fk_idx
+  on public.workshop_recommendations (center_id, garage_id)
+  where center_id is not null;
+create index workshop_recommendations_created_by_fk_idx
+  on public.workshop_recommendations (created_by)
+  where created_by is not null;
 create index recommendation_decisions_recommendation_idx
   on public.recommendation_decisions (recommendation_id, occurred_at);
+create index recommendation_decisions_recommendation_garage_fk_idx
+  on public.recommendation_decisions (recommendation_id, garage_id);
+create index recommendation_decisions_request_garage_fk_idx
+  on public.recommendation_decisions (service_request_id, garage_id);
+create index recommendation_decisions_decided_by_fk_idx
+  on public.recommendation_decisions (decided_by)
+  where decided_by is not null;
 create index quotes_recommendation_idx
   on public.quotes (recommendation_id) where recommendation_id is not null;
+create index quotes_recommendation_garage_fk_idx
+  on public.quotes (recommendation_id, garage_id)
+  where recommendation_id is not null;
+create index quotes_supplemental_to_garage_fk_idx
+  on public.quotes (supplemental_to_quote_id, garage_id)
+  where supplemental_to_quote_id is not null;
 
 alter table public.workshop_recommendations enable row level security;
 alter table public.recommendation_decisions enable row level security;
 
 create policy workshop_recommendations_staff_select
   on public.workshop_recommendations for select to authenticated
-  using (public.is_garage_member(garage_id));
+  using (public.can_manage_garage_center(garage_id, center_id));
 
 create policy workshop_recommendations_customer_select
   on public.workshop_recommendations for select to authenticated
@@ -119,7 +140,18 @@ create policy workshop_recommendations_customer_select
 
 create policy recommendation_decisions_staff_select
   on public.recommendation_decisions for select to authenticated
-  using (public.is_garage_member(garage_id));
+  using (
+    exists (
+      select 1
+      from public.workshop_recommendations recommendation
+      where recommendation.id = recommendation_decisions.recommendation_id
+        and recommendation.garage_id = recommendation_decisions.garage_id
+        and public.can_manage_garage_center(
+          recommendation.garage_id,
+          recommendation.center_id
+        )
+    )
+  );
 
 create policy recommendation_decisions_customer_select
   on public.recommendation_decisions for select to authenticated
@@ -169,6 +201,9 @@ begin
   if not public.has_garage_role(
     current_request.garage_id,
     array['owner', 'admin', 'advisor', 'front_desk', 'mechanic']
+  ) or not public.can_manage_garage_center(
+    current_request.garage_id,
+    current_request.center_id
   ) then
     raise exception 'Recommendation creation not permitted' using errcode = '42501';
   end if;
@@ -223,6 +258,9 @@ begin
   if not public.has_garage_role(
     recommendation.garage_id,
     array['owner', 'admin', 'advisor', 'front_desk', 'mechanic']
+  ) or not public.can_manage_garage_center(
+    recommendation.garage_id,
+    recommendation.center_id
   ) then
     raise exception 'Recommendation transition not permitted' using errcode = '42501';
   end if;
@@ -231,7 +269,7 @@ begin
     when 'draft' then p_new_status in ('proposed', 'cancelled')
     when 'proposed' then p_new_status = 'cancelled'
     when 'callback_requested' then p_new_status in ('proposed', 'cancelled')
-    when 'accepted' then p_new_status in ('completed', 'cancelled')
+    when 'accepted' then p_new_status = 'completed'
     when 'declined' then p_new_status = 'cancelled'
     else false
   end;
@@ -350,7 +388,10 @@ begin
     or recommendation.service_request_id <> linked_quote.service_request_id then
     raise exception 'Recommendation and quote do not belong to the same case' using errcode = '23514';
   end if;
-  if not public.is_garage_member(linked_quote.garage_id) then
+  if not public.can_manage_garage_center(
+    linked_quote.garage_id,
+    recommendation.center_id
+  ) then
     raise exception 'Quote link not permitted' using errcode = '42501';
   end if;
   if p_supplemental_to_quote_id is not null and not exists (
@@ -386,6 +427,15 @@ begin
   select * into source_quote from public.quotes where id = p_id;
   if source_quote.id is null or not public.is_garage_member(source_quote.garage_id) then
     raise exception 'Quote revision not permitted' using errcode = '42501';
+  end if;
+  if source_quote.service_request_id is not null and not exists (
+    select 1
+    from public.service_requests request
+    where request.id = source_quote.service_request_id
+      and request.garage_id = source_quote.garage_id
+      and public.can_manage_garage_center(request.garage_id, request.center_id)
+  ) then
+    raise exception 'Quote revision not permitted for this center' using errcode = '42501';
   end if;
 
   insert into public.quotes (

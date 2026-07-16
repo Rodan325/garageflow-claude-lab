@@ -50,11 +50,19 @@ create table public.delivery_reports (
 );
 
 create index delivery_reports_garage_idx on public.delivery_reports (garage_id, created_at desc);
+create index delivery_reports_request_garage_fk_idx
+  on public.delivery_reports (service_request_id, garage_id);
+create index delivery_reports_center_garage_fk_idx
+  on public.delivery_reports (center_id, garage_id)
+  where center_id is not null;
+create index delivery_reports_finalized_by_fk_idx
+  on public.delivery_reports (finalized_by)
+  where finalized_by is not null;
 alter table public.delivery_reports enable row level security;
 
 create policy delivery_reports_staff_select
   on public.delivery_reports for select to authenticated
-  using (public.is_garage_member(garage_id));
+  using (public.can_manage_garage_center(garage_id, center_id));
 create policy delivery_reports_customer_select
   on public.delivery_reports for select to authenticated
   using (
@@ -95,7 +103,7 @@ begin
   if not public.has_garage_role(
     request.garage_id,
     array['owner', 'admin', 'advisor', 'front_desk', 'mechanic']
-  ) then
+  ) or not public.can_manage_garage_center(request.garage_id, request.center_id) then
     raise exception 'Delivery report not permitted' using errcode = '42501';
   end if;
   select * into report from public.delivery_reports where service_request_id = request.id for update;
@@ -227,11 +235,41 @@ create index maintenance_reminders_garage_idx
   on public.maintenance_reminders (garage_id, created_at desc);
 create index maintenance_reminders_client_idx
   on public.maintenance_reminders (client_id, created_at desc);
+create index maintenance_reminders_center_garage_fk_idx
+  on public.maintenance_reminders (center_id, garage_id)
+  where center_id is not null;
+create index maintenance_reminders_vehicle_fk_idx
+  on public.maintenance_reminders (vehicle_id)
+  where vehicle_id is not null;
+create index maintenance_reminders_client_vehicle_fk_idx
+  on public.maintenance_reminders (client_vehicle_id)
+  where client_vehicle_id is not null;
+create index maintenance_reminders_request_garage_fk_idx
+  on public.maintenance_reminders (service_request_id, garage_id)
+  where service_request_id is not null;
+create index maintenance_reminders_converted_request_garage_fk_idx
+  on public.maintenance_reminders (converted_request_id, garage_id)
+  where converted_request_id is not null;
+create index maintenance_reminders_created_by_fk_idx
+  on public.maintenance_reminders (created_by)
+  where created_by is not null;
+create unique index maintenance_reminders_active_dedupe_idx
+  on public.maintenance_reminders (
+    garage_id,
+    client_id,
+    coalesce(vehicle_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    coalesce(client_vehicle_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    reminder_type,
+    coalesce(due_date, 'infinity'::date),
+    coalesce(due_mileage, -1),
+    source
+  )
+  where status in ('scheduled', 'sent', 'opened');
 
 alter table public.maintenance_reminders enable row level security;
 create policy maintenance_reminders_staff_select
   on public.maintenance_reminders for select to authenticated
-  using (public.is_garage_member(garage_id));
+  using (public.can_manage_garage_center(garage_id, center_id));
 create policy maintenance_reminders_client_select
   on public.maintenance_reminders for select to authenticated
   using (client_id = (select auth.uid()));
@@ -263,6 +301,9 @@ declare reminder public.maintenance_reminders%rowtype;
 begin
   if not public.has_garage_role(p_garage_id, array['owner', 'admin', 'advisor', 'front_desk']) then
     raise exception 'Reminder creation not permitted' using errcode = '42501';
+  end if;
+  if not public.can_manage_garage_center(p_garage_id, p_center_id) then
+    raise exception 'Reminder creation not permitted for this center' using errcode = '42501';
   end if;
   if p_due_date is null and p_due_mileage is null then
     raise exception 'A date or mileage is required' using errcode = '22023';

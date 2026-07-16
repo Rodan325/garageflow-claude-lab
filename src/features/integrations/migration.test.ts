@@ -26,7 +26,15 @@ describe('center transfer and integration migration', () => {
     expect(sql).toContain('enable row level security')
     expect(sql).toContain('revoke all on public.service_request_transfers from public, anon, authenticated')
     expect(sql).toContain('grant execute on function public.propose_center_transfer')
-    expect(sql).not.toMatch(/grant\s+(insert|update|delete|all)\s+on\s+public\./)
+    for (const table of [
+      'service_request_transfers',
+      'service_request_transfer_events',
+      'integration_connections',
+      'external_entity_references',
+    ]) {
+      expect(sql).not.toMatch(new RegExp(`grant\\s+[^;]*(insert|update|delete|all)[^;]*on\\s+public\\.${table}\\b`))
+    }
+    expect(sql).not.toMatch(/grant\s+[^;]*(insert|update|delete|all)[^;]*\s+to\s+anon\b/)
   })
 
   it('stores only non-sensitive integration configuration', () => {

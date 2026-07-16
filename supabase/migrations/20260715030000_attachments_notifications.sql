@@ -49,12 +49,23 @@ create index service_request_attachments_request_idx
   on public.service_request_attachments (service_request_id, created_at desc);
 create index service_request_attachments_garage_idx
   on public.service_request_attachments (garage_id, created_at desc);
+create index service_request_attachments_request_garage_fk_idx
+  on public.service_request_attachments (service_request_id, garage_id);
+create index service_request_attachments_center_garage_fk_idx
+  on public.service_request_attachments (center_id, garage_id)
+  where center_id is not null;
+create index service_request_attachments_recommendation_garage_fk_idx
+  on public.service_request_attachments (recommendation_id, garage_id)
+  where recommendation_id is not null;
+create index service_request_attachments_uploaded_by_fk_idx
+  on public.service_request_attachments (uploaded_by)
+  where uploaded_by is not null;
 
 alter table public.service_request_attachments enable row level security;
 
 create policy service_request_attachments_staff_select
   on public.service_request_attachments for select to authenticated
-  using (public.is_garage_member(garage_id));
+  using (public.can_manage_garage_center(garage_id, center_id));
 
 create policy service_request_attachments_customer_select
   on public.service_request_attachments for select to authenticated
@@ -85,16 +96,56 @@ values (
 )
 on conflict (id) do nothing;
 
+-- Storage writes object metadata after reserving the row, so INSERT policies
+-- cannot reliably inspect the final size. Enforce the lower bound and mirror
+-- the bucket limits when metadata becomes available.
+create or replace function private.guard_service_attachment_object()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, storage
+as $$
+declare
+  object_size bigint;
+  object_mime text;
+begin
+  if new.bucket_id <> 'service-request-attachments'
+    or new.metadata is null
+    or not (new.metadata ? 'size') then
+    return new;
+  end if;
+  if coalesce(new.metadata->>'size', '') !~ '^[0-9]+$' then
+    raise exception 'Attachment object size is required' using errcode = '22023';
+  end if;
+  object_size := (new.metadata->>'size')::bigint;
+  object_mime := lower(coalesce(new.metadata->>'mimetype', ''));
+  if object_size not between 1 and 26214400 then
+    raise exception 'Attachment object size is invalid' using errcode = '22023';
+  end if;
+  if object_mime not in (
+    'image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime',
+    'application/pdf', 'text/plain', 'text/csv'
+  ) then
+    raise exception 'Attachment object MIME type is invalid' using errcode = '22023';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger guard_service_attachment_object_metadata
+before insert or update of metadata on storage.objects
+for each row execute function private.guard_service_attachment_object();
+
 -- Path contract: <garage_uuid>/<request_uuid>/<random>-<safe-file-name>.
 create policy service_attachments_staff_read_objects
   on storage.objects for select to authenticated
   using (
     bucket_id = 'service-request-attachments'
     and exists (
-      select 1 from public.garage_members member
-      where member.user_id = (select auth.uid())
-        and member.status = 'active'
-        and member.garage_id::text = (storage.foldername(name))[1]
+      select 1
+      from public.service_requests request
+      where request.garage_id::text = (storage.foldername(name))[1]
+        and request.id::text = (storage.foldername(name))[2]
+        and public.can_manage_garage_center(request.garage_id, request.center_id)
     )
   );
 
@@ -118,18 +169,12 @@ create policy service_attachments_staff_insert_objects
   with check (
     bucket_id = 'service-request-attachments'
     and array_length(storage.foldername(name), 1) >= 2
-    and coalesce(metadata->>'size', '') ~ '^[0-9]+$'
-    and (metadata->>'size')::bigint between 1 and 26214400
-    and lower(coalesce(metadata->>'mimetype', '')) in (
-      'image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime',
-      'application/pdf', 'text/plain', 'text/csv'
-    )
     and exists (
       select 1
       from public.service_requests request
       where request.id::text = (storage.foldername(name))[2]
         and request.garage_id::text = (storage.foldername(name))[1]
-        and public.is_garage_member(request.garage_id)
+        and public.can_manage_garage_center(request.garage_id, request.center_id)
     )
   );
 
@@ -144,7 +189,10 @@ create policy service_attachments_staff_delete_objects
       where attachment.storage_path = storage.objects.name
         and (
           attachment.uploaded_by = (select auth.uid())
-          or public.has_garage_role(attachment.garage_id, array['owner', 'admin'])
+          or (
+            public.has_garage_role(attachment.garage_id, array['owner', 'admin'])
+            and public.can_manage_garage_center(attachment.garage_id, attachment.center_id)
+          )
         )
       )
     )
@@ -173,7 +221,10 @@ begin
   select * into current_request
   from public.service_requests request where request.id = p_request_id;
   if not found then raise exception 'Service request not found' using errcode = 'P0002'; end if;
-  if not public.is_garage_member(current_request.garage_id) then
+  if not public.can_manage_garage_center(
+    current_request.garage_id,
+    current_request.center_id
+  ) then
     raise exception 'Attachment registration not permitted' using errcode = '42501';
   end if;
   if p_recommendation_id is not null and not exists (
@@ -275,12 +326,21 @@ create index notification_outbox_garage_idx
   on public.notification_outbox (garage_id, created_at desc);
 create index notification_outbox_recipient_idx
   on public.notification_outbox (recipient_user_id, created_at desc) where channel = 'in_app';
+create index notification_outbox_center_garage_fk_idx
+  on public.notification_outbox (center_id, garage_id)
+  where center_id is not null;
+create index notification_outbox_request_garage_fk_idx
+  on public.notification_outbox (service_request_id, garage_id)
+  where service_request_id is not null;
+create index notification_outbox_recipient_user_fk_idx
+  on public.notification_outbox (recipient_user_id)
+  where recipient_user_id is not null;
 
 alter table public.notification_outbox enable row level security;
 
 create policy notification_outbox_staff_select
   on public.notification_outbox for select to authenticated
-  using (public.is_garage_member(garage_id));
+  using (public.can_manage_garage_center(garage_id, center_id));
 create policy notification_outbox_recipient_select
   on public.notification_outbox for select to authenticated
   using (channel = 'in_app' and recipient_user_id = (select auth.uid()));
@@ -378,3 +438,8 @@ $$;
 create trigger queue_quote_available_notification
 after update of status on public.quotes
 for each row execute function private.queue_quote_notification();
+
+revoke all on function private.guard_service_attachment_object() from public, anon, authenticated;
+revoke all on function private.queue_request_notification() from public, anon, authenticated;
+revoke all on function private.queue_recommendation_notification() from public, anon, authenticated;
+revoke all on function private.queue_quote_notification() from public, anon, authenticated;

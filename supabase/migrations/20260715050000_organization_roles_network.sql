@@ -12,6 +12,15 @@ alter table public.appointments
 
 create index appointments_center_starts_idx
   on public.appointments (center_id, starts_at);
+create index appointments_center_garage_fk_idx
+  on public.appointments (center_id, garage_id)
+  where center_id is not null;
+create index service_requests_center_garage_fk_idx
+  on public.service_requests (center_id, garage_id)
+  where center_id is not null;
+create index garage_members_center_garage_fk_idx
+  on public.garage_members (center_id, garage_id)
+  where center_id is not null;
 
 update public.appointments appointment
 set center_id = request.center_id
@@ -44,6 +53,35 @@ comment on column public.garage_members.organization_role is
 comment on column public.garage_members.center_role is
   'Optional establishment role scoped by center_id. Existing role is preserved for compatibility.';
 
+-- Refine the compatibility helper now that generic organization roles exist.
+-- Unscoped legacy members keep their historical organization-wide access;
+-- explicitly center-scoped members remain limited to their establishment.
+create or replace function public.can_manage_garage_center(
+  p_garage_id uuid,
+  p_center_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select exists (
+    select 1
+    from public.garage_members member
+    where member.garage_id = p_garage_id
+      and member.user_id = (select auth.uid())
+      and member.status = 'active'
+      and (
+        member.organization_role in (
+          'organization_owner', 'network_admin', 'regional_manager'
+        )
+        or (member.organization_role is null and member.center_id is null)
+        or member.center_id = p_center_id
+      )
+  );
+$$;
+
 create or replace function public.can_view_network_dashboard(p_garage_id uuid)
 returns boolean
 language sql
@@ -57,8 +95,17 @@ as $$
       and member.user_id = (select auth.uid())
       and member.status = 'active'
       and (
-        member.role in ('owner', 'admin')
-        or member.organization_role in ('organization_owner', 'network_admin', 'regional_manager')
+        member.organization_role in ('organization_owner', 'network_admin', 'regional_manager')
+        or (
+          member.organization_role is null
+          and member.center_id is null
+          and member.role in ('owner', 'admin')
+        )
+      )
+      and 1 < (
+        select count(*)
+        from public.garage_centers center
+        where center.garage_id = p_garage_id and center.is_active
       )
   );
 $$;
