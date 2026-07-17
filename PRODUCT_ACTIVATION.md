@@ -53,6 +53,12 @@ They depend on the reconciled platform admin migration and the two center migrat
 
 The product migrations are additive: nullable compatibility columns, new tables, indexes, constraints, policies, triggers and RPCs. Existing rows and historical identifiers are preserved.
 
+## Historical bootstrap reconciliation
+
+Migration `0004_seed.sql` is retained as an intentionally non-mutating historical marker. Its original local demonstration insert reversed the `fuel` and `mileage` values of a client vehicle, so an exact clean bootstrap could not complete. No later migration depends on those demonstration rows.
+
+Useful fictitious records now live in `supabase/seed.sql`, execute after all 30 schema migrations, use deterministic identifiers and preserve the 14-account local validation set without duplication. The corrected vehicle stores `fuel = 'Diesel'` and `mileage = 98000`. See `docs/MIGRATION_0004_RECONCILIATION.md` for the rationale and local verification procedure. This reconciliation does not authorize migration repair, remote seed execution, or any production change.
+
 ## Feature flags
 
 Every schema-dependent capability is disabled by default in .env.example:

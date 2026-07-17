@@ -3,6 +3,45 @@
 set search_path = public, extensions, auth;
 
 -- One independent organization and one generic multi-center organization.
+-- The independent fixture originally lived in migration 0004. It belongs here
+-- because schema migrations must remain valid without demonstration data.
+insert into public.garages (
+  id, slug, name, legal_name, siret, vat_number, phone, email, website,
+  address, city, postal_code, country, description, specialties, is_public
+)
+values (
+  '11111111-1111-4111-8111-111111111111',
+  'garage-central-lyon',
+  'Garage Central Lyon',
+  'Garage Central SARL',
+  '90123456700019',
+  'FR12901234567',
+  '+33 4 78 00 00 00',
+  'contact@garage-central.fr',
+  'https://garage-central.fr',
+  '12 rue de la Mécanique',
+  'Lyon', '69003', 'FR',
+  'Entretien, révision et réparation toutes marques au cœur de Lyon. Devis clair, délais respectés.',
+  array['Entretien', 'Révision', 'Pneumatiques', 'Diagnostic électronique', 'Climatisation'],
+  true
+)
+on conflict (id) do update set
+  slug = excluded.slug,
+  name = excluded.name,
+  legal_name = excluded.legal_name,
+  siret = excluded.siret,
+  vat_number = excluded.vat_number,
+  phone = excluded.phone,
+  email = excluded.email,
+  website = excluded.website,
+  address = excluded.address,
+  city = excluded.city,
+  postal_code = excluded.postal_code,
+  country = excluded.country,
+  description = excluded.description,
+  specialties = excluded.specialties,
+  is_public = excluded.is_public;
+
 insert into public.garages (id, slug, name, city, country, is_public, description)
 values
   ('22222222-2222-4222-8222-222222222222', 'atlas-demo-network', 'Atlas Demo Network', 'Casablanca', 'MA', false, 'Fictitious multi-center organization for local validation.')
@@ -13,6 +52,46 @@ on conflict (id) do update set
   country = excluded.country,
   is_public = excluded.is_public,
   description = excluded.description;
+
+-- Independent organization catalog and editorial fixtures formerly stored in
+-- migration 0004. Stable IDs keep this seed reproducible and idempotent.
+insert into public.garage_services (
+  id, garage_id, name, description, category, duration_minutes, price_from, sort_order
+)
+values
+  ('31111111-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Révision constructeur', 'Vidange, filtres et points de contrôle complets.', 'Entretien', 90, 149.00, 1),
+  ('31111111-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Vidange + filtre', 'Vidange huile et remplacement du filtre à huile.', 'Entretien', 45, 79.00, 2),
+  ('31111111-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', 'Plaquettes de frein', 'Contrôle et remplacement des plaquettes avant.', 'Freinage', 60, 119.00, 3),
+  ('31111111-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', 'Diagnostic électronique', 'Lecture des défauts et diagnostic moteur.', 'Diagnostic', 30, 49.00, 4),
+  ('31111111-0000-4000-8000-000000000005', '11111111-1111-4111-8111-111111111111', 'Recharge climatisation', 'Recharge et contrôle du circuit de climatisation.', 'Confort', 60, 89.00, 5),
+  ('31111111-0000-4000-8000-000000000006', '11111111-1111-4111-8111-111111111111', 'Pneu monté (l''unité)', 'Montage, équilibrage et valve neuve.', 'Pneumatiques', 20, 25.00, 6)
+on conflict (id) do update set
+  name = excluded.name,
+  description = excluded.description,
+  category = excluded.category,
+  duration_minutes = excluded.duration_minutes,
+  price_from = excluded.price_from,
+  sort_order = excluded.sort_order;
+
+insert into public.garage_news (id, garage_id, title, body)
+values
+  ('32111111-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Offre révision avant l''été', 'Contrôle climatisation offert pour toute révision réservée en juin.'),
+  ('32111111-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Nouveaux horaires', 'Le garage est désormais ouvert le samedi matin de 8h à 12h.')
+on conflict (id) do update set title = excluded.title, body = excluded.body;
+
+insert into public.garage_hours (id, garage_id, weekday, open_time, close_time, is_closed)
+values
+  ('33111111-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 1, '08:00', '18:00', false),
+  ('33111111-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 2, '08:00', '18:00', false),
+  ('33111111-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', 3, '08:00', '18:00', false),
+  ('33111111-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', 4, '08:00', '18:00', false),
+  ('33111111-0000-4000-8000-000000000005', '11111111-1111-4111-8111-111111111111', 5, '08:00', '18:00', false),
+  ('33111111-0000-4000-8000-000000000006', '11111111-1111-4111-8111-111111111111', 6, '08:00', '12:00', false),
+  ('33111111-0000-4000-8000-000000000007', '11111111-1111-4111-8111-111111111111', 0, null, null, true)
+on conflict (garage_id, weekday) do update set
+  open_time = excluded.open_time,
+  close_time = excluded.close_time,
+  is_closed = excluded.is_closed;
 
 -- The center preparation migration creates a generic `principal` center for
 -- existing garages. Replace that local-only placeholder so the independent
@@ -48,20 +127,24 @@ where appointment.service_request_id = request.id
   and appointment.garage_id = request.garage_id
   and appointment.center_id is null;
 
--- Password for every local fixture account: LocalDemo1234!
-with fixture_users(id, email, full_name, account_type) as (
+-- Historical presentation accounts keep Demo1234! for compatibility. Every
+-- other local validation account uses LocalDemo1234!.
+with fixture_users(id, email, full_name, account_type, password) as (
   values
-    ('a0000000-0000-4000-8000-000000000003'::uuid, 'frontdesk.independent@example.test', 'Alex Frontdesk Example', 'staff'),
-    ('c0000000-0000-4000-8000-000000000002'::uuid, 'client.independent.two@example.test', 'Camille Client Example', 'client'),
-    ('b0000000-0000-4000-8000-000000000001'::uuid, 'owner.network@example.test', 'Nora Network Owner Example', 'staff'),
-    ('b0000000-0000-4000-8000-000000000002'::uuid, 'manager.network@example.test', 'Malik Network Manager Example', 'staff'),
-    ('b0000000-0000-4000-8000-000000000003'::uuid, 'manager.north@example.test', 'Sam North Manager Example', 'staff'),
-    ('b0000000-0000-4000-8000-000000000004'::uuid, 'manager.center@example.test', 'Lee Center Manager Example', 'staff'),
-    ('b0000000-0000-4000-8000-000000000005'::uuid, 'manager.south@example.test', 'Ari South Manager Example', 'staff'),
-    ('b0000000-0000-4000-8000-000000000006'::uuid, 'frontdesk.network@example.test', 'Robin Frontdesk Example', 'staff'),
-    ('b0000000-0000-4000-8000-000000000007'::uuid, 'technician.network@example.test', 'Taylor Technician Example', 'staff'),
-    ('c2000000-0000-4000-8000-000000000001'::uuid, 'client.network.one@example.test', 'Morgan Client Example', 'client'),
-    ('c2000000-0000-4000-8000-000000000002'::uuid, 'client.network.two@example.test', 'Jordan Client Example', 'client')
+    ('a0000000-0000-4000-8000-000000000001'::uuid, 'owner@demo-garage.fr', 'Sophie Martin', 'staff', 'Demo1234!'),
+    ('a0000000-0000-4000-8000-000000000002'::uuid, 'mecano@demo-garage.fr', 'Karim Benali', 'staff', 'Demo1234!'),
+    ('c0000000-0000-4000-8000-000000000001'::uuid, 'client@demo.fr', 'Julie Durand', 'client', 'Demo1234!'),
+    ('a0000000-0000-4000-8000-000000000003'::uuid, 'frontdesk.independent@example.test', 'Alex Frontdesk Example', 'staff', 'LocalDemo1234!'),
+    ('c0000000-0000-4000-8000-000000000002'::uuid, 'client.independent.two@example.test', 'Camille Client Example', 'client', 'LocalDemo1234!'),
+    ('b0000000-0000-4000-8000-000000000001'::uuid, 'owner.network@example.test', 'Nora Network Owner Example', 'staff', 'LocalDemo1234!'),
+    ('b0000000-0000-4000-8000-000000000002'::uuid, 'manager.network@example.test', 'Malik Network Manager Example', 'staff', 'LocalDemo1234!'),
+    ('b0000000-0000-4000-8000-000000000003'::uuid, 'manager.north@example.test', 'Sam North Manager Example', 'staff', 'LocalDemo1234!'),
+    ('b0000000-0000-4000-8000-000000000004'::uuid, 'manager.center@example.test', 'Lee Center Manager Example', 'staff', 'LocalDemo1234!'),
+    ('b0000000-0000-4000-8000-000000000005'::uuid, 'manager.south@example.test', 'Ari South Manager Example', 'staff', 'LocalDemo1234!'),
+    ('b0000000-0000-4000-8000-000000000006'::uuid, 'frontdesk.network@example.test', 'Robin Frontdesk Example', 'staff', 'LocalDemo1234!'),
+    ('b0000000-0000-4000-8000-000000000007'::uuid, 'technician.network@example.test', 'Taylor Technician Example', 'staff', 'LocalDemo1234!'),
+    ('c2000000-0000-4000-8000-000000000001'::uuid, 'client.network.one@example.test', 'Morgan Client Example', 'client', 'LocalDemo1234!'),
+    ('c2000000-0000-4000-8000-000000000002'::uuid, 'client.network.two@example.test', 'Jordan Client Example', 'client', 'LocalDemo1234!')
 )
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -70,7 +153,7 @@ insert into auth.users (
 )
 select
   '00000000-0000-0000-0000-000000000000', id, 'authenticated', 'authenticated', email,
-  extensions.crypt('LocalDemo1234!', extensions.gen_salt('bf')), now(),
+  extensions.crypt(password, extensions.gen_salt('bf')), now(),
   jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
   jsonb_build_object('full_name', full_name, 'account_type', account_type),
   now(), now(), '', '', '', ''
@@ -79,6 +162,9 @@ on conflict (id) do nothing;
 
 with fixture_users(id, email) as (
   values
+    ('a0000000-0000-4000-8000-000000000001'::uuid, 'owner@demo-garage.fr'),
+    ('a0000000-0000-4000-8000-000000000002'::uuid, 'mecano@demo-garage.fr'),
+    ('c0000000-0000-4000-8000-000000000001'::uuid, 'client@demo.fr'),
     ('a0000000-0000-4000-8000-000000000003'::uuid, 'frontdesk.independent@example.test'),
     ('c0000000-0000-4000-8000-000000000002'::uuid, 'client.independent.two@example.test'),
     ('b0000000-0000-4000-8000-000000000001'::uuid, 'owner.network@example.test'),
@@ -102,20 +188,19 @@ from fixture_users
 on conflict (provider_id, provider) do nothing;
 
 -- Independent organization roles.
-update public.garage_members
-set center_id = '11111111-1111-4111-8111-11111111c001',
-    organization_role = case when user_id = 'a0000000-0000-4000-8000-000000000001' then 'organization_owner' else null end,
-    center_role = case when user_id = 'a0000000-0000-4000-8000-000000000001' then 'center_manager' else 'technician' end
-where garage_id = '11111111-1111-4111-8111-111111111111'
-  and user_id in ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002');
-
-insert into public.garage_members (garage_id, user_id, role, status, center_id, center_role)
-values (
-  '11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000003',
-  'front_desk', 'active', '11111111-1111-4111-8111-11111111c001', 'front_desk'
+insert into public.garage_members (
+  garage_id, user_id, role, status, center_id, organization_role, center_role
 )
+values
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000001', 'owner', 'active', '11111111-1111-4111-8111-11111111c001', 'organization_owner', 'center_manager'),
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000002', 'mechanic', 'active', '11111111-1111-4111-8111-11111111c001', null, 'technician'),
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000003', 'front_desk', 'active', '11111111-1111-4111-8111-11111111c001', null, 'front_desk')
 on conflict (garage_id, user_id) do update set
-  role = excluded.role, status = excluded.status, center_id = excluded.center_id, center_role = excluded.center_role;
+  role = excluded.role,
+  status = excluded.status,
+  center_id = excluded.center_id,
+  organization_role = excluded.organization_role,
+  center_role = excluded.center_role;
 
 -- Network organization and center-scoped roles.
 insert into public.garage_members (
@@ -137,6 +222,11 @@ on conflict (garage_id, user_id) do update set
   center_role = excluded.center_role;
 
 update public.client_profiles
+set default_garage_id = '11111111-1111-4111-8111-111111111111',
+    marketing_consent = true
+where id = 'c0000000-0000-4000-8000-000000000001';
+
+update public.client_profiles
 set default_garage_id = '11111111-1111-4111-8111-111111111111'
 where id = 'c0000000-0000-4000-8000-000000000002';
 
@@ -144,24 +234,51 @@ update public.client_profiles
 set default_garage_id = '22222222-2222-4222-8222-222222222222'
 where id in ('c2000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000002');
 
-insert into public.customers (id, garage_id, first_name, last_name, email, city)
+insert into public.customers (id, garage_id, first_name, last_name, phone, email, city)
 values
-  ('d2222222-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', 'Morgan', 'Example', 'client.network.one@example.test', 'Casablanca'),
-  ('d2222222-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222', 'Jordan', 'Example', 'client.network.two@example.test', 'Casablanca')
-on conflict (id) do update set email = excluded.email, city = excluded.city;
+  ('d1111111-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Marc', 'Petit', '+33 6 12 34 56 78', 'marc.petit@example.fr', 'Lyon'),
+  ('d1111111-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Inès', 'Lefort', '+33 6 98 76 54 32', 'ines.lefort@example.fr', 'Villeurbanne'),
+  ('d2222222-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', 'Morgan', 'Example', null, 'client.network.one@example.test', 'Casablanca'),
+  ('d2222222-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222', 'Jordan', 'Example', null, 'client.network.two@example.test', 'Casablanca')
+on conflict (id) do update set
+  first_name = excluded.first_name,
+  last_name = excluded.last_name,
+  phone = excluded.phone,
+  email = excluded.email,
+  city = excluded.city;
 
 insert into public.vehicles (id, garage_id, customer_id, brand, model, year, mileage, fuel, registration, status)
 values
+  ('e1111111-1000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'd1111111-0000-4000-8000-000000000001', 'Renault', 'Clio IV', 2018, 86000, 'Essence', 'AB-123-CD', 'active'),
+  ('e1111111-1000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'd1111111-0000-4000-8000-000000000002', 'Peugeot', '308', 2020, 52000, 'Diesel', 'EF-456-GH', 'in_service'),
   ('e2222222-0000-4000-8000-000000000001', '22222222-2222-4222-8222-222222222222', 'd2222222-0000-4000-8000-000000000001', 'Example Motors', 'Model N', 2021, 42000, 'Hybrid', 'DEMO-N-001', 'in_service'),
   ('e2222222-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222', 'd2222222-0000-4000-8000-000000000002', 'Example Motors', 'Model S', 2022, 28000, 'Electric', 'DEMO-S-002', 'active')
-on conflict (id) do update set mileage = excluded.mileage, status = excluded.status;
+on conflict (id) do update set
+  mileage = excluded.mileage,
+  fuel = excluded.fuel,
+  registration = excluded.registration,
+  status = excluded.status;
+
+insert into public.tasks (id, garage_id, title, priority, status)
+values
+  ('34111111-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Rappeler Mme Lefort pour le devis freins', 'high', 'todo'),
+  ('34111111-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', 'Commander filtres habitacle', 'normal', 'todo'),
+  ('34111111-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', 'Préparer la restitution de la 308', 'normal', 'doing')
+on conflict (id) do update set
+  title = excluded.title,
+  priority = excluded.priority,
+  status = excluded.status;
 
 insert into public.client_vehicles (id, client_id, brand, model, year, fuel, mileage, registration)
 values
+  ('e1111111-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001', 'Volkswagen', 'Golf 7', 2017, 'Diesel', 98000, 'IJ-789-KL'),
   ('e0000000-0000-4000-8000-000000000002', 'c0000000-0000-4000-8000-000000000002', 'Example Auto', 'City', 2020, 'Petrol', 36000, 'DEMO-I-002'),
   ('e2000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000001', 'Example Motors', 'Model N', 2021, 'Hybrid', 42000, 'DEMO-N-001'),
   ('e2000000-0000-4000-8000-000000000002', 'c2000000-0000-4000-8000-000000000002', 'Example Motors', 'Model S', 2022, 'Electric', 28000, 'DEMO-S-002')
-on conflict (id) do update set mileage = excluded.mileage;
+on conflict (id) do update set
+  fuel = excluded.fuel,
+  mileage = excluded.mileage,
+  registration = excluded.registration;
 
 -- Requests span the complete operational lifecycle.
 insert into public.service_requests (
