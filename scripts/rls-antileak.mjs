@@ -1,37 +1,27 @@
 /**
- * Local-only Supabase RLS, RPC, Storage, and concurrency validation.
+ * Supabase RLS, RPC, Storage, and concurrency validation.
  *
- * This script intentionally refuses every non-loopback URL before creating a
- * client. It uses only the publishable key and password authentication, just
- * like the browser. Run it after a fresh local `supabase db reset`.
+ * The safety guard accepts the local CLI by default. Remote execution requires
+ * the explicitly approved staging ref and always rejects production.
  */
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import { assertPublishableKey, assertSupabaseTestTarget } from './rls-target-guard.mjs'
 
 const url = process.env.VITE_SUPABASE_URL
 const publishableKey = process.env.VITE_SUPABASE_ANON_KEY
-const expectedPort = '54321'
-
-function assertLocalTarget(rawUrl) {
-  if (!rawUrl) throw new Error('VITE_SUPABASE_URL is required in .env.local')
-  const target = new URL(rawUrl)
-  const localHost = target.hostname === '127.0.0.1' || target.hostname === 'localhost'
-  if (target.protocol !== 'http:' || !localHost || target.port !== expectedPort) {
-    throw new Error(`Refusing non-local Supabase target: ${target.origin}`)
-  }
-  return target
-}
+const testTarget = process.env.SUPABASE_TEST_TARGET || 'local'
 
 let target
 try {
-  target = assertLocalTarget(url)
+  target = assertSupabaseTestTarget(url, {
+    mode: testTarget,
+    expectedRef: process.env.SUPABASE_EXPECTED_PROJECT_REF,
+    forbiddenRef: process.env.SUPABASE_FORBIDDEN_PROJECT_REF,
+  })
+  assertPublishableKey(publishableKey)
 } catch (error) {
-  console.error(`LOCAL SAFETY GUARD: ${error.message}`)
-  process.exit(2)
-}
-
-if (!publishableKey) {
-  console.error('VITE_SUPABASE_ANON_KEY is required in .env.local')
+  console.error(`RLS SAFETY GUARD: ${error.message}`)
   process.exit(2)
 }
 
@@ -99,10 +89,17 @@ function client() {
 
 async function signedIn(accountName) {
   const [email, password] = ACCOUNTS[accountName]
-  const supabase = client()
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) throw new Error(`Local sign-in failed for ${accountName}: ${error.message}`)
-  return supabase
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const supabase = client()
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!error) return supabase
+    const transientNetworkError = /fetch failed|connect timeout|network/i.test(error.message)
+    if (!transientNetworkError || attempt === 3) {
+      throw new Error(`${testTarget} sign-in failed for ${accountName}: ${error.message}`)
+    }
+    await new Promise((resolve) => setTimeout(resolve, attempt * 1000))
+  }
+  throw new Error(`${testTarget} sign-in failed for ${accountName}`)
 }
 
 async function createRequest(supabase, { garageId, centerId, clientId, label }) {
@@ -156,14 +153,33 @@ async function proposeRecommendation(staff, recommendationId) {
 }
 
 async function run() {
-  console.log(`\nClikarage local security validation: ${target.origin}`)
-  console.log('Safety: loopback URL, public key, fictitious accounts only.\n')
+  console.log(`\nClikarage ${testTarget} security validation: ${target.origin}`)
+  console.log('Safety: approved target, publishable key, fictitious accounts only.\n')
 
   const health = await fetch(`${target.origin}/auth/v1/health`, {
     headers: { apikey: publishableKey },
   })
-  check('Local Auth health endpoint is reachable', health.ok, `${health.status}`)
+  check('Auth health endpoint is reachable', health.ok, `${health.status}`)
 
+  const accountNames = [
+    'ownerA',
+    'frontDeskA',
+    'clientA1',
+    'clientA2',
+    'ownerB',
+    'networkManager',
+    'centerNorth',
+    'centerCenter',
+    'technicianB',
+    'clientB1',
+    'clientB2',
+  ]
+  const sessions = testTarget === 'staging'
+    ? await accountNames.reduce(async (pending, accountName) => [
+        ...await pending,
+        await signedIn(accountName),
+      ], Promise.resolve([]))
+    : await Promise.all(accountNames.map(signedIn))
   const [
     ownerA,
     frontDeskA,
@@ -176,19 +192,7 @@ async function run() {
     technicianB,
     clientB1,
     clientB2,
-  ] = await Promise.all([
-    signedIn('ownerA'),
-    signedIn('frontDeskA'),
-    signedIn('clientA1'),
-    signedIn('clientA2'),
-    signedIn('ownerB'),
-    signedIn('networkManager'),
-    signedIn('centerNorth'),
-    signedIn('centerCenter'),
-    signedIn('technicianB'),
-    signedIn('clientB1'),
-    signedIn('clientB2'),
-  ])
+  ] = sessions
   const anonymous = client()
 
   console.log('RLS isolation')
@@ -206,6 +210,14 @@ async function run() {
   check('Network garage cannot read independent requests', !ownerBRequests.error && ownerBRequests.data.every((row) => row.garage_id === IDS.garageB), ownerBRequests.error)
   const anonPrivate = await anonymous.from('service_requests').select('id')
   check('Anonymous user cannot read service requests', Boolean(anonPrivate.error) || anonPrivate.data.length === 0, anonPrivate.error)
+  const clientDefaultGarage = await clientB1.from('garages').select('id').eq('id', IDS.garageB)
+  check('Network client can resolve their private default organization', !clientDefaultGarage.error && clientDefaultGarage.data.length === 1, clientDefaultGarage.error)
+  const unrelatedPrivateGarage = await clientA1.from('garages').select('id').eq('id', IDS.garageB)
+  check('Unrelated client cannot resolve a private organization', !unrelatedPrivateGarage.error && unrelatedPrivateGarage.data.length === 0, unrelatedPrivateGarage.error)
+  const anonymousCenters = await anonymous.from('garage_centers').select('garage_id')
+  check('Anonymous catalog excludes private organization centers', !anonymousCenters.error && anonymousCenters.data.length > 0 && anonymousCenters.data.every((row) => row.garage_id === IDS.garageA), anonymousCenters.error ?? anonymousCenters.data)
+  const anonymousWrite = await anonymous.from('client_profiles').insert({ id: randomUUID() })
+  check('Anonymous table writes fail with insufficient privilege', anonymousWrite.error?.code === '42501', anonymousWrite.error)
 
   console.log('\nNetwork authorization')
   const independentNetwork = await ownerA.rpc('can_view_network_dashboard', { p_garage_id: IDS.garageA })
@@ -675,12 +687,13 @@ async function run() {
   const anonList = await anonymous.storage.from(bucket).list('', { limit: 100 })
   check('Anonymous global Storage listing exposes no objects', Boolean(anonList.error) || anonList.data.length === 0, anonList.data)
 
-  const signedUrl = await clientB1.storage.from(bucket).createSignedUrl(visiblePath, 1)
+  const signedUrlTtlSeconds = testTarget === 'staging' ? 10 : 1
+  const signedUrl = await clientB1.storage.from(bucket).createSignedUrl(visiblePath, signedUrlTtlSeconds)
   check('Authorized customer can create a signed URL', !signedUrl.error && Boolean(signedUrl.data?.signedUrl), signedUrl.error)
   if (signedUrl.data?.signedUrl) {
     const signedFetch = await fetch(signedUrl.data.signedUrl)
     check('Signed URL works before expiry', signedFetch.ok, `${signedFetch.status}`)
-    await new Promise((resolve) => setTimeout(resolve, 2100))
+    await new Promise((resolve) => setTimeout(resolve, (signedUrlTtlSeconds + 1.1) * 1000))
     const expiredFetch = await fetch(signedUrl.data.signedUrl)
     check('Signed URL is rejected after expiry', !expiredFetch.ok, `${expiredFetch.status}`)
   }
@@ -696,21 +709,28 @@ async function run() {
   cleanup.storagePaths[0].paths = cleanup.storagePaths[0].paths.filter((path) => path !== visiblePath)
 
   console.log('\nCleanup')
+  const cleanupErrors = []
   for (const item of cleanup.storagePaths) {
-    if (item.paths.length) await item.client.storage.from(item.bucket).remove(item.paths)
+    if (item.paths.length) {
+      const { error } = await item.client.storage.from(item.bucket).remove(item.paths)
+      if (error) cleanupErrors.push(`storage: ${error.message}`)
+    }
   }
   for (const item of cleanup.quotes) {
-    await item.client.from('quotes').delete().eq('id', item.id)
+    const { error } = await item.client.from('quotes').delete().eq('id', item.id)
+    if (error) cleanupErrors.push(`quote: ${error.message}`)
   }
   for (const item of cleanup.requests.reverse()) {
     const remover = item.garageId === IDS.garageA ? ownerA : ownerB
-    await remover.from('service_requests').delete().eq('id', item.id)
+    const { error } = await remover.from('service_requests').delete().eq('id', item.id)
+    if (error) cleanupErrors.push(`request: ${error.message}`)
   }
+  check('Validation artifacts are removed cleanly', cleanupErrors.length === 0, cleanupErrors)
   console.log(`\nResult: ${passed} passed, ${failed} failed.`)
   if (failed > 0) process.exitCode = 1
 }
 
 run().catch((error) => {
-  console.error(`\nFatal local validation error: ${error.message}`)
+  console.error(`\nFatal ${testTarget} validation error: ${error.message}`)
   process.exitCode = 1
 })

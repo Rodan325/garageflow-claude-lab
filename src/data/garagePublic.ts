@@ -11,7 +11,6 @@ export function useGarages() {
       const { data, error } = await supabase
         .from('garages')
         .select('*')
-        .eq('is_public', true)
         .order('name')
       if (error) throw error
       return data ?? []
