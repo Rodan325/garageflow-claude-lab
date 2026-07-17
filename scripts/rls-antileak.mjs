@@ -231,6 +231,169 @@ async function run() {
   const technicianNetwork = await technicianB.rpc('get_network_dashboard', { p_garage_id: IDS.garageB, p_start: null, p_end: null })
   check('Technician cannot use network management RPC', Boolean(technicianNetwork.error), technicianNetwork.data)
 
+  console.log('\nIntegrated garage-client journey')
+  const journeyRequest = await createRequest(clientB1, {
+    garageId: IDS.garageB,
+    centerId: IDS.centerB1,
+    clientId: IDS.clientB1,
+    label: 'TWO-SESSION-JOURNEY',
+  })
+  const journeyEstimatedDelivery = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString()
+  const journeyOpeningStages = [
+    'appointment_confirmed',
+    'vehicle_expected',
+    'vehicle_checked_in',
+    'vehicle_received',
+    'diagnosis_in_progress',
+  ]
+  const journeyOpeningResults = []
+  for (const stage of journeyOpeningStages) {
+    journeyOpeningResults.push(await ownerB.rpc('transition_workshop_stage', {
+      p_request_id: journeyRequest.id,
+      p_new_stage: stage,
+      p_internal_note: stage === 'diagnosis_in_progress' ? 'Fictitious internal diagnostic note.' : null,
+      p_customer_message: `Journey stage: ${stage}`,
+      p_estimated_completion_at: journeyEstimatedDelivery,
+      p_visible_to_customer: true,
+    }))
+  }
+  check('Garage session records check-in through diagnosis in order', countSuccess(journeyOpeningResults) === journeyOpeningStages.length, journeyOpeningResults.map((result) => result.error?.message))
+
+  const journeyRecommendation = await createRecommendation(ownerB, journeyRequest.id, 'Fictitious two-session brake recommendation')
+  const journeyProposal = await proposeRecommendation(ownerB, journeyRecommendation.id)
+  check('Garage session proposes a recommendation', journeyProposal?.status === 'proposed', journeyProposal)
+
+  const journeyPhotoPath = `${IDS.garageB}/${journeyRequest.id}/${randomUUID()}-journey.png`
+  const journeyPhoto = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  )
+  cleanup.storagePaths.push({ client: ownerB, bucket: 'service-request-attachments', paths: [journeyPhotoPath] })
+  const journeyPhotoUpload = await ownerB.storage.from('service-request-attachments').upload(journeyPhotoPath, journeyPhoto, {
+    contentType: 'image/png',
+    upsert: false,
+  })
+  const journeyPhotoMetadata = await ownerB.rpc('register_service_request_attachment', {
+    p_request_id: journeyRequest.id,
+    p_recommendation_id: journeyRecommendation.id,
+    p_file_name: 'journey.png',
+    p_mime_type: 'image/png',
+    p_file_size: journeyPhoto.length,
+    p_storage_path: journeyPhotoPath,
+    p_visibility: 'customer',
+    p_document_type: 'photo',
+  })
+  check('Garage session adds a customer-visible diagnostic photo', !journeyPhotoUpload.error && !journeyPhotoMetadata.error, journeyPhotoUpload.error ?? journeyPhotoMetadata.error)
+
+  const journeyApprovalStage = await ownerB.rpc('transition_workshop_stage', {
+    p_request_id: journeyRequest.id,
+    p_new_stage: 'customer_approval_required',
+    p_internal_note: 'Awaiting the fictitious customer decision.',
+    p_customer_message: 'Your approval is required.',
+    p_estimated_completion_at: journeyEstimatedDelivery,
+    p_visible_to_customer: true,
+  })
+  check('Garage session requests customer approval with an estimated delivery time', !journeyApprovalStage.error, journeyApprovalStage.error)
+
+  const journeyClientTimeline = await clientB1.rpc('get_workshop_timeline', { p_request_id: journeyRequest.id })
+  const journeyClientPhoto = await clientB1.storage.from('service-request-attachments').download(journeyPhotoPath)
+  check(
+    'Client session sees the timeline and customer photo but no internal note',
+    !journeyClientTimeline.error
+      && journeyClientTimeline.data.some((event) => event.new_stage === 'customer_approval_required')
+      && journeyClientTimeline.data.every((event) => event.internal_note === null)
+      && !journeyClientPhoto.error,
+    journeyClientTimeline.error ?? journeyClientPhoto.error,
+  )
+
+  const journeyQuestion = await clientB1.rpc('decide_workshop_recommendation', {
+    p_recommendation_id: journeyRecommendation.id,
+    p_action: 'question',
+    p_note: 'Fictitious question from the customer session.',
+    p_terms_version: 'staging-validation',
+    p_privacy_version: 'staging-validation',
+    p_displayed_language: 'ar',
+  })
+  const journeyAcceptance = await clientB1.rpc('decide_workshop_recommendation', {
+    p_recommendation_id: journeyRecommendation.id,
+    p_action: 'accepted',
+    p_note: 'Accepted in the isolated customer session.',
+    p_terms_version: 'staging-validation',
+    p_privacy_version: 'staging-validation',
+    p_displayed_language: 'ar',
+  })
+  check('Client session can ask a question and then accept once', !journeyQuestion.error && !journeyAcceptance.error && journeyAcceptance.data?.status === 'accepted', journeyQuestion.error ?? journeyAcceptance.error)
+
+  const journeyGarageDecision = await ownerB.from('workshop_recommendations').select('status,customer_decision_note').eq('id', journeyRecommendation.id).single()
+  check('Garage session sees the customer decision', !journeyGarageDecision.error && journeyGarageDecision.data.status === 'accepted', journeyGarageDecision.error)
+
+  const journeyClosingStages = ['work_authorized', 'work_in_progress', 'quality_control', 'vehicle_ready']
+  const journeyClosingResults = []
+  for (const stage of journeyClosingStages) {
+    journeyClosingResults.push(await ownerB.rpc('transition_workshop_stage', {
+      p_request_id: journeyRequest.id,
+      p_new_stage: stage,
+      p_internal_note: null,
+      p_customer_message: `Journey stage: ${stage}`,
+      p_estimated_completion_at: journeyEstimatedDelivery,
+      p_visible_to_customer: true,
+    }))
+  }
+  check('Garage session completes work and quality control to vehicle ready', countSuccess(journeyClosingResults) === journeyClosingStages.length, journeyClosingResults.map((result) => result.error?.message))
+
+  const journeyReportPayload = {
+    customer_snapshot: { name: 'Fictitious staging customer' },
+    vehicle_snapshot: { registration: 'STAGING-JOURNEY' },
+    entry_mileage: 12000,
+    exit_mileage: 12002,
+    requested_work: ['Fictitious scheduled service'],
+    diagnostic_summary: 'Fictitious diagnostic summary.',
+    completed_work: ['Fictitious completed work'],
+    accepted_recommendations: [journeyRecommendation.title],
+    deferred_recommendations: [],
+    parts: [],
+    authorized_attachment_ids: journeyPhotoMetadata.data ? [journeyPhotoMetadata.data.id] : [],
+    final_validation: 'Fictitious quality control passed.',
+  }
+  const journeyReport = await ownerB.rpc('save_delivery_report', {
+    p_request_id: journeyRequest.id,
+    p_report: journeyReportPayload,
+    p_finalize: true,
+  })
+  const journeyClientReport = await clientB1.from('delivery_reports').select('id,status').eq('service_request_id', journeyRequest.id).single()
+  check('Garage finalizes a report that the owning client can read', !journeyReport.error && !journeyClientReport.error && journeyClientReport.data.status === 'finalized', journeyReport.error ?? journeyClientReport.error)
+
+  const journeyFinalStages = ['vehicle_delivered', 'closed']
+  const journeyFinalResults = []
+  for (const stage of journeyFinalStages) {
+    journeyFinalResults.push(await ownerB.rpc('transition_workshop_stage', {
+      p_request_id: journeyRequest.id,
+      p_new_stage: stage,
+      p_internal_note: null,
+      p_customer_message: `Journey stage: ${stage}`,
+      p_estimated_completion_at: journeyEstimatedDelivery,
+      p_visible_to_customer: true,
+    }))
+  }
+  check('Garage session delivers and closes the dossier', countSuccess(journeyFinalResults) === journeyFinalStages.length, journeyFinalResults.map((result) => result.error?.message))
+
+  const journeyReminder = await ownerB.rpc('create_maintenance_reminder', {
+    p_garage_id: IDS.garageB,
+    p_center_id: IDS.centerB1,
+    p_client_id: IDS.clientB1,
+    p_vehicle_id: null,
+    p_client_vehicle_id: null,
+    p_service_request_id: journeyRequest.id,
+    p_reminder_type: 'after_service',
+    p_title: `Fictitious journey reminder ${randomUUID()}`,
+    p_due_date: new Date(Date.now() + 180 * 86_400_000).toISOString().slice(0, 10),
+    p_due_mileage: null,
+    p_scheduled_at: new Date().toISOString(),
+    p_source: 'staging_journey_validation',
+    p_language: 'en',
+  })
+  check('Closed journey creates one maintenance reminder', !journeyReminder.error && journeyReminder.data?.status === 'scheduled', journeyReminder.error)
+
   console.log('\nWorkshop timeline and transitions')
   const timelineRequest = await createRequest(clientB1, {
     garageId: IDS.garageB,
@@ -578,8 +741,8 @@ async function run() {
     vehicle_snapshot: { registration: 'LOCAL-TEST' },
     entry_mileage: 1000,
     exit_mileage: 1001,
-    requested_work: [{ label: 'Local validation' }],
-    completed_work: [{ label: 'Local validation complete' }],
+    requested_work: ['Local validation'],
+    completed_work: ['Local validation complete'],
     accepted_recommendations: [],
     deferred_recommendations: [],
     parts: [],
@@ -708,6 +871,95 @@ async function run() {
   check('Authorized uploader can delete their attachment', !authorizedDelete.error, authorizedDelete.error)
   cleanup.storagePaths[0].paths = cleanup.storagePaths[0].paths.filter((path) => path !== visiblePath)
 
+  console.log('\nPublic branding Storage hardening')
+  const logoBucket = 'garage-logos'
+  const logoAPath = `${IDS.garageA}/logo.png`
+  const logoBPath = `${IDS.garageB}/logo.webp`
+  cleanup.storagePaths.push({ client: ownerA, bucket: logoBucket, paths: [logoAPath] })
+  cleanup.storagePaths.push({ client: ownerB, bucket: logoBucket, paths: [logoBPath] })
+  const onePixelPng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  )
+  const logoUpload = await ownerA.storage.from(logoBucket).upload(logoAPath, onePixelPng, {
+    contentType: 'image/png',
+    upsert: true,
+  })
+  check('Organization owner can upload a canonical public logo', !logoUpload.error, logoUpload.error)
+
+  const publicLogoUrl = ownerA.storage.from(logoBucket).getPublicUrl(logoAPath).data.publicUrl
+  const publicLogoFetch = await fetch(publicLogoUrl)
+  check('Branding logo is readable through its public URL', publicLogoFetch.ok, `${publicLogoFetch.status}`)
+
+  const logoReplace = await ownerA.storage.from(logoBucket).upload(logoAPath, onePixelPng, {
+    contentType: 'image/png',
+    upsert: true,
+  })
+  check('Organization owner can replace their own canonical logo', !logoReplace.error, logoReplace.error)
+
+  const crossTenantLogo = await ownerB.storage.from(logoBucket).upload(logoAPath, onePixelPng, {
+    contentType: 'image/png',
+    upsert: true,
+  })
+  check('Another organization cannot overwrite a branding logo', Boolean(crossTenantLogo.error), crossTenantLogo.data)
+
+  const invalidLogoPath = `${IDS.garageA}/document.png`
+  const invalidPathUpload = await ownerA.storage.from(logoBucket).upload(invalidLogoPath, onePixelPng, {
+    contentType: 'image/png',
+  })
+  check('Branding bucket rejects non-logo paths', Boolean(invalidPathUpload.error), invalidPathUpload.data)
+
+  const forbiddenLogoMime = await ownerB.storage.from(logoBucket).upload(
+    `${IDS.garageB}/logo.jpg`,
+    Buffer.from('not an image'),
+    { contentType: 'application/pdf' },
+  )
+  check('Branding bucket rejects forbidden MIME types', Boolean(forbiddenLogoMime.error), forbiddenLogoMime.data)
+
+  const oversizedLogo = await ownerB.storage.from(logoBucket).upload(
+    `${IDS.garageB}/logo.jpg`,
+    Buffer.alloc(2 * 1024 * 1024 + 1, 65),
+    { contentType: 'image/jpeg' },
+  )
+  check('Branding bucket rejects files larger than 2 MiB', Boolean(oversizedLogo.error), oversizedLogo.data)
+
+  const ownerBLogo = await ownerB.storage.from(logoBucket).upload(logoBPath, onePixelPng, {
+    contentType: 'image/webp',
+    upsert: true,
+  })
+  check('Network owner can upload only in their organization path', !ownerBLogo.error, ownerBLogo.error)
+
+  const technicianLogo = await technicianB.storage.from(logoBucket).upload(logoBPath, onePixelPng, {
+    contentType: 'image/webp',
+    upsert: true,
+  })
+  check('Technician cannot overwrite the organization logo', Boolean(technicianLogo.error), technicianLogo.data)
+
+  const technicianLogoDelete = await technicianB.storage.from(logoBucket).remove([logoBPath])
+  const logoBStillPresent = await fetch(ownerB.storage.from(logoBucket).getPublicUrl(logoBPath).data.publicUrl)
+  check(
+    'Technician cannot delete the organization logo',
+    Boolean(technicianLogoDelete.error) || logoBStillPresent.ok,
+    technicianLogoDelete.data,
+  )
+
+  const anonymousLogoList = await anonymous.storage.from(logoBucket).list('', { limit: 100 })
+  check(
+    'Anonymous users cannot list public branding objects',
+    Boolean(anonymousLogoList.error) || anonymousLogoList.data.length === 0,
+    anonymousLogoList.data,
+  )
+  const crossTenantLogoList = await ownerB.storage.from(logoBucket).list(IDS.garageA, { limit: 100 })
+  check(
+    'A manager cannot list another organization branding path',
+    Boolean(crossTenantLogoList.error) || crossTenantLogoList.data.length === 0,
+    crossTenantLogoList.data,
+  )
+
+  const deleteOwnLogo = await ownerA.storage.from(logoBucket).remove([logoAPath])
+  check('Organization owner can delete their own logo', !deleteOwnLogo.error, deleteOwnLogo.error)
+  cleanup.storagePaths.at(-2).paths = []
+
   console.log('\nCleanup')
   const cleanupErrors = []
   for (const item of cleanup.storagePaths) {
@@ -725,7 +977,10 @@ async function run() {
     const { error } = await remover.from('service_requests').delete().eq('id', item.id)
     if (error) cleanupErrors.push(`request: ${error.message}`)
   }
-  check('Validation artifacts are removed cleanly', cleanupErrors.length === 0, cleanupErrors)
+  check('Request, quote, and Storage validation artifacts are removed cleanly', cleanupErrors.length === 0, cleanupErrors)
+  if (testTarget === 'staging') {
+    console.log('  [INFO] Reminder fixtures are source-tagged for privileged staging cleanup.')
+  }
   console.log(`\nResult: ${passed} passed, ${failed} failed.`)
   if (failed > 0) process.exitCode = 1
 }

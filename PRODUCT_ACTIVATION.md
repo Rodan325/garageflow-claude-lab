@@ -57,7 +57,7 @@ The product migrations are additive: nullable compatibility columns, new tables,
 
 Migration `0004_seed.sql` is retained as an intentionally non-mutating historical marker. Its original local demonstration insert reversed the `fuel` and `mileage` values of a client vehicle, so an exact clean bootstrap could not complete. No later migration depends on those demonstration rows.
 
-Useful fictitious records now live in `supabase/seed.sql`, execute after all 30 schema migrations, use deterministic identifiers and preserve the 14-account local validation set without duplication. The corrected vehicle stores `fuel = 'Diesel'` and `mileage = 98000`. See `docs/MIGRATION_0004_RECONCILIATION.md` for the rationale and local verification procedure. This reconciliation does not authorize migration repair, remote seed execution, or any production change.
+Useful fictitious records now live in `supabase/seed.sql`, execute after all historical and product schema migrations, use deterministic identifiers and preserve the 14-account local validation set without duplication. The corrected vehicle stores `fuel = 'Diesel'` and `mileage = 98000`. See `docs/MIGRATION_0004_RECONCILIATION.md` for the rationale and local verification procedure. This reconciliation does not authorize migration repair, remote seed execution, or any production change.
 
 ## Feature flags
 
@@ -86,7 +86,7 @@ Outside presentation accounts, a false flag prevents the frontend from querying 
 5. Run Supabase database advisors and inspect every SECURITY DEFINER function, fixed search_path, explicit authorization check, revoke and execute grant.
 6. Run npm run test:rls only against that non-production database.
 7. Test organization isolation, establishment integrity, client ownership, staff roles, network roles, attachments and transfer refusal across organizations.
-8. Validate the private Storage bucket with allowed MIME types, file size limits and path ownership.
+8. Validate the private business-attachment bucket and the intentionally public branding bucket with allowed MIME types, file size limits and path ownership.
 9. Exercise FR, EN, AR, RTL, PDFs and all presentation accounts.
 10. Apply to production only through the normal reviewed migration pipeline and a separately approved maintenance window.
 11. Keep every feature flag false immediately after schema deployment.

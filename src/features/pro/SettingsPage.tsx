@@ -74,12 +74,12 @@ export function SettingsPage() {
               {garage?.logo_url ? <img src={garage.logo_url} alt="" className="h-full w-full object-contain" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}
             </div>
             <div>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onLogo} />
+              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onLogo} />
               <Button size="sm" variant="outline" disabled={!canManage || !!demo} loading={uploadLogo.isPending} onClick={() => fileRef.current?.click()}>
                 <ImagePlus className="h-4 w-4" /> {tr(garage?.logo_url ? 'Changer le logo' : 'Importer un logo')}
               </Button>
               <p className="mt-1 text-xs text-muted-foreground">
-                {tr(demo ? 'Cette action est indisponible avec un compte de démonstration.' : 'PNG ou SVG. Affiché sur la page client et les devis.')}
+                {tr(demo ? 'Cette action est indisponible avec un compte de démonstration.' : 'PNG, JPEG ou WebP, 2 Mo maximum. Affiché sur la page client et les devis.')}
               </p>
             </div>
           </div>

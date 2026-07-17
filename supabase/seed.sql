@@ -387,9 +387,9 @@ values (
   '{"name":"Morgan Client Example"}',
   '{"label":"Example Motors Model N","registration":"DEMO-N-001"}',
   41980, 42000, now() - interval '7 days 8 hours', now() - interval '7 days',
-  '[{"label":"Completed service"}]', 'No remaining fault in this fictitious report.',
-  '[{"label":"Routine maintenance"}]', '[]', '[]',
-  '[{"label":"Demo filter"}]', '{}', 'Local validation report only.',
+  '["Completed service"]', 'No remaining fault in this fictitious report.',
+  '["Routine maintenance"]', '[]', '[]',
+  '["Demo filter"]', '{}', 'Local validation report only.',
   current_date + 180, 52000, 'Demo warranty terms.', 'Validated locally.',
   'b0000000-0000-4000-8000-000000000005', now() - interval '7 days'
 )

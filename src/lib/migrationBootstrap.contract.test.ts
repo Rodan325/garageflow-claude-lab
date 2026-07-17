@@ -73,6 +73,13 @@ describe('historical seed migration bootstrap', () => {
     expect(simulationUpdate).toContain("'vehicle_ready'")
   })
 
+  it('seeds delivery report list fields as renderable strings', () => {
+    expect(seed).toContain("'[\"Completed service\"]'")
+    expect(seed).toContain("'[\"Routine maintenance\"]'")
+    expect(seed).toContain("'[\"Demo filter\"]'")
+    expect(seed).not.toMatch(/'\[\{"label":/)
+  })
+
   it('does not make later migrations depend on demonstration fixture IDs', () => {
     const names = readdirSync(migrationsDirectory).sort()
     const after0004 = names

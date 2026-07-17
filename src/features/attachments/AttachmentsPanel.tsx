@@ -99,7 +99,9 @@ export function AttachmentsPanel({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium" dir="auto">{attachment.file_name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {documentLabels[lang][attachment.document_type]} · {new Intl.NumberFormat(LOCALES[lang], { maximumFractionDigits: 1 }).format(attachment.file_size / 1024)} Ko
+                    {documentLabels[lang][attachment.document_type]} · {tr('{size} Ko', {
+                      size: new Intl.NumberFormat(LOCALES[lang], { maximumFractionDigits: 1 }).format(attachment.file_size / 1024),
+                    })}
                   </p>
                 </div>
                 {!customerView && <Badge>{attachment.visibility === 'both' ? tr('Interne et client') : attachment.visibility === 'customer' ? tr('Client') : tr('Interne')}</Badge>}

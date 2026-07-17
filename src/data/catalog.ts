@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { isDemo, demo } from '@/lib/demo'
 import type { GarageService } from '@/types/domain'
 import type { TablesInsert, TablesUpdate } from '@/types/database.types'
+import { garageLogoStoragePath } from './logoUpload'
 
 /** All services (active + inactive) for the garage management view. */
 export function useManageServices(garageId?: string) {
@@ -85,12 +86,15 @@ export function useUploadLogo() {
   return useMutation({
     mutationFn: async ({ garageId, file }: { garageId: string; file: File }) => {
       if (isDemo()) throw new Error('Cette action est indisponible avec un compte de démonstration.')
-      const ext = file.name.split('.').pop() || 'png'
-      const path = `${garageId}/logo-${Date.now()}.${ext}`
-      const { error } = await supabase.storage.from('garage-logos').upload(path, file, { upsert: true })
+      const path = garageLogoStoragePath(garageId, file)
+      const { error } = await supabase.storage.from('garage-logos').upload(path, file, {
+        cacheControl: '3600',
+        contentType: file.type,
+        upsert: true,
+      })
       if (error) throw error
       const { data } = supabase.storage.from('garage-logos').getPublicUrl(path)
-      return data.publicUrl
+      return `${data.publicUrl}?v=${Date.now()}`
     },
   })
 }
