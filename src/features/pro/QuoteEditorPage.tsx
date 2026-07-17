@@ -13,6 +13,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useGarageRequests } from '@/data/requests'
 import { useManageServices } from '@/data/catalog'
 import { useCreateQuote, useQuote, useQuoteLines, useUpdateQuote, useSendQuote, useReviseQuote } from '@/data/quotes'
+import { useLinkRecommendationQuote, useRecommendations } from '@/data/recommendations'
 import { useCustomers, useCreateCustomer, useVehicles, useCreateVehicle } from '@/data/proData'
 import { euro } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -43,6 +44,8 @@ export function QuoteEditorPage() {
   const editing = !!id
   const [params] = useSearchParams()
   const requestId = params.get('request')
+  const recommendationId = params.get('recommendation')
+  const parentQuoteId = params.get('supplementalTo')
   const { garage } = useAuth()
   const gid = garage?.id
   const navigate = useNavigate()
@@ -54,10 +57,13 @@ export function QuoteEditorPage() {
   const { data: vehicles } = useVehicles(gid)
   const { data: existingQuote, isLoading: quoteLoading } = useQuote(editing ? id : undefined)
   const { data: existingLines } = useQuoteLines(editing ? id : undefined)
+  const { data: recommendations } = useRecommendations(requestId ?? undefined)
+  const recommendation = recommendations?.find((item) => item.id === recommendationId)
   const createQuote = useCreateQuote()
   const updateQuote = useUpdateQuote()
   const sendQuote = useSendQuote()
   const reviseQuote = useReviseQuote()
+  const linkRecommendationQuote = useLinkRecommendationQuote()
   const createCustomer = useCreateCustomer()
   const createVehicle = useCreateVehicle()
 
@@ -99,10 +105,10 @@ export function QuoteEditorPage() {
       return
     }
 
-    if (requests && services && customers && vehicles) {
+    if (requests && services && customers && vehicles && (!recommendationId || recommendations !== undefined)) {
       const req = requestId ? requests.find((r) => r.id === requestId) : null
       const svc = req ? services.find((s) => s.id === req.service_id) : null
-      setTitle(localizeDemoText(req?.service_name ?? svc?.name, lang) || tr('Devis'))
+      setTitle(recommendation?.title || localizeDemoText(req?.service_name ?? svc?.name, lang) || tr('Devis'))
 
       // suggest client in order: customer_id → linked_user_id → phone → email (normalised)
       let matchedClient: Customer | undefined
@@ -137,12 +143,14 @@ export function QuoteEditorPage() {
 
       // lines from the service default lines
       const defaults = (svc?.default_lines as unknown as DefaultLine[]) ?? []
-      if (defaults.length > 0) setLines(defaults.map((l) => ({ ...l, label: localizeDemoText(l.label, lang) })))
+      if (recommendation) {
+        setLines([{ label: recommendation.title, quantity: 1, unit_price: recommendation.estimated_price ?? 0, tax_rate: svc?.tax_rate ?? 20 }])
+      } else if (defaults.length > 0) setLines(defaults.map((l) => ({ ...l, label: localizeDemoText(l.label, lang) })))
       else setLines([{ label: localizeDemoText(svc?.name ?? req?.service_name, lang) || tr('Prestation'), quantity: 1, unit_price: svc?.price_from ?? 0, tax_rate: svc?.tax_rate ?? 20 }])
 
       init.current = true
     }
-  }, [editing, existingQuote, existingLines, requests, services, customers, vehicles, requestId, lang, tr])
+  }, [editing, existingQuote, existingLines, requests, services, customers, vehicles, requestId, recommendationId, recommendation, recommendations, lang, tr])
 
   useEffect(() => {
     if (!init.current || !isDemo()) return
@@ -268,6 +276,13 @@ export function QuoteEditorPage() {
       }
       // Number is assigned server-side (per-garage sequence) inside useCreateQuote.
       const row = await createQuote.mutateAsync({ quote: quoteFields, lines: lineRows })
+      if (recommendationId) {
+        await linkRecommendationQuote.mutateAsync({
+          recommendationId,
+          quoteId: row.id,
+          parentQuoteId,
+        })
+      }
       return row.id
     } catch {
       toast.error(tr('Enregistrement impossible'), tr('L’enregistrement n’a pas pu être terminé.'))

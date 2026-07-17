@@ -17,6 +17,7 @@ export type Database = {
       appointments: {
         Row: {
           assigned_to: string | null
+          center_id: string | null
           created_at: string
           customer_id: string | null
           ends_at: string | null
@@ -31,6 +32,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          center_id?: string | null
           created_at?: string
           customer_id?: string | null
           ends_at?: string | null
@@ -45,6 +47,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          center_id?: string | null
           created_at?: string
           customer_id?: string | null
           ends_at?: string | null
@@ -770,6 +773,245 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_reports: {
+        Row: {
+          accepted_recommendations: Json
+          authorized_attachment_ids: string[]
+          center_id: string | null
+          checked_in_at: string | null
+          completed_work: Json
+          created_at: string
+          customer_snapshot: Json
+          deferred_recommendations: Json
+          delivered_at: string | null
+          diagnostic_summary: string | null
+          entry_mileage: number | null
+          exit_mileage: number | null
+          final_validation: string | null
+          finalized_at: string | null
+          finalized_by: string | null
+          garage_id: string
+          id: string
+          next_due_date: string | null
+          next_due_mileage: number | null
+          observations: string | null
+          parts: Json
+          report_number: string
+          requested_work: Json
+          service_request_id: string
+          status: string
+          updated_at: string
+          vehicle_snapshot: Json
+          warranty_terms: string | null
+        }
+        Insert: {
+          accepted_recommendations?: Json
+          authorized_attachment_ids?: string[]
+          center_id?: string | null
+          checked_in_at?: string | null
+          completed_work?: Json
+          created_at?: string
+          customer_snapshot?: Json
+          deferred_recommendations?: Json
+          delivered_at?: string | null
+          diagnostic_summary?: string | null
+          entry_mileage?: number | null
+          exit_mileage?: number | null
+          final_validation?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          garage_id: string
+          id?: string
+          next_due_date?: string | null
+          next_due_mileage?: number | null
+          observations?: string | null
+          parts?: Json
+          report_number: string
+          requested_work?: Json
+          service_request_id: string
+          status?: string
+          updated_at?: string
+          vehicle_snapshot?: Json
+          warranty_terms?: string | null
+        }
+        Update: {
+          accepted_recommendations?: Json
+          authorized_attachment_ids?: string[]
+          center_id?: string | null
+          checked_in_at?: string | null
+          completed_work?: Json
+          customer_snapshot?: Json
+          deferred_recommendations?: Json
+          delivered_at?: string | null
+          diagnostic_summary?: string | null
+          entry_mileage?: number | null
+          exit_mileage?: number | null
+          final_validation?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
+          next_due_date?: string | null
+          next_due_mileage?: number | null
+          observations?: string | null
+          parts?: Json
+          requested_work?: Json
+          status?: string
+          updated_at?: string
+          vehicle_snapshot?: Json
+          warranty_terms?: string | null
+        }
+        Relationships: []
+      }
+      maintenance_reminders: {
+        Row: {
+          center_id: string | null
+          client_id: string
+          client_vehicle_id: string | null
+          converted_request_id: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          due_mileage: number | null
+          garage_id: string
+          id: string
+          reminder_type: string
+          scheduled_at: string
+          sent_at: string | null
+          service_request_id: string | null
+          source: string
+          status: string
+          title: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          center_id?: string | null
+          client_id: string
+          client_vehicle_id?: string | null
+          converted_request_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          due_mileage?: number | null
+          garage_id: string
+          id?: string
+          reminder_type: string
+          scheduled_at?: string
+          sent_at?: string | null
+          service_request_id?: string | null
+          source?: string
+          status?: string
+          title: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          center_id?: string | null
+          client_id?: string
+          client_vehicle_id?: string | null
+          converted_request_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          due_mileage?: number | null
+          garage_id?: string
+          id?: string
+          reminder_type?: string
+          scheduled_at?: string
+          sent_at?: string | null
+          service_request_id?: string | null
+          source?: string
+          status?: string
+          title?: string
+          vehicle_id?: string | null
+        }
+        Relationships: []
+      }
+      notification_outbox: {
+        Row: {
+          attempts: number
+          center_id: string | null
+          channel: string
+          created_at: string
+          error_code: string | null
+          failed_at: string | null
+          garage_id: string
+          id: string
+          language: string
+          payload: Json
+          provider: string | null
+          provider_message_id: string | null
+          recipient_address: string | null
+          recipient_user_id: string | null
+          scheduled_at: string
+          sent_at: string | null
+          service_request_id: string | null
+          status: string
+          template_key: string
+        }
+        Insert: {
+          attempts?: number
+          center_id?: string | null
+          channel: string
+          created_at?: string
+          error_code?: string | null
+          failed_at?: string | null
+          garage_id: string
+          id?: string
+          language?: string
+          payload?: Json
+          provider?: string | null
+          provider_message_id?: string | null
+          recipient_address?: string | null
+          recipient_user_id?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          service_request_id?: string | null
+          status?: string
+          template_key: string
+        }
+        Update: {
+          attempts?: number
+          center_id?: string | null
+          channel?: string
+          created_at?: string
+          error_code?: string | null
+          failed_at?: string | null
+          garage_id?: string
+          id?: string
+          language?: string
+          payload?: Json
+          provider?: string | null
+          provider_message_id?: string | null
+          recipient_address?: string | null
+          recipient_user_id?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          service_request_id?: string | null
+          status?: string
+          template_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "notification_outbox_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "notification_outbox_request_garage_fk"
+            columns: ["service_request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           account_type: string
@@ -864,6 +1106,72 @@ export type Database = {
           },
         ]
       }
+      recommendation_decisions: {
+        Row: {
+          action: string
+          decided_by: string | null
+          displayed_language: string | null
+          garage_id: string
+          id: string
+          legal_privacy_version: string | null
+          legal_terms_version: string | null
+          new_status: string
+          note: string | null
+          occurred_at: string
+          previous_status: string
+          recommendation_id: string
+          service_request_id: string
+          visible_to_customer: boolean
+        }
+        Insert: {
+          action: string
+          decided_by?: string | null
+          displayed_language?: string | null
+          garage_id: string
+          id?: string
+          legal_privacy_version?: string | null
+          legal_terms_version?: string | null
+          new_status: string
+          note?: string | null
+          occurred_at?: string
+          previous_status: string
+          recommendation_id: string
+          service_request_id: string
+          visible_to_customer?: boolean
+        }
+        Update: {
+          action?: string
+          decided_by?: string | null
+          displayed_language?: string | null
+          garage_id?: string
+          id?: string
+          legal_privacy_version?: string | null
+          legal_terms_version?: string | null
+          new_status?: string
+          note?: string | null
+          occurred_at?: string
+          previous_status?: string
+          recommendation_id?: string
+          service_request_id?: string
+          visible_to_customer?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_decisions_recommendation_garage_fk"
+            columns: ["recommendation_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "workshop_recommendations"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "recommendation_decisions_request_garage_fk"
+            columns: ["service_request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           accepted_at: string | null
@@ -884,11 +1192,13 @@ export type Database = {
           notes: string | null
           number: string
           repair_id: string | null
+          recommendation_id: string | null
           revised_from: string | null
           sent_at: string | null
           service_request_id: string | null
           status: string
           subtotal: number
+          supplemental_to_quote_id: string | null
           tax_total: number
           title: string
           total: number
@@ -915,11 +1225,13 @@ export type Database = {
           notes?: string | null
           number: string
           repair_id?: string | null
+          recommendation_id?: string | null
           revised_from?: string | null
           sent_at?: string | null
           service_request_id?: string | null
           status?: string
           subtotal?: number
+          supplemental_to_quote_id?: string | null
           tax_total?: number
           title: string
           total?: number
@@ -946,11 +1258,13 @@ export type Database = {
           notes?: string | null
           number?: string
           repair_id?: string | null
+          recommendation_id?: string | null
           revised_from?: string | null
           sent_at?: string | null
           service_request_id?: string | null
           status?: string
           subtotal?: number
+          supplemental_to_quote_id?: string | null
           tax_total?: number
           title?: string
           total?: number
@@ -981,6 +1295,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "quotes_recommendation_garage_fk"
+            columns: ["recommendation_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "workshop_recommendations"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
             foreignKeyName: "quotes_revised_from_fkey"
             columns: ["revised_from"]
             isOneToOne: false
@@ -993,6 +1314,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "service_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_supplemental_to_garage_fk"
+            columns: ["supplemental_to_quote_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id", "garage_id"]
           },
           {
             foreignKeyName: "quotes_vehicle_id_fkey"
@@ -1087,6 +1415,76 @@ export type Database = {
           },
         ]
       }
+      service_request_attachments: {
+        Row: {
+          center_id: string | null
+          created_at: string
+          document_type: string
+          file_name: string
+          file_size: number
+          garage_id: string
+          id: string
+          mime_type: string
+          recommendation_id: string | null
+          service_request_id: string
+          storage_path: string
+          uploaded_by: string | null
+          visibility: string
+        }
+        Insert: {
+          center_id?: string | null
+          created_at?: string
+          document_type?: string
+          file_name: string
+          file_size: number
+          garage_id: string
+          id?: string
+          mime_type: string
+          recommendation_id?: string | null
+          service_request_id: string
+          storage_path: string
+          uploaded_by?: string | null
+          visibility?: string
+        }
+        Update: {
+          center_id?: string | null
+          created_at?: string
+          document_type?: string
+          file_name?: string
+          file_size?: number
+          garage_id?: string
+          id?: string
+          mime_type?: string
+          recommendation_id?: string | null
+          service_request_id?: string
+          storage_path?: string
+          uploaded_by?: string | null
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_request_attachments_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "service_request_attachments_recommendation_garage_fk"
+            columns: ["recommendation_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "workshop_recommendations"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "service_request_attachments_request_garage_fk"
+            columns: ["service_request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
+          },
+        ]
+      }
       service_request_messages: {
         Row: {
           author_id: string | null
@@ -1132,6 +1530,144 @@ export type Database = {
           },
         ]
       }
+      service_request_transfer_events: {
+        Row: {
+          changed_by: string
+          garage_id: string
+          id: string
+          new_status: string
+          note: string | null
+          occurred_at: string
+          previous_status: string | null
+          transfer_id: string
+        }
+        Insert: {
+          changed_by: string
+          garage_id: string
+          id?: string
+          new_status: string
+          note?: string | null
+          occurred_at?: string
+          previous_status?: string | null
+          transfer_id: string
+        }
+        Update: {
+          changed_by?: string
+          garage_id?: string
+          id?: string
+          new_status?: string
+          note?: string | null
+          occurred_at?: string
+          previous_status?: string | null
+          transfer_id?: string
+        }
+        Relationships: []
+      }
+      service_request_transfers: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          customer_confirmed_at: string | null
+          from_center_id: string
+          garage_id: string
+          id: string
+          reason: string | null
+          requested_by: string
+          service_request_id: string
+          status: string
+          to_center_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          customer_confirmed_at?: string | null
+          from_center_id: string
+          garage_id: string
+          id?: string
+          reason?: string | null
+          requested_by: string
+          service_request_id: string
+          status?: string
+          to_center_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          customer_confirmed_at?: string | null
+          from_center_id?: string
+          garage_id?: string
+          id?: string
+          reason?: string | null
+          requested_by?: string
+          service_request_id?: string
+          status?: string
+          to_center_id?: string
+        }
+        Relationships: []
+      }
+      service_request_timeline: {
+        Row: {
+          center_id: string | null
+          changed_by: string | null
+          customer_message: string | null
+          estimated_completion_at: string | null
+          garage_id: string
+          id: string
+          internal_note: string | null
+          new_stage: string
+          notification_status: string
+          occurred_at: string
+          previous_stage: string | null
+          request_id: string
+          visible_to_customer: boolean
+        }
+        Insert: {
+          center_id?: string | null
+          changed_by?: string | null
+          customer_message?: string | null
+          estimated_completion_at?: string | null
+          garage_id: string
+          id?: string
+          internal_note?: string | null
+          new_stage: string
+          notification_status?: string
+          occurred_at?: string
+          previous_stage?: string | null
+          request_id: string
+          visible_to_customer?: boolean
+        }
+        Update: {
+          center_id?: string | null
+          changed_by?: string | null
+          customer_message?: string | null
+          estimated_completion_at?: string | null
+          garage_id?: string
+          id?: string
+          internal_note?: string | null
+          new_stage?: string
+          notification_status?: string
+          occurred_at?: string
+          previous_stage?: string | null
+          request_id?: string
+          visible_to_customer?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_request_timeline_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "service_request_timeline_request_garage_fk"
+            columns: ["request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
+          },
+        ]
+      }
       service_requests: {
         Row: {
           appointment_id: string | null
@@ -1156,7 +1692,11 @@ export type Database = {
           service_name: string
           status: string
           updated_at: string
+          estimated_completion_at: string | null
+          vehicle_checked_in_at: string | null
+          vehicle_delivered_at: string | null
           vehicle_label: string | null
+          workshop_stage: string | null
         }
         Insert: {
           appointment_id?: string | null
@@ -1181,7 +1721,11 @@ export type Database = {
           service_name: string
           status?: string
           updated_at?: string
+          estimated_completion_at?: string | null
+          vehicle_checked_in_at?: string | null
+          vehicle_delivered_at?: string | null
           vehicle_label?: string | null
+          workshop_stage?: string | null
         }
         Update: {
           appointment_id?: string | null
@@ -1206,7 +1750,11 @@ export type Database = {
           service_name?: string
           status?: string
           updated_at?: string
+          estimated_completion_at?: string | null
+          vehicle_checked_in_at?: string | null
+          vehicle_delivered_at?: string | null
           vehicle_label?: string | null
+          workshop_stage?: string | null
         }
         Relationships: [
           {
@@ -1243,6 +1791,84 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "garage_services"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      workshop_recommendations: {
+        Row: {
+          affects_delivery_time: boolean
+          category: string | null
+          center_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_decision_note: string | null
+          decided_at: string | null
+          description: string | null
+          estimated_duration_minutes: number | null
+          estimated_price: number | null
+          garage_id: string
+          id: string
+          proposed_delivery_at: string | null
+          reason: string | null
+          service_request_id: string
+          status: string
+          title: string
+          urgency: string
+        }
+        Insert: {
+          affects_delivery_time?: boolean
+          category?: string | null
+          center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_decision_note?: string | null
+          decided_at?: string | null
+          description?: string | null
+          estimated_duration_minutes?: number | null
+          estimated_price?: number | null
+          garage_id: string
+          id?: string
+          proposed_delivery_at?: string | null
+          reason?: string | null
+          service_request_id: string
+          status?: string
+          title: string
+          urgency?: string
+        }
+        Update: {
+          affects_delivery_time?: boolean
+          category?: string | null
+          center_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_decision_note?: string | null
+          decided_at?: string | null
+          description?: string | null
+          estimated_duration_minutes?: number | null
+          estimated_price?: number | null
+          garage_id?: string
+          id?: string
+          proposed_delivery_at?: string | null
+          reason?: string | null
+          service_request_id?: string
+          status?: string
+          title?: string
+          urgency?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_recommendations_center_garage_fk"
+            columns: ["center_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "garage_centers"
+            referencedColumns: ["id", "garage_id"]
+          },
+          {
+            foreignKeyName: "workshop_recommendations_request_garage_fk"
+            columns: ["service_request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
           },
         ]
       }
@@ -1391,6 +2017,76 @@ export type Database = {
         Args: { p_token: string; p_terms_version?: string; p_privacy_version?: string }
         Returns: Json
       }
+      create_workshop_recommendation: {
+        Args: {
+          p_request_id: string
+          p_title: string
+          p_description?: string | null
+          p_category?: string | null
+          p_urgency?: string
+          p_reason?: string | null
+          p_estimated_price?: number | null
+          p_estimated_duration_minutes?: number | null
+          p_affects_delivery_time?: boolean
+          p_proposed_delivery_at?: string | null
+        }
+        Returns: Database["public"]["Tables"]["workshop_recommendations"]["Row"]
+      }
+      create_maintenance_reminder: {
+        Args: {
+          p_garage_id: string
+          p_center_id: string | null
+          p_client_id: string
+          p_vehicle_id: string | null
+          p_client_vehicle_id: string | null
+          p_service_request_id: string | null
+          p_reminder_type: string
+          p_title: string
+          p_due_date: string | null
+          p_due_mileage: number | null
+          p_scheduled_at?: string
+          p_source?: string
+          p_language?: string
+        }
+        Returns: Database["public"]["Tables"]["maintenance_reminders"]["Row"]
+      }
+      complete_center_transfer: {
+        Args: { p_transfer_id: string }
+        Returns: Database["public"]["Tables"]["service_request_transfers"]["Row"]
+      }
+      decide_center_transfer: {
+        Args: { p_transfer_id: string; p_accept: boolean; p_note?: string | null }
+        Returns: Database["public"]["Tables"]["service_request_transfers"]["Row"]
+      }
+      get_network_dashboard: {
+        Args: { p_garage_id: string; p_start?: string | null; p_end?: string | null }
+        Returns: {
+          center_id: string
+          center_name: string
+          appointments: number
+          interventions: number
+          quote_amount: number
+          accepted_amount: number
+          acceptance_rate: number | null
+          average_decision_hours: number | null
+          average_intervention_hours: number | null
+          vehicles_waiting: number
+          delays: number
+          reminders_converted: number
+          satisfaction: number | null
+        }[]
+      }
+      decide_workshop_recommendation: {
+        Args: {
+          p_recommendation_id: string
+          p_action: string
+          p_note?: string | null
+          p_terms_version?: string | null
+          p_privacy_version?: string | null
+          p_displayed_language?: string | null
+        }
+        Returns: Database["public"]["Tables"]["workshop_recommendations"]["Row"]
+      }
       create_quote_with_lines: {
         Args: { p_lines: Json; p_quote: Json }
         Returns: {
@@ -1435,12 +2131,43 @@ export type Database = {
       }
       expire_quotes: { Args: never; Returns: number }
       get_quote_public: { Args: { p_token: string }; Returns: Json }
+      get_workshop_timeline: {
+        Args: { p_request_id: string }
+        Returns: Database["public"]["Tables"]["service_request_timeline"]["Row"][]
+      }
       has_garage_role: {
         Args: { p_garage_id: string; p_roles: string[] }
         Returns: boolean
       }
       is_garage_member: { Args: { p_garage_id: string }; Returns: boolean }
+      link_recommendation_quote: {
+        Args: {
+          p_recommendation_id: string
+          p_quote_id: string
+          p_supplemental_to_quote_id?: string | null
+        }
+        Returns: Database["public"]["Tables"]["quotes"]["Row"]
+      }
+      mark_maintenance_reminder_converted: {
+        Args: { p_reminder_id: string; p_request_id: string }
+        Returns: Database["public"]["Tables"]["maintenance_reminders"]["Row"]
+      }
       next_quote_number: { Args: { p_garage_id: string }; Returns: string }
+      propose_center_transfer: {
+        Args: { p_request_id: string; p_to_center_id: string; p_reason?: string | null }
+        Returns: Database["public"]["Tables"]["service_request_transfers"]["Row"]
+      }
+      transition_workshop_stage: {
+        Args: {
+          p_request_id: string
+          p_new_stage: string
+          p_internal_note?: string | null
+          p_customer_message?: string | null
+          p_estimated_completion_at?: string | null
+          p_visible_to_customer?: boolean
+        }
+        Returns: Database["public"]["Tables"]["service_request_timeline"]["Row"]
+      }
       revise_quote: {
         Args: { p_id: string }
         Returns: {
@@ -1478,6 +2205,27 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      register_service_request_attachment: {
+        Args: {
+          p_request_id: string
+          p_recommendation_id: string | null
+          p_file_name: string
+          p_mime_type: string
+          p_file_size: number
+          p_storage_path: string
+          p_visibility?: string
+          p_document_type?: string
+        }
+        Returns: Database["public"]["Tables"]["service_request_attachments"]["Row"]
+      }
+      save_delivery_report: {
+        Args: { p_request_id: string; p_report: Json; p_finalize?: boolean }
+        Returns: Database["public"]["Tables"]["delivery_reports"]["Row"]
+      }
+      set_workshop_recommendation_status: {
+        Args: { p_recommendation_id: string; p_new_status: string; p_note?: string | null }
+        Returns: Database["public"]["Tables"]["workshop_recommendations"]["Row"]
       }
       send_quote: {
         Args: { p_id: string }

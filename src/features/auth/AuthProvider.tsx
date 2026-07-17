@@ -7,14 +7,18 @@ import { mapAuthError } from './authErrors'
 import {
   clearDemo,
   demoGarage,
+  demoMembership,
   demoProfile,
   DEMO_CLIENT_ID,
   DEMO_STAFF_ID,
   getDemoKind,
+  getDemoAccount,
   setDemoKind,
+  setDemoAccount,
   reloadDemoCache,
   STORE_KEY,
   type DemoKind,
+  type DemoAccount,
 } from '@/lib/demo'
 
 interface SignUpInput {
@@ -49,6 +53,7 @@ interface AuthContextValue {
   isStaff: boolean
   isClient: boolean
   enterDemo: (kind: DemoKind) => void
+  enterDemoAccount: (account: DemoAccount) => void
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (input: SignUpInput) => Promise<SignUpResult>
   signOut: () => Promise<void>
@@ -146,6 +151,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setReady(true)
   }, [])
 
+  const enterDemoAccount = useCallback((account: DemoAccount) => {
+    setDemoAccount(account)
+    setDemo(getDemoKind())
+    setReady(true)
+  }, [])
+
   const signIn = useCallback<AuthContextValue['signIn']>(async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     return { error: error?.message ?? null }
@@ -189,7 +200,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(() => {
     // Demo mode: synthesize a session-like state.
     if (demo) {
-      const prof = demoProfile(demo) as Profile
+      const account = getDemoAccount()
+      const prof = demoProfile(demo, account) as Profile
+      const demoMember = demoMembership(account)
       return {
         ready: true,
         configured: isSupabaseConfigured,
@@ -200,12 +213,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: demo === 'garage' ? 'owner@demo-garage.fr' : 'client@demo.fr',
         profile: prof,
         accountType: demo === 'garage' ? 'staff' : 'client',
-        membership: null,
+        membership: demoMember,
         garage: demo === 'garage' ? demoGarage() : null,
-        role: demo === 'garage' ? 'owner' : null,
+        role: demo === 'garage' ? ((demoMember?.role as GarageRole | undefined) ?? 'owner') : null,
         isStaff: demo === 'garage',
         isClient: demo === 'client',
         enterDemo,
+        enterDemoAccount,
         signIn,
         signUp,
         signOut,
@@ -229,12 +243,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isStaff: accountType === 'staff',
       isClient: accountType === 'client',
       enterDemo,
+      enterDemoAccount,
       signIn,
       signUp,
       signOut,
       refresh,
     }
-  }, [demo, ready, session, profile, membership, garage, enterDemo, signIn, signUp, signOut, refresh])
+  }, [demo, ready, session, profile, membership, garage, enterDemo, enterDemoAccount, signIn, signUp, signOut, refresh])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

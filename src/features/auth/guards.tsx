@@ -14,21 +14,21 @@ function FullScreen() {
 /** Gate for the Pro back-office: authenticated garage staff OR garage demo.
  *  A staff user must also have accepted the current legal documents. */
 export function RequireStaff({ children }: { children: React.ReactNode }) {
-  const { ready, authed, isStaff } = useAuth()
+  const { ready, authed, accountType } = useAuth()
   const loc = useLocation()
-  if (!ready) return <FullScreen />
+  if (!ready || (authed && !accountType)) return <FullScreen />
   if (!authed) return <Navigate to={`/login?redirect=${encodeURIComponent(loc.pathname)}`} replace />
-  if (!isStaff) return <Navigate to="/app" replace />
+  if (accountType !== 'staff') return <Navigate to="/app" replace />
   return <LegalAcceptanceGate role="garage">{children}</LegalAcceptanceGate>
 }
 
 /** Gate for client-only pages: authenticated client OR client demo.
  *  A client must also have accepted the current legal documents. */
 export function RequireClientAuth({ children }: { children: React.ReactNode }) {
-  const { ready, authed, isStaff } = useAuth()
+  const { ready, authed, accountType } = useAuth()
   const loc = useLocation()
-  if (!ready) return <FullScreen />
+  if (!ready || (authed && !accountType)) return <FullScreen />
   if (!authed) return <Navigate to={`/login?redirect=${encodeURIComponent(loc.pathname)}`} replace />
-  if (isStaff) return <Navigate to="/pro" replace />
+  if (accountType === 'staff') return <Navigate to="/pro" replace />
   return <LegalAcceptanceGate role="client">{children}</LegalAcceptanceGate>
 }

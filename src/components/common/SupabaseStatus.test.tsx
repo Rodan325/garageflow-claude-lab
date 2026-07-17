@@ -12,22 +12,22 @@ vi.mock('@/features/auth/AuthProvider', () => ({ useAuth: () => mockAuth() }))
 describe('SupabaseStatus', () => {
   beforeEach(() => mockAuth.mockReset())
 
-  it('shows "Mode démo" in demo mode (never "Hors ligne"), even without a session', () => {
+  it('leaves the single global product notice to DemoBanner in presentation mode', () => {
     mockAuth.mockReturnValue({ demo: 'garage', session: null })
-    render(<SupabaseStatus />)
-    expect(screen.getByText('Mode démo')).toBeInTheDocument()
-    expect(screen.queryByText('Hors ligne')).toBeNull()
+    const { container } = render(<SupabaseStatus />)
+    expect(container).toBeEmptyDOMElement()
+    expect(document.body).not.toHaveTextContent('Supabase')
   })
 
-  it('shows "Supabase connecté" with a real session', () => {
+  it('shows a generic synchronisation state with a real session', () => {
     mockAuth.mockReturnValue({ demo: null, session: { user: { id: 'u1' } } })
     render(<SupabaseStatus />)
-    expect(screen.getByText('Supabase connecté')).toBeInTheDocument()
+    expect(screen.getByText('Service synchronisé')).toBeInTheDocument()
   })
 
-  it('shows "Non connecté" when configured but no session', () => {
+  it('shows a generic session state when configured but signed out', () => {
     mockAuth.mockReturnValue({ demo: null, session: null })
     render(<SupabaseStatus />)
-    expect(screen.getByText('Non connecté')).toBeInTheDocument()
+    expect(screen.getByText('Session requise')).toBeInTheDocument()
   })
 })

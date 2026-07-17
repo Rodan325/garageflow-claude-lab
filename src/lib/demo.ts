@@ -1,19 +1,39 @@
 /**
- * Local demo mode — lets anyone explore Clikarage WITHOUT Supabase.
- * Data lives in localStorage (shared between tabs), so a booking made in the
- * "client" demo shows up in the "garage" demo inbox. This never replaces the
- * real Supabase mode: it only activates when explicitly entered.
+ * Product presentation data — lets anyone explore Clikarage without touching
+ * operational records. Shared browser storage keeps client and staff views in
+ * sync, and activation remains explicit.
  */
 import type {
-  Appointment, ClientProfile, ClientVehicle, Customer, Garage, GarageCenter, GarageHours,
-  GarageNews, GarageService, Quote, QuoteLine, Repair, ServiceRequest, ServiceRequestMessage, Task,
+  Appointment, ClientProfile, ClientVehicle, Customer, Garage, GarageCenter, GarageHours, GarageMember,
+  GarageNews, GarageService, Quote, QuoteLine, Repair, ServiceRequest, ServiceRequestMessage,
+  ServiceRequestTimelineEvent, Task, WorkshopStage,
 } from '@/types/domain'
 import type { DashboardStats, TeamMember } from '@/data/proData'
-import { DEFAULT_AUTO_SERVICES } from '@/data/defaultAutoServices'
 import { resolveBrandId } from '@/branding'
 import { computeQuoteTotals, lineTotal } from '@/lib/quoteTotals'
 import { quoteSendBlockReason } from '@/lib/quoteStatus'
 import { legalVersions } from '@/config/legal'
+import { assertWorkshopTransition, isWorkshopStage } from '@/features/workshop/lifecycle'
+import {
+  canStaffTransitionRecommendation,
+  customerDecisionStatus,
+  type RecommendationDecision,
+  type RecommendationDecisionEvent,
+  type RecommendationStatus,
+  type RecommendationUrgency,
+  type WorkshopRecommendation,
+} from '@/features/recommendations/model'
+import type { AttachmentDocumentType, AttachmentVisibility, ServiceRequestAttachment } from '@/features/attachments/model'
+import type { NotificationEvent, NotificationOutboxItem } from '@/features/notifications/model'
+import type { DeliveryReport } from '@/features/reports/model'
+import type { MaintenanceReminder, ReminderType } from '@/features/reminders/model'
+import {
+  assertTransferScope,
+  transitionTransferStatus,
+  type CenterTransferAction,
+  type ServiceRequestTransfer,
+  type ServiceRequestTransferEvent,
+} from '@/features/transfers/model'
 
 const totalsFrom = (lines: Partial<QuoteLine>[]) =>
   computeQuoteTotals(lines.map((l) => ({ quantity: Number(l.quantity) || 0, unit_price: Number(l.unit_price) || 0, tax_rate: Number(l.tax_rate) || 0 })))
@@ -25,15 +45,38 @@ export const DEMO_CLIENT_ID = 'demo-client'
 // Active role is PER-TAB (sessionStorage) so two tabs can run different roles
 // (client + garage) side by side; the demo DATA is shared (localStorage).
 const KIND_KEY = 'gf-demo'
-// Base key; brand-scoped at runtime (see storeKey()) so the default Clikarage
-// demo and the Speedy demo keep completely separate data.
-// v6: brand-scoped store; default brand reverts to the original catalog.
+const ORGANIZATION_KIND_KEY = 'gf-demo-organization-kind'
+const ACCOUNT_KEY = 'gf-demo-account'
+// Base key; brand-scoped at runtime (see storeKey()) so Clikarage and each
+// white-label presentation keep completely separate data.
 export const STORE_KEY = 'gf-demo-store-v6'
 export const SPEEDY_STORE_KEY = `${STORE_KEY}-speedy`
 
 export type DemoKind = 'garage' | 'client'
+export type DemoOrganizationKind = 'independent' | 'network'
+export type DemoAccount = 'client' | 'independent_garage' | 'network_garage' | 'network_manager'
 
-/** Which demo dataset to use: 'speedy' (car-service network) or 'default'. */
+const DEMO_ACCOUNTS: DemoAccount[] = ['client', 'independent_garage', 'network_garage', 'network_manager']
+
+export function getDemoOrganizationKind(): DemoOrganizationKind {
+  return sessionStorage.getItem(ORGANIZATION_KIND_KEY) === 'network' ? 'network' : 'independent'
+}
+
+export function getDemoAccount(): DemoAccount | null {
+  if (typeof window === 'undefined' || !getDemoKind()) return null
+  const stored = sessionStorage.getItem(ACCOUNT_KEY) as DemoAccount | null
+  if (stored && DEMO_ACCOUNTS.includes(stored)) return stored
+  if (getDemoKind() === 'client') return 'client'
+  return getDemoOrganizationKind() === 'network' ? 'network_garage' : 'independent_garage'
+}
+
+export function setDemoOrganizationKind(kind: DemoOrganizationKind) {
+  sessionStorage.setItem(ORGANIZATION_KIND_KEY, kind)
+  reloadDemoCache()
+  window.dispatchEvent(new Event('gf-demo-role'))
+}
+
+/** Brand-scoped presentation store; branding never changes product behavior. */
 export type DemoBrand = 'default' | 'speedy'
 export function getDemoBrand(): DemoBrand {
   return resolveBrandId() === 'speedy' ? 'speedy' : 'default'
@@ -51,12 +94,29 @@ export function isDemo() {
   return getDemoKind() !== null
 }
 export function setDemoKind(kind: DemoKind) {
+  if (kind === 'client') {
+    sessionStorage.setItem(ACCOUNT_KEY, 'client')
+    sessionStorage.setItem(ORGANIZATION_KIND_KEY, 'independent')
+  } else if (!['network_garage', 'network_manager'].includes(sessionStorage.getItem(ACCOUNT_KEY) ?? '')) {
+    sessionStorage.setItem(ACCOUNT_KEY, getDemoOrganizationKind() === 'network' ? 'network_garage' : 'independent_garage')
+  }
   ensureStore()
   sessionStorage.setItem(KIND_KEY, kind) // per-tab → never propagated to other tabs
   window.dispatchEvent(new Event('gf-demo-role'))
 }
+export function setDemoAccount(account: DemoAccount) {
+  const staff = account !== 'client'
+  sessionStorage.setItem(ACCOUNT_KEY, account)
+  sessionStorage.setItem(ORGANIZATION_KIND_KEY, ['network_garage', 'network_manager'].includes(account) ? 'network' : 'independent')
+  sessionStorage.setItem(KIND_KEY, staff ? 'garage' : 'client')
+  ensureStore()
+  reloadDemoCache()
+  window.dispatchEvent(new Event('gf-demo-role'))
+}
 export function clearDemo() {
   sessionStorage.removeItem(KIND_KEY)
+  sessionStorage.removeItem(ORGANIZATION_KIND_KEY)
+  sessionStorage.removeItem(ACCOUNT_KEY)
   window.dispatchEvent(new Event('gf-demo-role'))
 }
 
@@ -86,7 +146,7 @@ export function demoPublicQuoteBrand(token?: string | null): DemoBrand | null {
 
 /** Discreet note shown when a demo garage copies a client quote link. */
 export const DEMO_QUOTE_LINK_HINT =
-  'En mode démo, ce lien fonctionne dans ce navigateur. Pour une démo sur téléphone ou un autre appareil, utilisez un vrai compte Supabase.'
+  'Ce lien de présentation est disponible depuis ce navigateur.'
 
 const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 const today = () => new Date()
@@ -107,6 +167,15 @@ interface Store {
   clientVehicles: ClientVehicle[]
   requests: ServiceRequest[]
   messages: ServiceRequestMessage[]
+  workshopTimeline: ServiceRequestTimelineEvent[]
+  recommendations: WorkshopRecommendation[]
+  recommendationDecisions: RecommendationDecisionEvent[]
+  attachments: ServiceRequestAttachment[]
+  notificationOutbox: NotificationOutboxItem[]
+  deliveryReports: DeliveryReport[]
+  maintenanceReminders: MaintenanceReminder[]
+  serviceRequestTransfers: ServiceRequestTransfer[]
+  serviceRequestTransferEvents: ServiceRequestTransferEvent[]
   appointments: Appointment[]
   repairs: Repair[]
   tasks: Task[]
@@ -118,8 +187,7 @@ interface Store {
 }
 type Vehicle = Customer extends never ? never : import('@/types/domain').Vehicle
 
-// Original Clikarage demo catalog — kept for the DEFAULT brand so its demo is
-// unchanged. The Speedy demo uses DEFAULT_AUTO_SERVICES (car-service catalog).
+// Shared demo catalog: white-label branding never changes product capabilities.
 const ORIGINAL_SERVICES = [
   { name: 'Révision constructeur', description: 'Vidange, filtres et points de contrôle complets.', category: 'Entretien', duration_minutes: 90, price_from: 149 },
   { name: 'Vidange + filtre', description: 'Vidange huile et remplacement du filtre à huile.', category: 'Entretien', duration_minutes: 45, price_from: 79 },
@@ -147,22 +215,21 @@ function seed(brand: DemoBrand = 'default'): Store {
     address: null, city, postal_code, phone: g.phone,
     is_active: true, sort_order, created_at: today().toISOString(),
   })
-  // Centers exist ONLY in the multi-center (Speedy) demo. The plain Clikarage
-  // demo has none → the booking flow stays the legacy 3-step flow.
-  const centers: GarageCenter[] = isSpeedy
-    ? [
-        ctr('lyon-part-dieu', 'Centre Part-Dieu', 'Lyon', '69003', 1),
-        ctr('villeurbanne', 'Centre Villeurbanne', 'Villeurbanne', '69100', 2),
-        ctr('lyon-gerland', 'Centre Gerland', 'Lyon', '69007', 3),
-      ]
-    : []
+  // Every demo dataset can represent the same generic organization. The
+  // account capability, never the white-label brand, decides whether centers
+  // are exposed in the product flow.
+  const centers: GarageCenter[] = [
+    ctr('atelier-central', 'Atelier Central', 'Lyon', '69003', 1),
+    ctr('atelier-nord', 'Atelier Nord', 'Villeurbanne', '69100', 2),
+    ctr('atelier-sud', 'Atelier Sud', 'Vénissieux', '69200', 3),
+  ]
   const svc = (name: string, description: string, category: string, duration_minutes: number, price_from: number, sort_order: number): GarageService => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, name, description, category, duration_minutes,
     price_from, is_active: true, sort_order, created_at: today().toISOString(),
     tax_rate: 20, labor_hours: null, price_type: 'from', default_lines: [],
   })
-  // Speedy demo → car-service catalog; default demo → the original catalog.
-  const serviceDefs = isSpeedy ? DEFAULT_AUTO_SERVICES : ORIGINAL_SERVICES
+  // White-label branding never changes product capabilities or seeded services.
+  const serviceDefs = ORIGINAL_SERVICES
   const services = serviceDefs.map((s, i) =>
     svc(s.name, s.description, s.category, s.duration_minutes, s.price_from, i + 1),
   )
@@ -189,15 +256,227 @@ function seed(brand: DemoBrand = 'default'): Store {
   const requests: ServiceRequest[] = [
     {
       id: uid(), reference: 'GF-00001', garage_id: DEMO_GARAGE_ID, client_id: DEMO_CLIENT_ID,
-      center_id: isSpeedy ? centers[0].id : null, client_stage: isSpeedy ? 'request_sent' : null,
+      center_id: centers[0].id, client_stage: 'in_progress',
       service_id: freinage.id, service_name: freinage.name,
       client_vehicle_id: 'demo-cv-1', vehicle_label: 'Volkswagen Golf 7 · IJ-789-KL',
       requested_date: isoIn(3), requested_time: '09:00', proposed_date: null, proposed_time: null,
       note: 'Bruit au freinage côté avant droit.', contact_name: 'Julie Durand',
       contact_phone: '+33 6 55 44 33 22', contact_email: 'client@demo.fr', status: 'pending',
       customer_id: null, appointment_id: null, created_at: today().toISOString(), updated_at: today().toISOString(),
+      workshop_stage: 'diagnosis_in_progress', estimated_completion_at: new Date(Date.now() + 4 * 3600000).toISOString(),
+      vehicle_checked_in_at: new Date(Date.now() - 2 * 3600000).toISOString(), vehicle_delivered_at: null,
     },
   ]
+  const scenarioRequest = (
+    reference: string,
+    stage: WorkshopStage,
+    center: GarageCenter,
+    service: GarageService,
+    dayOffset: number,
+    estimatedHours: number | null,
+  ): ServiceRequest => {
+    const checkedIn = !['appointment_confirmed', 'vehicle_expected'].includes(stage)
+    const delivered = ['vehicle_delivered', 'closed'].includes(stage)
+    const now = new Date()
+    return {
+      id: uid(), reference, garage_id: DEMO_GARAGE_ID, client_id: DEMO_CLIENT_ID,
+      center_id: center.id,
+      client_stage: delivered ? 'done' : stage === 'vehicle_ready' ? 'ready' : stage === 'work_in_progress' ? 'in_progress' : 'appointment_confirmed',
+      service_id: service.id, service_name: service.name,
+      client_vehicle_id: clientVehicles[0].id, vehicle_label: 'Volkswagen Golf 7 · IJ-789-KL',
+      requested_date: isoIn(dayOffset), requested_time: dayOffset > 0 ? '10:30' : '08:30',
+      proposed_date: null, proposed_time: null, note: null, contact_name: 'Julie Durand',
+      contact_phone: '+33 6 55 44 33 22', contact_email: 'client@demo.fr',
+      status: delivered ? 'completed' : 'confirmed', customer_id: null, appointment_id: null,
+      created_at: new Date(now.getTime() - Math.max(1, 8 - dayOffset) * 3600000).toISOString(),
+      updated_at: now.toISOString(), workshop_stage: stage,
+      estimated_completion_at: estimatedHours === null ? null : new Date(now.getTime() + estimatedHours * 3600000).toISOString(),
+      vehicle_checked_in_at: checkedIn ? new Date(now.getTime() - 3 * 3600000).toISOString() : null,
+      vehicle_delivered_at: delivered ? new Date(now.getTime() - 12 * 3600000).toISOString() : null,
+    }
+  }
+  requests.push(
+    scenarioRequest('GF-00002', 'appointment_confirmed', centers[0], services[0], 1, null),
+    scenarioRequest('GF-00003', 'vehicle_received', centers[1], services[1], 0, 5),
+    scenarioRequest('GF-00004', 'customer_approval_required', centers[1], services[2] ?? services[0], 0, 4),
+    scenarioRequest('GF-00005', 'work_in_progress', centers[2], services[3] ?? services[0], 0, -1),
+    scenarioRequest('GF-00006', 'quality_control', centers[0], services[0], 0, 1),
+    scenarioRequest('GF-00007', 'vehicle_ready', centers[1], services[1], 0, 0),
+    scenarioRequest('GF-00008', 'vehicle_delivered', centers[2], services[0], -1, null),
+  )
+  const workshopTimeline: ServiceRequestTimelineEvent[] = [
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: null, new_stage: 'appointment_confirmed',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 26 * 3600000).toISOString(),
+      internal_note: null, customer_message: 'Votre rendez-vous est confirmé.',
+      estimated_completion_at: null, visible_to_customer: true, notification_status: 'simulated',
+    },
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: 'appointment_confirmed', new_stage: 'vehicle_expected',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 24 * 3600000).toISOString(),
+      internal_note: null, customer_message: null, estimated_completion_at: null,
+      visible_to_customer: true, notification_status: 'simulated',
+    },
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: 'vehicle_expected', new_stage: 'vehicle_checked_in',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 2 * 3600000).toISOString(),
+      internal_note: 'Kilométrage et état du véhicule relevés.', customer_message: 'Votre véhicule a bien été déposé.',
+      estimated_completion_at: requests[0].estimated_completion_at, visible_to_customer: true,
+      notification_status: 'simulated',
+    },
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: 'vehicle_checked_in', new_stage: 'vehicle_received',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 100 * 60000).toISOString(),
+      internal_note: null, customer_message: null, estimated_completion_at: requests[0].estimated_completion_at,
+      visible_to_customer: true, notification_status: 'simulated',
+    },
+    {
+      id: uid(), request_id: requests[0].id, garage_id: DEMO_GARAGE_ID,
+      center_id: requests[0].center_id, previous_stage: 'vehicle_received', new_stage: 'diagnosis_in_progress',
+      changed_by: DEMO_STAFF_ID, occurred_at: new Date(Date.now() - 70 * 60000).toISOString(),
+      internal_note: 'Contrôle du train avant en cours.', customer_message: 'Le diagnostic de votre véhicule a commencé.',
+      estimated_completion_at: requests[0].estimated_completion_at, visible_to_customer: true,
+      notification_status: 'simulated',
+    },
+  ]
+  requests.slice(1).forEach((request, index) => {
+    workshopTimeline.push({
+      id: uid(), request_id: request.id, garage_id: request.garage_id,
+      center_id: request.center_id, previous_stage: null, new_stage: request.workshop_stage as WorkshopStage,
+      changed_by: DEMO_STAFF_ID,
+      occurred_at: new Date(Date.now() - (index + 1) * 45 * 60000).toISOString(),
+      internal_note: null, customer_message: null,
+      estimated_completion_at: request.estimated_completion_at,
+      visible_to_customer: true, notification_status: 'simulated',
+    })
+  })
+  const recommendations: WorkshopRecommendation[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      service_request_id: requests[0].id, title: 'Remplacement des disques de frein avant',
+      description: 'Usure avancée constatée pendant le diagnostic. Le remplacement est recommandé avec les plaquettes.',
+      category: 'Freinage', urgency: 'recommended', reason: 'Épaisseur proche de la limite constructeur.',
+      estimated_price: 289, estimated_duration_minutes: 90, affects_delivery_time: true,
+      proposed_delivery_at: new Date(Date.now() + 6 * 3600000).toISOString(), status: 'proposed',
+      created_by: DEMO_STAFF_ID, created_at: new Date(Date.now() - 45 * 60000).toISOString(),
+      decided_at: null, customer_decision_note: null,
+    },
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[4].center_id,
+      service_request_id: requests[4].id, title: 'Remplacement de la batterie 12 V',
+      description: 'La capacité mesurée est insuffisante pour garantir les prochains démarrages.',
+      category: 'Électricité', urgency: 'recommended', reason: 'Capacité résiduelle mesurée à 38 %.',
+      estimated_price: 189, estimated_duration_minutes: 30, affects_delivery_time: false,
+      proposed_delivery_at: requests[4].estimated_completion_at, status: 'accepted',
+      created_by: DEMO_STAFF_ID, created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
+      decided_at: new Date(Date.now() - 2 * 3600000).toISOString(),
+      customer_decision_note: 'Accord confirmé depuis l’espace client.',
+    },
+  ]
+  const recommendationDecisions: RecommendationDecisionEvent[] = [
+    {
+      id: uid(), recommendation_id: recommendations[0].id, garage_id: DEMO_GARAGE_ID,
+      service_request_id: requests[0].id, action: 'proposed', previous_status: 'draft',
+      new_status: 'proposed', decided_by: DEMO_STAFF_ID,
+      occurred_at: recommendations[0].created_at, legal_terms_version: null,
+      legal_privacy_version: null, displayed_language: null, note: null, visible_to_customer: true,
+    },
+    {
+      id: uid(), recommendation_id: recommendations[1].id, garage_id: DEMO_GARAGE_ID,
+      service_request_id: requests[4].id, action: 'accepted', previous_status: 'proposed',
+      new_status: 'accepted', decided_by: DEMO_CLIENT_ID,
+      occurred_at: recommendations[1].decided_at!, legal_terms_version: legalVersions.terms,
+      legal_privacy_version: legalVersions.privacy, displayed_language: 'fr',
+      note: recommendations[1].customer_decision_note, visible_to_customer: true,
+    },
+  ]
+  const attachments: ServiceRequestAttachment[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      service_request_id: requests[0].id, recommendation_id: recommendations[0].id,
+      uploaded_by: DEMO_STAFF_ID, file_name: 'controle-freins-avant.jpg',
+      mime_type: 'image/jpeg', file_size: 248000, storage_path: 'demo://controle-freins-avant.jpg',
+      visibility: 'both', document_type: 'photo', created_at: recommendations[0].created_at,
+    },
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[4].center_id,
+      service_request_id: requests[4].id, recommendation_id: recommendations[1].id,
+      uploaded_by: DEMO_STAFF_ID, file_name: 'test-batterie.jpg',
+      mime_type: 'image/jpeg', file_size: 186000, storage_path: 'demo://test-batterie.jpg',
+      visibility: 'both', document_type: 'photo', created_at: recommendations[1].created_at,
+    },
+  ]
+  const notificationOutbox: NotificationOutboxItem[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      service_request_id: requests[0].id, recipient_user_id: DEMO_CLIENT_ID,
+      recipient_address: null, channel: 'in_app', template_key: 'vehicle_received',
+      language: 'fr', payload: { stage: 'vehicle_received' }, status: 'simulated',
+      provider: 'demo-simulator', provider_message_id: `simulated-vehicle_received-in_app`,
+      attempts: 1, scheduled_at: new Date(Date.now() - 100 * 60000).toISOString(),
+      sent_at: new Date(Date.now() - 100 * 60000).toISOString(), failed_at: null,
+      error_code: null, created_at: new Date(Date.now() - 100 * 60000).toISOString(),
+    },
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[0].center_id,
+      service_request_id: requests[0].id, recipient_user_id: DEMO_CLIENT_ID,
+      recipient_address: null, channel: 'in_app', template_key: 'recommendation_available',
+      language: 'fr', payload: { recommendation_id: recommendations[0].id }, status: 'simulated',
+      provider: 'demo-simulator', provider_message_id: `simulated-recommendation_available-in_app`,
+      attempts: 1, scheduled_at: recommendations[0].created_at, sent_at: recommendations[0].created_at,
+      failed_at: null, error_code: null, created_at: recommendations[0].created_at,
+    },
+  ]
+  const deliveryReports: DeliveryReport[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[7].center_id,
+      service_request_id: requests[7].id, report_number: `RI-${today().getFullYear()}-0001`,
+      status: 'finalized', customer_snapshot: { name: 'Julie Durand', phone: '+33 6 55 44 33 22' },
+      vehicle_snapshot: { label: 'Volkswagen Golf 7', registration: 'IJ-789-KL' },
+      entry_mileage: 98000, exit_mileage: 98008,
+      checked_in_at: requests[7].vehicle_checked_in_at,
+      delivered_at: requests[7].vehicle_delivered_at,
+      requested_work: ['Contrôle du freinage avant'],
+      diagnostic_summary: 'Usure des plaquettes et des disques avant constatée.',
+      completed_work: ['Remplacement des plaquettes de frein avant', 'Contrôle du liquide de frein'],
+      accepted_recommendations: ['Remplacement des disques de frein avant'],
+      deferred_recommendations: ['Contrôle des pneumatiques sous 3 000 km'],
+      parts: ['Jeu de plaquettes avant'], authorized_attachment_ids: [attachments[0].id],
+      observations: 'Essai routier et contrôle final conformes.', next_due_date: isoIn(180),
+      next_due_mileage: 108000, warranty_terms: 'Pièces et main-d’œuvre garanties 12 mois.',
+      final_validation: 'Contrôle qualité validé par Sophie Martin.', finalized_by: DEMO_STAFF_ID,
+      finalized_at: new Date(Date.now() - 12 * 3600000).toISOString(),
+      created_at: new Date(Date.now() - 13 * 3600000).toISOString(), updated_at: new Date(Date.now() - 12 * 3600000).toISOString(),
+    },
+  ]
+  const maintenanceReminders: MaintenanceReminder[] = [
+    {
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: requests[7].center_id,
+      client_id: DEMO_CLIENT_ID, vehicle_id: null, client_vehicle_id: clientVehicles[0].id,
+      service_request_id: requests[7].id, reminder_type: 'date_or_mileage',
+      title: 'Prochaine révision', due_date: isoIn(180), due_mileage: 108000,
+      status: 'scheduled', scheduled_at: isoIn(170), sent_at: null,
+      converted_request_id: null, source: 'delivery_report', created_by: DEMO_STAFF_ID,
+      created_at: new Date().toISOString(),
+    },
+  ]
+  const appointments: Appointment[] = [requests[1], requests[2], requests[3]].map((request, index) => {
+    const startsAt = new Date()
+    startsAt.setDate(startsAt.getDate() + (index === 0 ? 1 : 0))
+    startsAt.setHours(9 + index, 0, 0, 0)
+    return {
+      id: uid(), garage_id: request.garage_id, center_id: request.center_id,
+      customer_id: null, vehicle_id: null, service_request_id: request.id,
+      title: request.service_name, starts_at: startsAt.toISOString(),
+      ends_at: new Date(startsAt.getTime() + 60 * 60000).toISOString(),
+      status: index === 0 ? 'confirmed' : 'in_progress', assigned_to: DEMO_STAFF_ID,
+      notes: null, created_at: new Date().toISOString(),
+    }
+  })
   const repair = (title: string, status: string, vehicle_id: string | null, symptom: string): Repair => ({
     id: uid(), garage_id: DEMO_GARAGE_ID, vehicle_id, customer_id: null, appointment_id: null,
     title, symptom, diagnostic: null, status, assigned_to: null, notes: null,
@@ -239,7 +518,7 @@ function seed(brand: DemoBrand = 'default'): Store {
     lines: { label: string; quantity: number; unit_price: number; tax_rate: number }[]
     validIn?: number | null; createdAgo?: number; token?: string | null
     sentAgo?: number | null; acceptedAgo?: number | null; declinedAgo?: number | null
-    declineReason?: string | null; revisedFrom?: string | null
+    declineReason?: string | null; revisedFrom?: string | null; serviceRequestId?: string | null
   }): Quote => {
     qseq += 1
     const id = uid()
@@ -257,7 +536,7 @@ function seed(brand: DemoBrand = 'default'): Store {
       valid_until: o.validIn == null ? null : isoIn(o.validIn),
       client_name: `${o.customer.first_name} ${o.customer.last_name}`, client_phone: o.customer.phone, client_email: o.customer.email,
       vehicle_label: `${o.vehicle.brand} ${o.vehicle.model}${o.vehicle.registration ? ` · ${o.vehicle.registration}` : ''}`,
-      customer_id: o.customer.id, vehicle_id: o.vehicle.id, service_request_id: null, repair_id: null,
+      customer_id: o.customer.id, vehicle_id: o.vehicle.id, service_request_id: o.serviceRequestId ?? null, repair_id: null,
       created_at: daysAgoIso(o.createdAgo ?? 0),
       client_token: o.token ?? null,
       sent_at: o.sentAgo == null ? null : daysAgoIso(o.sentAgo),
@@ -267,6 +546,7 @@ function seed(brand: DemoBrand = 'default'): Store {
       revised_from: o.revisedFrom ?? null,
       accepted_terms_version: o.acceptedAgo == null ? null : legalVersions.terms,
       accepted_privacy_version: o.acceptedAgo == null ? null : legalVersions.privacy,
+      recommendation_id: null, supplemental_to_quote_id: null,
     }
     quotes.push(q)
     return q
@@ -291,9 +571,12 @@ function seed(brand: DemoBrand = 'default'): Store {
 
   return {
     garages: [g], centers, services, news, hours, customers, vehicles, clientVehicles, requests,
-    messages: [], appointments: [], repairs, tasks, quotes, quoteLines,
+    messages: [], workshopTimeline, recommendations, recommendationDecisions,
+    attachments, notificationOutbox, deliveryReports, maintenanceReminders,
+    serviceRequestTransfers: [], serviceRequestTransferEvents: [],
+    appointments, repairs, tasks, quotes, quoteLines,
     clientProfile: { id: DEMO_CLIENT_ID, default_garage_id: DEMO_GARAGE_ID, marketing_consent: true, created_at: today().toISOString() },
-    reqSeq: 1, quoteSeq: qseq,
+    reqSeq: requests.length, quoteSeq: qseq,
   }
 }
 
@@ -302,6 +585,7 @@ const QUOTE_LIFECYCLE_DEFAULTS = {
   client_token: null, sent_at: null, accepted_at: null, declined_at: null,
   decline_reason: null, revised_from: null,
   accepted_terms_version: null, accepted_privacy_version: null,
+  recommendation_id: null, supplemental_to_quote_id: null,
 } as const
 
 /**
@@ -332,6 +616,15 @@ export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): St
     clientVehicles: arr('clientVehicles'),
     requests: arr('requests'),
     messages: arr('messages'),
+    workshopTimeline: arr('workshopTimeline'),
+    recommendations: arr('recommendations'),
+    recommendationDecisions: arr('recommendationDecisions'),
+    attachments: arr('attachments'),
+    notificationOutbox: arr('notificationOutbox'),
+    deliveryReports: arr('deliveryReports'),
+    maintenanceReminders: arr('maintenanceReminders'),
+    serviceRequestTransfers: arr('serviceRequestTransfers'),
+    serviceRequestTransferEvents: arr('serviceRequestTransferEvents'),
     appointments: arr('appointments'),
     repairs: arr('repairs'),
     tasks: arr('tasks'),
@@ -344,6 +637,12 @@ export function ensureStoreShape(raw: unknown, brand: DemoBrand = 'default'): St
   }
   // Backfill quote columns introduced after the store was first saved.
   store.quotes = store.quotes.map((q) => ({ ...QUOTE_LIFECYCLE_DEFAULTS, ...q }) as Quote)
+  store.requests = store.requests.map((request) => Object.assign({
+    workshop_stage: null,
+    estimated_completion_at: null,
+    vehicle_checked_in_at: null,
+    vehicle_delivered_at: null,
+  }, request))
   return store
 }
 
@@ -425,15 +724,32 @@ const clone = <T>(v: T): T =>
 
 export const demoGarage = (): Garage => load().garages[0]
 
-export function demoProfile(kind: DemoKind) {
+export function demoProfile(kind: DemoKind, account: DemoAccount | null = getDemoAccount()) {
+  const staffName = account === 'network_manager'
+    ? 'Amina El Mansouri'
+    : account === 'network_garage' ? 'Mehdi Laurent' : 'Sophie Martin'
   return {
     id: kind === 'garage' ? DEMO_STAFF_ID : DEMO_CLIENT_ID,
-    full_name: kind === 'garage' ? 'Sophie Martin' : 'Julie Durand',
+    full_name: kind === 'garage' ? staffName : 'Julie Durand',
     phone: kind === 'garage' ? null : '+33 6 55 44 33 22',
     avatar_url: null,
     account_type: kind === 'garage' ? 'staff' : 'client',
     created_at: today().toISOString(),
   }
+}
+
+export function demoMembership(account: DemoAccount | null = getDemoAccount()) {
+  if (!account || account === 'client') return null
+  const center = load().centers[0]
+  const network = account === 'network_garage' || account === 'network_manager'
+  return {
+    id: `demo-membership-${account}`, garage_id: DEMO_GARAGE_ID,
+    center_id: account === 'network_garage' ? center?.id ?? null : null,
+    user_id: DEMO_STAFF_ID, role: account === 'network_manager' ? 'admin' : 'owner',
+    status: 'active', invited_at: null, created_at: today().toISOString(),
+    organization_role: account === 'network_manager' ? 'regional_manager' : network ? 'organization_owner' : null,
+    center_role: account === 'network_garage' ? 'center_manager' : null,
+  } as GarageMember
 }
 
 /** Build the tokenised public-quote payload (mirror of get_quote_public). */
@@ -460,6 +776,30 @@ function buildPublicQuote(s: Store, token: string) {
   })
 }
 
+function queueDemoNotification(
+  store: Store,
+  input: {
+    garageId: string
+    centerId?: string | null
+    requestId?: string | null
+    recipientUserId?: string | null
+    templateKey: NotificationEvent
+    payload?: Record<string, unknown>
+  },
+) {
+  const now = new Date().toISOString()
+  const row: NotificationOutboxItem = {
+    id: uid(), garage_id: input.garageId, center_id: input.centerId ?? null,
+    service_request_id: input.requestId ?? null, recipient_user_id: input.recipientUserId ?? null,
+    recipient_address: null, channel: 'in_app', template_key: input.templateKey,
+    language: 'fr', payload: input.payload ?? {}, status: 'simulated', provider: 'demo-simulator',
+    provider_message_id: `simulated-${input.templateKey}-in_app`, attempts: 1,
+    scheduled_at: now, sent_at: now, failed_at: null, error_code: null, created_at: now,
+  }
+  store.notificationOutbox.unshift(row)
+  return row
+}
+
 // ---------- query helpers (mirror the real hooks) ----------
 export const demo = {
   garages: () => clone(load().garages),
@@ -473,6 +813,44 @@ export const demo = {
   garageRequests: () => clone([...load().requests].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))),
   clientRequests: () => clone(load().requests.filter((r) => r.client_id === DEMO_CLIENT_ID).sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))),
   requestMessages: (requestId: string) => clone(load().messages.filter((m) => m.request_id === requestId)),
+  workshopTimeline: (requestId: string) => clone(
+    load().workshopTimeline
+      .filter((event) => event.request_id === requestId)
+      .sort((a, b) => +new Date(a.occurred_at) - +new Date(b.occurred_at)),
+  ),
+  recommendations: (requestId: string, customerView = false) => clone(
+    load().recommendations.filter((item) => item.service_request_id === requestId
+      && (!customerView || !['draft', 'cancelled'].includes(item.status))),
+  ),
+  recommendationDecisions: (recommendationId: string, customerView = false) => clone(
+    load().recommendationDecisions.filter((event) => event.recommendation_id === recommendationId
+      && (!customerView || event.visible_to_customer)),
+  ),
+  attachments: (requestId: string, customerView = false) => clone(
+    load().attachments.filter((attachment) => attachment.service_request_id === requestId
+      && (!customerView || ['customer', 'both'].includes(attachment.visibility))),
+  ),
+  notificationOutbox: (garageId: string) => clone(
+    load().notificationOutbox.filter((item) => item.garage_id === garageId)
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)),
+  ),
+  deliveryReport: (requestId: string, customerView = false) => clone(
+    load().deliveryReports.find((report) => report.service_request_id === requestId
+      && (!customerView || report.status === 'finalized')) ?? null,
+  ),
+  maintenanceReminders: (garageId?: string, clientId?: string) => clone(
+    load().maintenanceReminders.filter((reminder) => (!garageId || reminder.garage_id === garageId)
+      && (!clientId || reminder.client_id === clientId))
+      .sort((a, b) => +new Date(a.scheduled_at) - +new Date(b.scheduled_at)),
+  ),
+  serviceRequestTransfers: (requestId: string) => clone(
+    load().serviceRequestTransfers.filter((transfer) => transfer.service_request_id === requestId)
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)),
+  ),
+  serviceRequestTransferEvents: (transferId: string) => clone(
+    load().serviceRequestTransferEvents.filter((event) => event.transfer_id === transferId)
+      .sort((a, b) => +new Date(a.occurred_at) - +new Date(b.occurred_at)),
+  ),
   clientVehicles: () => clone(load().clientVehicles),
   clientProfile: () => clone(load().clientProfile),
   vehicles: () => clone([...load().vehicles].sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at))),
@@ -515,6 +893,8 @@ export const demo = {
       contact_phone: input.contact_phone ?? null, contact_email: input.contact_email ?? 'client@demo.fr',
       status: 'pending', customer_id: null, appointment_id: null,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      workshop_stage: null, estimated_completion_at: null,
+      vehicle_checked_in_at: null, vehicle_delivered_at: null,
     }
     s.requests.unshift(row)
     save()
@@ -526,6 +906,352 @@ export const demo = {
     if (r) Object.assign(r, patch, { updated_at: new Date().toISOString() })
     save()
     return r
+  },
+  proposeCenterTransfer: (requestId: string, destinationCenterId: string, reason?: string | null) => {
+    const s = load()
+    const request = s.requests.find((row) => row.id === requestId)
+    const source = s.centers.find((center) => center.id === request?.center_id)
+    const destination = s.centers.find((center) => center.id === destinationCenterId)
+    if (!request) throw new Error('Service request not found')
+    if (!source || !destination) throw new Error('TRANSFER_CENTER_NOT_FOUND')
+    assertTransferScope(request, source, destination)
+    if (s.serviceRequestTransfers.some((transfer) => transfer.service_request_id === requestId
+      && ['proposed', 'customer_confirmed'].includes(transfer.status))) {
+      throw new Error('TRANSFER_ALREADY_OPEN')
+    }
+    const createdAt = new Date().toISOString()
+    const transfer: ServiceRequestTransfer = {
+      id: uid(), garage_id: request.garage_id, service_request_id: request.id,
+      from_center_id: source.id, to_center_id: destination.id, status: 'proposed',
+      requested_by: DEMO_STAFF_ID, reason: reason?.trim() || null, created_at: createdAt,
+      customer_confirmed_at: null, completed_at: null,
+    }
+    s.serviceRequestTransfers.unshift(transfer)
+    s.serviceRequestTransferEvents.push({
+      id: uid(), transfer_id: transfer.id, garage_id: transfer.garage_id,
+      previous_status: null, new_status: 'proposed', changed_by: DEMO_STAFF_ID,
+      occurred_at: createdAt, note: transfer.reason,
+    })
+    save()
+    return clone(transfer)
+  },
+  transitionCenterTransfer: (transferId: string, action: CenterTransferAction, note?: string | null) => {
+    const s = load()
+    const transfer = s.serviceRequestTransfers.find((row) => row.id === transferId)
+    if (!transfer) throw new Error('Center transfer not found')
+    const previousStatus = transfer.status
+    const nextStatus = transitionTransferStatus(previousStatus, action)
+    const occurredAt = new Date().toISOString()
+    transfer.status = nextStatus
+    if (nextStatus === 'customer_confirmed') transfer.customer_confirmed_at = occurredAt
+    if (nextStatus === 'completed') {
+      transfer.completed_at = occurredAt
+      const request = s.requests.find((row) => row.id === transfer.service_request_id)
+      if (request) {
+        request.center_id = transfer.to_center_id
+        request.updated_at = occurredAt
+      }
+      s.appointments.filter((appointment) => appointment.service_request_id === transfer.service_request_id)
+        .forEach((appointment) => { appointment.center_id = transfer.to_center_id })
+    }
+    s.serviceRequestTransferEvents.push({
+      id: uid(), transfer_id: transfer.id, garage_id: transfer.garage_id,
+      previous_status: previousStatus, new_status: nextStatus,
+      changed_by: action === 'complete' ? DEMO_STAFF_ID : DEMO_CLIENT_ID,
+      occurred_at: occurredAt, note: note?.trim() || null,
+    })
+    save()
+    return clone(transfer)
+  },
+  transitionWorkshopStage: (input: {
+    requestId: string
+    newStage: WorkshopStage
+    internalNote?: string | null
+    customerMessage?: string | null
+    estimatedCompletionAt?: string | null
+    visibleToCustomer?: boolean
+  }): ServiceRequestTimelineEvent => {
+    const s = load()
+    const request = s.requests.find((row) => row.id === input.requestId)
+    if (!request) throw new Error('Service request not found')
+    const previousStage = isWorkshopStage(request.workshop_stage) ? request.workshop_stage : null
+    assertWorkshopTransition(previousStage, input.newStage)
+    const occurredAt = new Date().toISOString()
+    const event: ServiceRequestTimelineEvent = {
+      id: uid(), request_id: request.id, garage_id: request.garage_id,
+      center_id: request.center_id, previous_stage: previousStage, new_stage: input.newStage,
+      changed_by: DEMO_STAFF_ID, occurred_at: occurredAt,
+      internal_note: input.internalNote?.trim() || null,
+      customer_message: input.customerMessage?.trim() || null,
+      estimated_completion_at: input.estimatedCompletionAt ?? request.estimated_completion_at,
+      visible_to_customer: input.visibleToCustomer ?? true,
+      notification_status: 'simulated',
+    }
+    request.workshop_stage = input.newStage
+    request.estimated_completion_at = input.estimatedCompletionAt ?? request.estimated_completion_at
+    if (input.newStage === 'vehicle_checked_in' && !request.vehicle_checked_in_at) {
+      request.vehicle_checked_in_at = occurredAt
+    }
+    if (input.newStage === 'vehicle_delivered' && !request.vehicle_delivered_at) {
+      request.vehicle_delivered_at = occurredAt
+    }
+    request.updated_at = occurredAt
+    s.workshopTimeline.push(event)
+    const notificationByStage: Partial<Record<WorkshopStage, NotificationEvent>> = {
+      appointment_confirmed: 'appointment_confirmed', vehicle_received: 'vehicle_received',
+      customer_approval_required: 'approval_required', vehicle_ready: 'vehicle_ready',
+      vehicle_delivered: 'vehicle_delivered',
+    }
+    const templateKey = notificationByStage[input.newStage]
+    if (templateKey && event.visible_to_customer) {
+      queueDemoNotification(s, {
+        garageId: request.garage_id, centerId: request.center_id, requestId: request.id,
+        recipientUserId: request.client_id, templateKey, payload: { stage: input.newStage },
+      })
+    }
+    save()
+    return clone(event)
+  },
+  createRecommendation: (input: {
+    requestId: string
+    title: string
+    description?: string | null
+    category?: string | null
+    urgency?: RecommendationUrgency
+    reason?: string | null
+    estimatedPrice?: number | null
+    estimatedDurationMinutes?: number | null
+    affectsDeliveryTime?: boolean
+    proposedDeliveryAt?: string | null
+  }): WorkshopRecommendation => {
+    const s = load()
+    const request = s.requests.find((row) => row.id === input.requestId)
+    if (!request) throw new Error('Service request not found')
+    if (!input.title.trim()) throw new Error('Recommendation title is required')
+    const row: WorkshopRecommendation = {
+      id: uid(), garage_id: request.garage_id, center_id: request.center_id,
+      service_request_id: request.id, title: input.title.trim(),
+      description: input.description?.trim() || null, category: input.category?.trim() || null,
+      urgency: input.urgency ?? 'recommended', reason: input.reason?.trim() || null,
+      estimated_price: input.estimatedPrice ?? null,
+      estimated_duration_minutes: input.estimatedDurationMinutes ?? null,
+      affects_delivery_time: input.affectsDeliveryTime ?? false,
+      proposed_delivery_at: input.proposedDeliveryAt ?? null,
+      status: 'draft', created_by: DEMO_STAFF_ID, created_at: new Date().toISOString(),
+      decided_at: null, customer_decision_note: null,
+    }
+    if ((row.estimated_price ?? 0) < 0 || (row.estimated_duration_minutes ?? 0) < 0) {
+      throw new Error('Invalid recommendation estimate')
+    }
+    s.recommendations.push(row)
+    save()
+    return clone(row)
+  },
+  setRecommendationStatus: (recommendationId: string, newStatus: RecommendationStatus, note?: string | null) => {
+    const s = load()
+    const recommendation = s.recommendations.find((item) => item.id === recommendationId)
+    if (!recommendation) throw new Error('Recommendation not found')
+    const previousStatus = recommendation.status
+    if (!canStaffTransitionRecommendation(previousStatus, newStatus)) {
+      throw new Error(`Invalid recommendation transition from ${previousStatus} to ${newStatus}`)
+    }
+    recommendation.status = newStatus
+    const event: RecommendationDecisionEvent = {
+      id: uid(), recommendation_id: recommendation.id, garage_id: recommendation.garage_id,
+      service_request_id: recommendation.service_request_id,
+      action: newStatus as RecommendationDecisionEvent['action'], previous_status: previousStatus,
+      new_status: newStatus, decided_by: DEMO_STAFF_ID, occurred_at: new Date().toISOString(),
+      legal_terms_version: null, legal_privacy_version: null, displayed_language: null,
+      note: note?.trim() || null, visible_to_customer: true,
+    }
+    s.recommendationDecisions.push(event)
+    if (newStatus === 'proposed') {
+      const request = s.requests.find((item) => item.id === recommendation.service_request_id)
+      queueDemoNotification(s, {
+        garageId: recommendation.garage_id, centerId: recommendation.center_id,
+        requestId: recommendation.service_request_id, recipientUserId: request?.client_id,
+        templateKey: 'recommendation_available', payload: { recommendation_id: recommendation.id },
+      })
+    }
+    save()
+    return clone(recommendation)
+  },
+  decideRecommendation: (input: {
+    recommendationId: string
+    action: RecommendationDecision
+    note?: string | null
+    language: 'fr' | 'en' | 'ar'
+  }) => {
+    const s = load()
+    const recommendation = s.recommendations.find((item) => item.id === input.recommendationId)
+    if (!recommendation) throw new Error('Recommendation not found')
+    if (input.action === 'question' && !input.note?.trim()) throw new Error('A question is required')
+    const previousStatus = recommendation.status
+    const newStatus = customerDecisionStatus(input.action, previousStatus)
+    recommendation.status = newStatus
+    recommendation.customer_decision_note = input.note?.trim() || null
+    if (input.action !== 'question') recommendation.decided_at = new Date().toISOString()
+    const event: RecommendationDecisionEvent = {
+      id: uid(), recommendation_id: recommendation.id, garage_id: recommendation.garage_id,
+      service_request_id: recommendation.service_request_id, action: input.action,
+      previous_status: previousStatus, new_status: newStatus, decided_by: DEMO_CLIENT_ID,
+      occurred_at: new Date().toISOString(), legal_terms_version: legalVersions.terms,
+      legal_privacy_version: legalVersions.privacy, displayed_language: input.language,
+      note: input.note?.trim() || null, visible_to_customer: true,
+    }
+    s.recommendationDecisions.push(event)
+    queueDemoNotification(s, {
+      garageId: recommendation.garage_id, centerId: recommendation.center_id,
+      requestId: recommendation.service_request_id, recipientUserId: DEMO_STAFF_ID,
+      templateKey: 'message_received',
+      payload: { recommendation_id: recommendation.id, action: input.action },
+    })
+    save()
+    return clone(recommendation)
+  },
+  linkRecommendationQuote: (recommendationId: string, quoteId: string, parentQuoteId?: string | null) => {
+    const s = load()
+    const recommendation = s.recommendations.find((item) => item.id === recommendationId)
+    const quote = s.quotes.find((item) => item.id === quoteId)
+    const parent = parentQuoteId ? s.quotes.find((item) => item.id === parentQuoteId) : null
+    if (!recommendation || !quote) throw new Error('Recommendation or quote not found')
+    if (recommendation.garage_id !== quote.garage_id
+      || recommendation.service_request_id !== quote.service_request_id) {
+      throw new Error('Recommendation and quote do not belong to the same case')
+    }
+    if (parentQuoteId && (!parent || parent.garage_id !== quote.garage_id
+      || parent.service_request_id !== quote.service_request_id)) {
+      throw new Error('Invalid parent quote')
+    }
+    quote.recommendation_id = recommendation.id
+    quote.supplemental_to_quote_id = parentQuoteId ?? null
+    save()
+    return clone(quote)
+  },
+  addAttachment: (input: {
+    requestId: string
+    recommendationId?: string | null
+    fileName: string
+    mimeType: string
+    fileSize: number
+    visibility: AttachmentVisibility
+    documentType: AttachmentDocumentType
+  }): ServiceRequestAttachment => {
+    const s = load()
+    const request = s.requests.find((item) => item.id === input.requestId)
+    if (!request) throw new Error('Service request not found')
+    if (s.attachments.filter((item) => item.service_request_id === request.id).length >= 20) {
+      throw new Error('Attachment limit reached')
+    }
+    if (input.recommendationId && !s.recommendations.some((item) => item.id === input.recommendationId
+      && item.service_request_id === request.id)) {
+      throw new Error('Invalid recommendation attachment')
+    }
+    const row: ServiceRequestAttachment = {
+      id: uid(), garage_id: request.garage_id, center_id: request.center_id,
+      service_request_id: request.id, recommendation_id: input.recommendationId ?? null,
+      uploaded_by: DEMO_STAFF_ID, file_name: input.fileName, mime_type: input.mimeType,
+      file_size: input.fileSize, storage_path: `demo://${uid()}-${input.fileName}`,
+      visibility: input.visibility, document_type: input.documentType,
+      created_at: new Date().toISOString(),
+    }
+    s.attachments.push(row)
+    save()
+    return clone(row)
+  },
+  saveDeliveryReport: (requestId: string, patch: Partial<DeliveryReport>, finalize = false) => {
+    const s = load()
+    const request = s.requests.find((item) => item.id === requestId)
+    if (!request) throw new Error('Service request not found')
+    const existing = s.deliveryReports.find((item) => item.service_request_id === requestId)
+    if (existing?.status === 'finalized') throw new Error('Finalized delivery report is immutable')
+    const now = new Date().toISOString()
+    const row: DeliveryReport = Object.assign(existing ? { ...existing } : {
+      id: uid(), garage_id: request.garage_id, center_id: request.center_id,
+      service_request_id: request.id, report_number: `RI-${today().getFullYear()}-${String(s.deliveryReports.length + 1).padStart(4, '0')}`,
+      status: 'draft' as const, customer_snapshot: {}, vehicle_snapshot: {},
+      entry_mileage: null, exit_mileage: null, checked_in_at: request.vehicle_checked_in_at,
+      delivered_at: request.vehicle_delivered_at, requested_work: [], diagnostic_summary: null,
+      completed_work: [], accepted_recommendations: [], deferred_recommendations: [], parts: [],
+      authorized_attachment_ids: [], observations: null, next_due_date: null,
+      next_due_mileage: null, warranty_terms: null, final_validation: null,
+      finalized_by: null, finalized_at: null, created_at: now, updated_at: now,
+    }, patch, {
+      status: finalize ? 'finalized' : 'draft', finalized_by: finalize ? DEMO_STAFF_ID : null,
+      finalized_at: finalize ? now : null, updated_at: now,
+    })
+    if ((row.entry_mileage ?? 0) < 0 || (row.exit_mileage ?? 0) < 0
+      || (row.entry_mileage !== null && row.exit_mileage !== null && row.exit_mileage < row.entry_mileage)) {
+      throw new Error('Invalid report mileage')
+    }
+    if (existing) Object.assign(existing, row)
+    else s.deliveryReports.push(row)
+    save()
+    return clone(row)
+  },
+  createMaintenanceReminder: (input: {
+    garageId: string
+    centerId?: string | null
+    clientId: string
+    vehicleId?: string | null
+    clientVehicleId?: string | null
+    serviceRequestId?: string | null
+    reminderType: ReminderType
+    title: string
+    dueDate?: string | null
+    dueMileage?: number | null
+    scheduledAt?: string
+    source?: string
+    language?: 'fr' | 'en' | 'ar'
+  }) => {
+    const s = load()
+    if (!input.dueDate && input.dueMileage == null) throw new Error('A date or mileage is required')
+    const row: MaintenanceReminder = {
+      id: uid(), garage_id: input.garageId, center_id: input.centerId ?? null,
+      client_id: input.clientId, vehicle_id: input.vehicleId ?? null,
+      client_vehicle_id: input.clientVehicleId ?? null,
+      service_request_id: input.serviceRequestId ?? null, reminder_type: input.reminderType,
+      title: input.title, due_date: input.dueDate ?? null, due_mileage: input.dueMileage ?? null,
+      status: 'scheduled', scheduled_at: input.scheduledAt ?? new Date().toISOString(),
+      sent_at: null, converted_request_id: null, source: input.source ?? 'manual',
+      created_by: DEMO_STAFF_ID, created_at: new Date().toISOString(),
+    }
+    s.maintenanceReminders.push(row)
+    const notificationTime = new Date().toISOString()
+    s.notificationOutbox.unshift({
+      id: uid(), garage_id: input.garageId, center_id: input.centerId ?? null,
+      service_request_id: input.serviceRequestId ?? null, recipient_user_id: input.clientId,
+      recipient_address: 'client@demo.fr', channel: 'in_app', template_key: 'maintenance_reminder',
+      language: input.language ?? 'fr', payload: { reminder_id: row.id }, status: 'simulated',
+      provider: 'demo-simulator', provider_message_id: `simulated-maintenance_reminder-in_app`,
+      attempts: 1, scheduled_at: notificationTime, sent_at: notificationTime,
+      failed_at: null, error_code: null, created_at: notificationTime,
+    })
+    save()
+    return clone(row)
+  },
+  convertMaintenanceReminder: (reminderId: string) => {
+    const s = load()
+    const reminder = s.maintenanceReminders.find((item) => item.id === reminderId)
+    if (!reminder) throw new Error('Reminder not found')
+    s.reqSeq += 1
+    const vehicle = s.clientVehicles.find((item) => item.id === reminder.client_vehicle_id)
+    const request: ServiceRequest = {
+      id: uid(), reference: 'GF-' + String(s.reqSeq).padStart(5, '0'), garage_id: reminder.garage_id,
+      center_id: reminder.center_id, client_id: reminder.client_id, client_stage: 'request_sent',
+      service_id: null, service_name: reminder.title, client_vehicle_id: reminder.client_vehicle_id,
+      vehicle_label: vehicle ? `${vehicle.brand} ${vehicle.model} · ${vehicle.registration ?? ''}`.trim() : null,
+      requested_date: reminder.due_date, requested_time: null, proposed_date: null, proposed_time: null,
+      note: 'Demande créée depuis un rappel d’entretien.', contact_name: 'Julie Durand',
+      contact_phone: '+33 6 55 44 33 22', contact_email: 'client@demo.fr', status: 'pending',
+      customer_id: null, appointment_id: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      workshop_stage: null, estimated_completion_at: null, vehicle_checked_in_at: null, vehicle_delivered_at: null,
+    }
+    s.requests.unshift(request)
+    reminder.status = 'converted'
+    reminder.converted_request_id = request.id
+    save()
+    return { reminder: clone(reminder), request: clone(request) }
   },
   addRequestMessage: (input: Partial<ServiceRequestMessage>): ServiceRequestMessage => {
     const s = load()
@@ -552,7 +1278,7 @@ export const demo = {
     const date = r.proposed_date ?? r.requested_date ?? isoIn(2)
     const time = (r.proposed_time ?? r.requested_time ?? '09:00').slice(0, 5)
     const appt: Appointment = {
-      id: uid(), garage_id: DEMO_GARAGE_ID, customer_id: customer.id, vehicle_id: null,
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: r.center_id, customer_id: customer.id, vehicle_id: null,
       service_request_id: r.id, assigned_to: null, title: `${r.service_name} — ${r.vehicle_label ?? ''}`.trim(),
       starts_at: new Date(`${date}T${time}:00`).toISOString(), ends_at: null, status: 'scheduled',
       notes: null, created_at: new Date().toISOString(),
@@ -657,7 +1383,7 @@ export const demo = {
   createAppointment: (input: Partial<Appointment>): Appointment => {
     const s = load()
     const row: Appointment = {
-      id: uid(), garage_id: DEMO_GARAGE_ID, customer_id: null, vehicle_id: null, service_request_id: null,
+      id: uid(), garage_id: DEMO_GARAGE_ID, center_id: input.center_id ?? null, customer_id: null, vehicle_id: null, service_request_id: null,
       assigned_to: null, title: input.title ?? '', starts_at: input.starts_at ?? new Date().toISOString(),
       ends_at: null, status: input.status ?? 'scheduled', notes: input.notes ?? null, created_at: new Date().toISOString(),
     }
@@ -719,6 +1445,8 @@ export const demo = {
       client_token: null, sent_at: null, accepted_at: null, declined_at: null,
       decline_reason: null, revised_from: null,
       accepted_terms_version: null, accepted_privacy_version: null,
+      recommendation_id: quote.recommendation_id ?? null,
+      supplemental_to_quote_id: quote.supplemental_to_quote_id ?? null,
     }
     s.quotes.unshift(row)
     lines.forEach((l, i) =>
@@ -766,6 +1494,15 @@ export const demo = {
     q.status = 'sent'
     q.sent_at = new Date().toISOString()
     q.client_token = q.client_token ?? ('demo' + uid().replace(/-/g, '') + uid().replace(/-/g, ''))
+    if (q.service_request_id) {
+      const request = s.requests.find((item) => item.id === q.service_request_id)
+      if (request) {
+        queueDemoNotification(s, {
+          garageId: q.garage_id, centerId: request.center_id, requestId: request.id,
+          recipientUserId: request.client_id, templateKey: 'quote_available', payload: { quote_id: q.id },
+        })
+      }
+    }
     save()
     return clone(q)
   },

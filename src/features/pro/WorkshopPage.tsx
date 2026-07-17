@@ -13,8 +13,15 @@ import { REPAIR_COLUMNS, type RepairStatus } from '@/types/domain'
 import { repairStatusMeta } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { localizeDemoText } from '@/i18n/demoContent'
+import { workshopTimelineEnabled } from '@/lib/features'
+import { WorkshopLifecycleBoard } from '@/features/workshop/WorkshopLifecycleBoard'
 
 export function WorkshopPage() {
+  if (workshopTimelineEnabled()) return <WorkshopLifecycleBoard />
+  return <LegacyWorkshopPage />
+}
+
+function LegacyWorkshopPage() {
   const { lang, tr } = useLang()
   const { garage } = useAuth()
   const gid = garage?.id

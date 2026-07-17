@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Database, ImagePlus, Wrench } from 'lucide-react'
+import { ImagePlus, Wrench } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useGarageHours } from '@/data/garagePublic'
 import { useUpdateGarage, useUploadLogo } from '@/data/catalog'
-import { isSupabaseConfigured } from '@/lib/supabase'
-import { env } from '@/lib/env'
 import { shortTime } from '@/lib/format'
 import type { GarageRole } from '@/types/domain'
 import { roleLabel, weekdayLabel } from '@/i18n/domainLabels'
@@ -66,7 +63,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title={tr('Paramètres')} subtitle={tr('Identité du garage, page client et état du backend.')} />
+      <PageHeader title={tr('Paramètres')} subtitle={tr('Identité du garage, page client et préférences de l’établissement.')} />
 
       {/* Identity & branding */}
       <Card>
@@ -77,12 +74,12 @@ export function SettingsPage() {
               {garage?.logo_url ? <img src={garage.logo_url} alt="" className="h-full w-full object-contain" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}
             </div>
             <div>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onLogo} />
+              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onLogo} />
               <Button size="sm" variant="outline" disabled={!canManage || !!demo} loading={uploadLogo.isPending} onClick={() => fileRef.current?.click()}>
                 <ImagePlus className="h-4 w-4" /> {tr(garage?.logo_url ? 'Changer le logo' : 'Importer un logo')}
               </Button>
               <p className="mt-1 text-xs text-muted-foreground">
-                {tr(demo ? 'Indisponible en mode démo (nécessite Supabase).' : 'PNG ou SVG. Affiché sur la page client et les devis.')}
+                {tr(demo ? 'Cette action est indisponible avec un compte de démonstration.' : 'PNG, JPEG ou WebP, 2 Mo maximum. Affiché sur la page client et les devis.')}
               </p>
             </div>
           </div>
@@ -137,23 +134,6 @@ export function SettingsPage() {
               )
             })}
           </ul>
-        </CardContent>
-      </Card>
-
-      {/* Backend status */}
-      <Card>
-        <CardHeader><CardTitle>{tr('État du backend')}</CardTitle></CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-muted-foreground"><Database className="h-4 w-4" /> Supabase</span>
-            <Badge tone={demo ? 'warning' : isSupabaseConfigured ? 'success' : 'warning'}>{tr(demo ? 'Mode démo' : isSupabaseConfigured ? 'Connecté' : 'Non configuré')}</Badge>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">{tr('Projet')}</span>
-            <span className="font-mono text-xs">{env.supabaseUrl.replace('https://', '').replace('.supabase.co', '') || '—'}</span>
-          </div>
-          <div className="flex items-center justify-between"><span className="text-muted-foreground">{tr('Isolation')}</span><span className="font-medium">RLS par garage_id</span></div>
-          <p className="pt-1 text-xs text-muted-foreground">{tr('Clé publique (anon) uniquement côté navigateur — jamais la clé service_role.')}</p>
         </CardContent>
       </Card>
 

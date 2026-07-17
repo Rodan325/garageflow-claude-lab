@@ -13,6 +13,12 @@ import { requestStatusMeta } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { localizeDemoText } from '@/i18n/demoContent'
 import { shortDate, shortTime, fromNow } from '@/lib/format'
+import { attachmentsEnabled, centerTransfersEnabled, deliveryReportsEnabled, recommendationsEnabled, workshopTimelineEnabled } from '@/lib/features'
+import { CustomerWorkshopTimeline } from '@/features/workshop/CustomerWorkshopTimeline'
+import { CustomerRecommendations } from '@/features/recommendations/CustomerRecommendations'
+import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
+import { CustomerDeliveryReport } from '@/features/reports/CustomerDeliveryReport'
+import { CustomerTransferDecision } from '@/features/transfers/CustomerTransferDecision'
 
 export function ClientBookingDetailPage() {
   const { lang, tr } = useLang()
@@ -70,6 +76,12 @@ export function ClientBookingDetailPage() {
           {request.note && <div className="pt-1"><dt className="text-muted-foreground">{tr('Votre message')}</dt><dd className="mt-1 rounded-lg bg-muted/60 p-2">{localizeDemoText(request.note, lang)}</dd></div>}
         </dl>
       </Card>
+
+      {workshopTimelineEnabled() && <CustomerWorkshopTimeline requestId={request.id} />}
+      {centerTransfersEnabled() && <CustomerTransferDecision request={request} />}
+      {recommendationsEnabled() && <CustomerRecommendations requestId={request.id} />}
+      {attachmentsEnabled() && <AttachmentsPanel garageId={request.garage_id} requestId={request.id} customerView />}
+      {deliveryReportsEnabled() && <CustomerDeliveryReport request={request} />}
 
       <div className="mt-5">
         <p className="mb-2 text-sm font-semibold">{tr('Échanges avec le garage')}</p>

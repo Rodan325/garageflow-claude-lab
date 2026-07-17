@@ -6,6 +6,13 @@ import {
   ensureStoreShape,
   isDemoQuoteToken,
   reloadDemoCache,
+  getDemoAccount,
+  getDemoKind,
+  getDemoOrganizationKind,
+  demoMembership,
+  demoProfile,
+  setDemoAccount,
+  setDemoOrganizationKind,
   SPEEDY_STORE_KEY,
   STORE_KEY,
   type DemoBrand,
@@ -13,6 +20,7 @@ import {
 
 afterEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
   reloadDemoCache()
 })
 
@@ -67,22 +75,202 @@ describe('demo centers — multi-center foundation', () => {
     expect(Array.isArray(s.centers)).toBe(true)
   })
 
-  it('the DEFAULT demo seeds NO centers (plain Clikarage demo unchanged)', () => {
+  it('keeps generic center data hidden from an independent default account', () => {
     const s = ensureStoreShape('force-reseed') // default brand
-    expect(s.centers.length).toBe(0)
-    expect(s.requests[0].center_id).toBeNull()
-    expect(s.requests[0].client_stage).toBeNull()
+    expect(s.centers.length).toBe(3)
+    expect(s.requests[0].center_id).toBeTruthy()
+    expect(s.requests[0].client_stage).toBe('in_progress')
   })
 
-  it('the SPEEDY demo seeds centers and links the request to a center + client stage', () => {
+  it('does not activate multi-center business logic from Speedy branding', () => {
     const s = ensureStoreShape('force-reseed', 'speedy')
     expect(s.centers.length).toBe(3)
     expect(s.centers.every((c) => c.garage_id && c.slug && c.name)).toBe(true)
-    const req = s.requests[0]
-    expect(req.center_id).toBeTruthy()
-    // the linked center actually exists in the store (referential integrity)
-    expect(s.centers.some((c) => c.id === req.center_id)).toBe(true)
-    expect(req.client_stage).toBe('request_sent')
+    expect(s.requests[0].center_id).toBeTruthy()
+    expect(s.requests[0].client_stage).toBe('in_progress')
+  })
+
+  it('links requests to an establishment for a generic network account', () => {
+    setDemoOrganizationKind('network')
+    const s = ensureStoreShape('force-reseed')
+    expect(s.requests[0].center_id).toBeTruthy()
+    expect(s.centers.some((center) => center.id === s.requests[0].center_id)).toBe(true)
+    expect(s.requests[0].client_stage).toBe('in_progress')
+  })
+})
+
+describe('demo workshop timeline', () => {
+  it('persists a valid transition and appends a history event', () => {
+    const store = ensureStoreShape('force-reseed', 'default')
+    localStorage.setItem(STORE_KEY, JSON.stringify(store))
+    reloadDemoCache()
+    const request = demo.garageRequests()[0]
+    const before = demo.workshopTimeline(request.id)
+
+    const event = demo.transitionWorkshopStage({
+      requestId: request.id,
+      newStage: 'customer_approval_required',
+      customerMessage: 'Votre accord est requis.',
+    })
+
+    expect(event.previous_stage).toBe('diagnosis_in_progress')
+    expect(event.new_stage).toBe('customer_approval_required')
+    expect(event.notification_status).toBe('simulated')
+    expect(demo.workshopTimeline(request.id)).toHaveLength(before.length + 1)
+    expect(demo.garageRequests()[0].workshop_stage).toBe('customer_approval_required')
+  })
+
+  it('rejects an invalid transition without changing request or timeline', () => {
+    const store = ensureStoreShape('force-reseed', 'default')
+    localStorage.setItem(STORE_KEY, JSON.stringify(store))
+    reloadDemoCache()
+    const request = demo.garageRequests()[0]
+    const before = demo.workshopTimeline(request.id)
+
+    expect(() => demo.transitionWorkshopStage({ requestId: request.id, newStage: 'vehicle_ready' })).toThrow()
+    expect(demo.garageRequests()[0].workshop_stage).toBe('diagnosis_in_progress')
+    expect(demo.workshopTimeline(request.id)).toEqual(before)
+  })
+})
+
+describe('realistic demo accounts and scenarios', () => {
+  it('exposes client, independent, multi-center and network-manager identities', () => {
+    setDemoAccount('client')
+    expect([getDemoAccount(), getDemoKind(), getDemoOrganizationKind()]).toEqual(['client', 'client', 'independent'])
+    expect(demoMembership()).toBeNull()
+
+    setDemoAccount('independent_garage')
+    expect([getDemoAccount(), getDemoKind(), getDemoOrganizationKind()]).toEqual(['independent_garage', 'garage', 'independent'])
+    expect(demoProfile('garage').full_name).toBe('Sophie Martin')
+
+    setDemoAccount('network_garage')
+    expect(getDemoOrganizationKind()).toBe('network')
+    expect(demoMembership()?.organization_role).toBe('organization_owner')
+
+    setDemoAccount('network_manager')
+    expect(demoProfile('garage').full_name).toBe('Amina El Mansouri')
+    expect(demoMembership()?.organization_role).toBe('regional_manager')
+  })
+
+  it('covers the full presentation journey with linked product records', () => {
+    setDemoAccount('network_manager')
+    const requests = demo.garageRequests()
+    for (const stage of [
+      'appointment_confirmed', 'vehicle_received', 'diagnosis_in_progress', 'customer_approval_required',
+      'work_in_progress', 'quality_control', 'vehicle_ready', 'vehicle_delivered',
+    ]) expect(requests.some((request) => request.workshop_stage === stage)).toBe(true)
+    expect(requests.every((request) => !!request.center_id)).toBe(true)
+
+    const accepted = requests.find((request) => demo.recommendations(request.id).some((item) => item.status === 'accepted'))
+    expect(accepted).toBeDefined()
+    expect(demo.attachments(accepted!.id, true).some((item) => item.document_type === 'photo')).toBe(true)
+    const delivered = requests.find((request) => request.workshop_stage === 'vehicle_delivered')!
+    expect(demo.deliveryReport(delivered.id, true)?.status).toBe('finalized')
+    expect(demo.maintenanceReminders(delivered.garage_id).some((reminder) => reminder.service_request_id === delivered.id)).toBe(true)
+    expect(demo.appointments().length).toBeGreaterThan(0)
+  })
+})
+
+describe('demo diagnostic recommendations', () => {
+  function loadFreshDemo() {
+    const store = ensureStoreShape('force-reseed', 'default')
+    localStorage.setItem(STORE_KEY, JSON.stringify(store))
+    reloadDemoCache()
+    return demo.garageRequests()[0]
+  }
+
+  it('records an accepted customer decision with legal versions and language', () => {
+    const request = loadFreshDemo()
+    const recommendation = demo.recommendations(request.id, true)[0]
+
+    const decided = demo.decideRecommendation({
+      recommendationId: recommendation.id,
+      action: 'accepted',
+      language: 'en',
+    })
+
+    expect(decided.status).toBe('accepted')
+    expect(decided.decided_at).toBeTruthy()
+    const event = demo.recommendationDecisions(recommendation.id, true).at(-1)
+    expect(event?.action).toBe('accepted')
+    expect(event?.displayed_language).toBe('en')
+    expect(event?.legal_terms_version).toBeTruthy()
+    expect(event?.legal_privacy_version).toBeTruthy()
+  })
+
+  it('keeps a proposed recommendation open when the customer asks a question', () => {
+    const request = loadFreshDemo()
+    const recommendation = demo.recommendations(request.id, true)[0]
+
+    const decided = demo.decideRecommendation({
+      recommendationId: recommendation.id,
+      action: 'question',
+      note: 'Pouvez-vous me rappeler avec le détail ?',
+      language: 'fr',
+    })
+
+    expect(decided.status).toBe('proposed')
+    expect(decided.decided_at).toBeNull()
+    expect(demo.recommendationDecisions(recommendation.id, true).at(-1)?.action).toBe('question')
+  })
+
+  it('links a supplemental quote to its recommendation without changing existing quotes', () => {
+    const request = loadFreshDemo()
+    const recommendation = demo.recommendations(request.id)[0]
+    const existingIds = demo.quotes().map((quote) => quote.id)
+    const quote = demo.createQuote({
+      garage_id: request.garage_id,
+      title: recommendation.title,
+      service_request_id: request.id,
+    }, [{ label: recommendation.title, quantity: 1, unit_price: 289, tax_rate: 20 }])
+
+    const linked = demo.linkRecommendationQuote(recommendation.id, quote.id)
+
+    expect(linked.recommendation_id).toBe(recommendation.id)
+    expect(linked.supplemental_to_quote_id).toBeNull()
+    expect(demo.quotes().filter((item) => existingIds.includes(item.id)).every((item) => item.recommendation_id === null)).toBe(true)
+  })
+})
+
+describe('demo attachments and notifications', () => {
+  function loadFreshDemo() {
+    const store = ensureStoreShape('force-reseed', 'default')
+    localStorage.setItem(STORE_KEY, JSON.stringify(store))
+    reloadDemoCache()
+    return demo.garageRequests()[0]
+  }
+
+  it('keeps internal files hidden from the customer while exposing shared files', () => {
+    const request = loadFreshDemo()
+    demo.addAttachment({
+      requestId: request.id,
+      fileName: 'controle-interne.pdf',
+      mimeType: 'application/pdf',
+      fileSize: 1200,
+      visibility: 'internal',
+      documentType: 'diagnostic',
+    })
+
+    expect(demo.attachments(request.id).map((item) => item.file_name)).toContain('controle-interne.pdf')
+    expect(demo.attachments(request.id, true).map((item) => item.file_name)).not.toContain('controle-interne.pdf')
+    expect(demo.attachments(request.id, true).some((item) => item.visibility === 'both')).toBe(true)
+  })
+
+  it('queues a simulated notification without an external provider call', () => {
+    const request = loadFreshDemo()
+    const before = demo.notificationOutbox(request.garage_id).length
+
+    demo.transitionWorkshopStage({
+      requestId: request.id,
+      newStage: 'customer_approval_required',
+      customerMessage: 'Votre accord est requis.',
+    })
+
+    const outbox = demo.notificationOutbox(request.garage_id)
+    expect(outbox).toHaveLength(before + 1)
+    expect(outbox[0]).toMatchObject({
+      template_key: 'approval_required', status: 'simulated', provider: 'demo-simulator', attempts: 1,
+    })
   })
 })
 

@@ -14,16 +14,36 @@ function clean(value?: string): string {
 const url = clean(import.meta.env.VITE_SUPABASE_URL)
 const anonKey = clean(import.meta.env.VITE_SUPABASE_ANON_KEY)
 
+export function isAllowedSupabaseUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value)
+    if (parsed.protocol === 'https:') return true
+
+    return parsed.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
+  } catch {
+    return false
+  }
+}
+
 export const env = {
   supabaseUrl: url,
   supabaseAnonKey: anonKey,
   demoGarageSlug: clean(import.meta.env.VITE_DEMO_GARAGE_SLUG) || 'garage-central-lyon',
   /**
    * Multi-center feature flag (raw). Off unless explicitly 'true'. Real Supabase
-   * mode must keep this false until migrations 0022/0023 are applied, so the app
-   * never queries garage_centers or sends center_id to a schema without them.
+   * mode must keep this false until the timestamped center migrations are
+   * applied, so the app never queries garage_centers or sends center_id to a
+   * schema without them.
    */
   enableCenters: clean(import.meta.env.VITE_ENABLE_CENTERS) === 'true',
+  enableWorkshopTimeline: clean(import.meta.env.VITE_ENABLE_WORKSHOP_TIMELINE) === 'true',
+  enableRecommendations: clean(import.meta.env.VITE_ENABLE_RECOMMENDATIONS) === 'true',
+  enableAttachments: clean(import.meta.env.VITE_ENABLE_ATTACHMENTS) === 'true',
+  enableNotifications: clean(import.meta.env.VITE_ENABLE_NOTIFICATIONS) === 'true',
+  enableDeliveryReports: clean(import.meta.env.VITE_ENABLE_DELIVERY_REPORTS) === 'true',
+  enableMaintenanceReminders: clean(import.meta.env.VITE_ENABLE_MAINTENANCE_REMINDERS) === 'true',
+  enableNetworkDashboard: clean(import.meta.env.VITE_ENABLE_NETWORK_DASHBOARD) === 'true',
+  enableIntegrations: clean(import.meta.env.VITE_ENABLE_INTEGRATIONS) === 'true',
   /** Optional white-label brand for a dedicated build/preview (e.g. 'speedy'). Empty = default. */
   brand: clean(import.meta.env.VITE_BRAND),
 }
@@ -35,7 +55,7 @@ export const env = {
 export const isSupabaseConfigured = Boolean(
   url &&
     anonKey &&
-    url.startsWith('https://') &&
+    isAllowedSupabaseUrl(url) &&
     !url.includes('YOUR_PROJECT') &&
     anonKey.length > 20 &&
     !anonKey.includes('xxx'),

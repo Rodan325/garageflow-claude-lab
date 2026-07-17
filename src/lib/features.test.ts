@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { centersEnabled, isMissingSchemaError } from './features'
-import { setDemoKind, clearDemo } from './demo'
+import { centersEnabled, integrationsEnabled, isMissingSchemaError, networkDashboardEnabled } from './features'
+import { setDemoAccount, setDemoKind, clearDemo, setDemoOrganizationKind } from './demo'
 
 afterEach(() => {
   clearDemo()
@@ -36,8 +36,31 @@ describe('centersEnabled', () => {
     expect(centersEnabled()).toBe(false)
   })
 
-  it('is on under the Speedy brand', () => {
+  it('does not derive business capabilities from the Speedy branding', () => {
     localStorage.setItem('gf-brand', 'speedy')
+    expect(centersEnabled()).toBe(false)
+  })
+
+  it('is on for a generic network demo account', () => {
+    setDemoOrganizationKind('network')
+    setDemoKind('garage')
     expect(centersEnabled()).toBe(true)
+    expect(networkDashboardEnabled()).toBe(true)
+  })
+
+  it('keeps network controls hidden for an independent account', () => {
+    setDemoAccount('independent_garage')
+    expect(centersEnabled()).toBe(false)
+    expect(networkDashboardEnabled()).toBe(false)
+    setDemoAccount('network_manager')
+    expect(networkDashboardEnabled()).toBe(true)
+  })
+})
+
+describe('integrationsEnabled', () => {
+  it('is opt-in outside demo and available in the local demo', () => {
+    expect(integrationsEnabled()).toBe(false)
+    setDemoKind('garage')
+    expect(integrationsEnabled()).toBe(true)
   })
 })

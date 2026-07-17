@@ -17,7 +17,7 @@ import { LOCALES, useLang } from '@/i18n'
 
 /**
  * Garage-side legal status: which documents apply, which versions were
- * accepted, when — proof that the pilot garage accepted the pilot terms.
+ * accepted and when. Demo accounts show the product-facing document set only.
  * Reads ONLY the connected user's own acceptances (RLS).
  */
 export function LegalStatusPage() {
@@ -29,19 +29,21 @@ export function LegalStatusPage() {
     queryFn: () => listOwnLegalAcceptances(userId!),
   })
 
-  const required = REQUIRED_LEGAL_DOCS.garage
+  const required = demo
+    ? REQUIRED_LEGAL_DOCS.garage.filter((doc) => doc !== 'pilot_agreement')
+    : REQUIRED_LEGAL_DOCS.garage
 
   return (
     <div>
       <PageHeader
         title={tr('Statut légal')}
-        subtitle={tr('Documents applicables au pilote et preuve de votre acceptation (versions + dates).')}
+        subtitle={tr('Documents applicables et preuve de votre acceptation (versions + dates).')}
       />
 
       {demo ? (
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
-            {tr('Mode démo local : aucune acceptation n’est enregistrée. Avec un compte garage réel, cette page liste les documents acceptés, leur version et la date d’acceptation.')}
+            {tr('Le compte de démonstration n’enregistre aucune acceptation. Avec un compte connecté, cette page liste les documents acceptés, leur version et leur date d’acceptation.')}
           </CardContent>
         </Card>
       ) : isLoading ? (
@@ -86,10 +88,10 @@ export function LegalStatusPage() {
       )}
 
       <Card className="mt-5">
-        <CardHeader><CardTitle>{tr('Documents du pilote')}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{tr('Documents contractuels')}</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
           <Link to="/terms" className="font-medium text-primary hover:underline">{tr('Conditions d’utilisation')}</Link>
-          <Link to="/pilot-agreement" className="font-medium text-primary hover:underline">{tr('Conditions du pilote garage')}</Link>
+          {!demo && <Link to="/pilot-agreement" className="font-medium text-primary hover:underline">{tr('Conditions du pilote garage')}</Link>}
           <Link to="/dpa" className="font-medium text-primary hover:underline">{tr('Accord de sous-traitance RGPD')}</Link>
           <Link to="/privacy" className="font-medium text-primary hover:underline">{tr('Politique de confidentialité')}</Link>
           <Link to="/legal" className="font-medium text-primary hover:underline">{tr('Mentions légales')}</Link>

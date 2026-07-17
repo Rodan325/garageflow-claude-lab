@@ -1,9 +1,8 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { MarketingShell } from '@/components/shells/MarketingShell'
 import { ProShell } from '@/components/shells/ProShell'
 import { ClientShell } from '@/components/shells/ClientShell'
 import { RequireClientAuth, RequireStaff } from '@/features/auth/guards'
-import { ConfigBanner } from '@/components/common/ConfigBanner'
 import { DemoBanner } from '@/components/common/DemoBanner'
 import { DemoNotice } from '@/components/common/DemoNotice'
 import { ScrollToTop } from '@/components/common/ScrollToTop'
@@ -11,7 +10,7 @@ import { BrandDemoEntry } from '@/features/demo/BrandDemoEntry'
 
 // Marketing
 import { HomePage } from '@/features/marketing/HomePage'
-import { PilotPage } from '@/features/marketing/PilotPage'
+import { SolutionsPage } from '@/features/marketing/SolutionsPage'
 // Auth
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
@@ -29,6 +28,12 @@ import { QuotePrintPage } from '@/features/pro/QuotePrintPage'
 import { ServicesPage } from '@/features/pro/ServicesPage'
 import { TeamPage } from '@/features/pro/TeamPage'
 import { SettingsPage } from '@/features/pro/SettingsPage'
+import { RecommendationsPage } from '@/features/recommendations/RecommendationsPage'
+import { NotificationsPage } from '@/features/notifications/NotificationsPage'
+import { DeliveryReportPage } from '@/features/reports/DeliveryReportPage'
+import { RemindersPage } from '@/features/reminders/RemindersPage'
+import { NetworkDashboardPage } from '@/features/network/NetworkDashboardPage'
+import { IntegrationsPage } from '@/features/integrations/IntegrationsPage'
 // Client
 import { ClientHomePage } from '@/features/client/ClientHomePage'
 import { ClientNewsPage } from '@/features/client/ClientNewsPage'
@@ -52,12 +57,12 @@ export function App() {
     <>
       <ScrollToTop />
       <DemoNotice />
-      <ConfigBanner />
       <DemoBanner />
       <Routes>
         <Route path="/demo/:brand" element={<BrandDemoEntry />} />
         <Route path="/" element={<MarketingShell><HomePage /></MarketingShell>} />
-        <Route path="/pilote" element={<MarketingShell><PilotPage /></MarketingShell>} />
+        <Route path="/solutions" element={<MarketingShell><SolutionsPage /></MarketingShell>} />
+        <Route path="/pilote" element={<Navigate to="/solutions" replace />} />
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
@@ -70,6 +75,12 @@ export function App() {
           <Route path="vehicles" element={<VehiclesPage />} />
           <Route path="clients" element={<ClientsPage />} />
           <Route path="workshop" element={<WorkshopPage />} />
+          <Route path="workshop/:requestId/recommendations" element={<RecommendationsPage />} />
+          <Route path="workshop/:requestId/report" element={<DeliveryReportPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="reminders" element={<RemindersPage />} />
+          <Route path="network" element={<NetworkDashboardPage />} />
+          <Route path="integrations" element={<IntegrationsPage />} />
           <Route path="services" element={<ServicesPage />} />
           <Route path="quotes" element={<QuotesPage />} />
           <Route path="quotes/new" element={<QuoteEditorPage />} />

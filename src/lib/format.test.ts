@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { euro, shortTime, shortDate } from './format'
+import { euro, percent, shortTime, shortDate } from './format'
 
 describe('format helpers', () => {
   it('formats euros in fr-FR', () => {
@@ -10,6 +10,11 @@ describe('format helpers', () => {
   it('returns a dash for nullish money', () => {
     expect(euro(null)).toBe('—')
     expect(euro(undefined)).toBe('—')
+  })
+
+  it('formats percentages with the active locale', () => {
+    expect(percent(0.5, 'en')).toContain('50')
+    expect(percent(0.5, 'ar')).toContain('50')
   })
 
   it('trims db time to HH:MM', () => {

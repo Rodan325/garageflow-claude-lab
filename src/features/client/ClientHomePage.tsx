@@ -15,6 +15,8 @@ import { listItem, listStagger } from '@/lib/motion'
 import type { GarageService, GarageHours } from '@/types/domain'
 import { useLang } from '@/i18n'
 import { localizeDemoText } from '@/i18n/demoContent'
+import { maintenanceRemindersEnabled } from '@/lib/features'
+import { ClientMaintenanceReminders } from '@/features/reminders/ClientMaintenanceReminders'
 
 export const BOOK_SERVICE_KEY = 'gf-book-service'
 
@@ -111,6 +113,8 @@ function SelectedGarageHome({
           <button onClick={onChange} className="shrink-0 text-xs font-medium text-primary hover:underline">{tr('Changer')}</button>
         </div>
       </div>
+
+      {isAuthed && maintenanceRemindersEnabled() && <ClientMaintenanceReminders />}
 
       {/* Prestations — Doctolib-like list */}
       <section>

@@ -1,15 +1,12 @@
 import { env } from '@/lib/env'
-import { getActiveBrand } from '@/branding'
+import { getDemoOrganizationKind, isDemo } from '@/lib/demo'
 
 /**
  * Whether the multi-center feature is active in the CURRENT context.
  *
- * Enabled ONLY when:
- *  - the active brand is `speedy` (the multi-center demo skin), OR
- *  - VITE_ENABLE_CENTERS='true' (a real deployment where 0022/0023 are applied).
- *
- * The plain Clikarage demo is therefore UNCHANGED: no center step, no forced
- * car-service catalog. This gates BOTH reads (garage_centers) AND writes
+ * Enabled only for a generic network demo account or by an explicit deployment
+ * flag once the center migrations are applied. Branding never changes business
+ * capabilities. This gates BOTH reads (garage_centers) AND writes
  * (center_id / client_stage on service_requests), so a production DB without
  * the migrations is never queried with columns/tables it does not have.
  *
@@ -17,7 +14,48 @@ import { getActiveBrand } from '@/branding'
  * not exist" errors (see isMissingSchemaError) and degrade to empty results.
  */
 export function centersEnabled(): boolean {
-  return getActiveBrand().id === 'speedy' || env.enableCenters
+  return (isDemo() && getDemoOrganizationKind() === 'network') || env.enableCenters || env.enableNetworkDashboard
+}
+
+export function networkDashboardEnabled(): boolean {
+  return (isDemo() && getDemoOrganizationKind() === 'network') || env.enableNetworkDashboard
+}
+
+export function centerTransfersEnabled(): boolean {
+  return networkDashboardEnabled()
+}
+
+export function integrationsEnabled(): boolean {
+  return isDemo() || env.enableIntegrations
+}
+
+/**
+ * The lifecycle tables are opt-in in real deployments until their additive
+ * migration has been applied. Local demo stores implement the same contract
+ * without touching Supabase, so they can safely exercise the complete flow.
+ */
+export function workshopTimelineEnabled(): boolean {
+  return isDemo() || env.enableWorkshopTimeline
+}
+
+export function recommendationsEnabled(): boolean {
+  return isDemo() || env.enableRecommendations
+}
+
+export function attachmentsEnabled(): boolean {
+  return isDemo() || env.enableAttachments
+}
+
+export function notificationsEnabled(): boolean {
+  return isDemo() || env.enableNotifications
+}
+
+export function deliveryReportsEnabled(): boolean {
+  return isDemo() || env.enableDeliveryReports
+}
+
+export function maintenanceRemindersEnabled(): boolean {
+  return isDemo() || env.enableMaintenanceReminders
 }
 
 /**

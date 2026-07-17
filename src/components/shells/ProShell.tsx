@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
-  CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, ScrollText, Settings, Tags, Users, Wrench, X,
+  Bell, BellRing, Building2, CalendarDays, Car, FileText, Gauge, Inbox, LogOut, Menu, PlugZap, ScrollText, Settings, Tags, Users, Wrench, X,
 } from 'lucide-react'
 import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
@@ -12,11 +12,14 @@ import { Avatar } from '@/components/ui/avatar'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useGarageRequests } from '@/data/requests'
 import { useProMode } from '@/features/pro/useProMode'
-import type { GarageRole } from '@/types/domain'
-import { roleLabel } from '@/i18n/domainLabels'
+import type { CenterRole, GarageRole, OrganizationRole } from '@/types/domain'
+import { centerRoleLabel, organizationRoleLabel, roleLabel } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
 import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
+import { integrationsEnabled, maintenanceRemindersEnabled, networkDashboardEnabled, notificationsEnabled } from '@/lib/features'
+import { useManageCenters } from '@/data/centers'
+import { canViewNetworkDashboard } from '@/features/network/model'
 
 const essentiel = [
   { to: '/pro', label: 'Tableau de bord', icon: Gauge, end: true },
@@ -33,7 +36,7 @@ const avance = [
 ]
 
 export function ProShell() {
-  const { garage, profile, role, signOut } = useAuth()
+  const { garage, membership, profile, role, signOut } = useAuth()
   const { brand } = useBrand()
   const navigate = useNavigate()
   const { data: requests } = useGarageRequests(garage?.id)
@@ -41,6 +44,12 @@ export function ProShell() {
   const { mode, set } = useProMode()
   const [open, setOpen] = useState(false)
   const { lang, tr } = useLang()
+  const advancedItems = [
+    ...avance,
+    ...(maintenanceRemindersEnabled() ? [{ to: '/pro/reminders', label: 'Rappels d’entretien', icon: BellRing, end: false }] : []),
+    ...(notificationsEnabled() ? [{ to: '/pro/notifications', label: 'Notifications', icon: Bell, end: false }] : []),
+    ...(integrationsEnabled() ? [{ to: '/pro/integrations', label: 'Intégrations', icon: PlugZap, end: false }] : []),
+  ]
 
   const itemClass = ({ isActive }: { isActive: boolean }) =>
     cn(
@@ -73,7 +82,15 @@ export function ProShell() {
             <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
               {tr('Atelier & gestion')}
             </p>
-            {avance.map(({ to, label, icon: Icon, end }) => (
+            {networkDashboardEnabled() && (
+              <NetworkNavigationItem
+                garageId={garage?.id}
+                legacyRole={role}
+                organizationRole={membership?.organization_role}
+                onNavigate={() => setOpen(false)}
+              />
+            )}
+            {advancedItems.map(({ to, label, icon: Icon, end }) => (
               <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)} className={itemClass}>
                 <Icon className="h-[18px] w-[18px]" />
                 <span className="flex-1">{tr(label)}</span>
@@ -115,7 +132,13 @@ export function ProShell() {
           <Avatar name={profile?.full_name} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{profile?.full_name ?? tr('Utilisateur')}</p>
-            <p className="truncate text-xs text-muted-foreground">{role ? roleLabel(role as GarageRole, lang) : tr('Membre')}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {membership?.organization_role
+                ? organizationRoleLabel(membership.organization_role as OrganizationRole, lang)
+                : membership?.center_role
+                  ? centerRoleLabel(membership.center_role as CenterRole, lang)
+                  : role ? roleLabel(role as GarageRole, lang) : tr('Membre')}
+            </p>
           </div>
           <button
             onClick={async () => { await signOut(); navigate('/login') }}
@@ -163,5 +186,29 @@ export function ProShell() {
         </main>
       </div>
     </div>
+  )
+}
+
+function NetworkNavigationItem({ garageId, legacyRole, organizationRole, onNavigate }: {
+  garageId?: string
+  legacyRole?: string | null
+  organizationRole?: string | null
+  onNavigate: () => void
+}) {
+  const { tr } = useLang()
+  const { data: centers } = useManageCenters(garageId)
+  if (!canViewNetworkDashboard(legacyRole, organizationRole, centers?.length ?? 0, true)) return null
+  return (
+    <NavLink
+      to="/pro/network"
+      onClick={onNavigate}
+      className={({ isActive }) => cn(
+        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+        isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+      )}
+    >
+      <Building2 className="h-[18px] w-[18px]" />
+      <span className="flex-1">{tr('Vue réseau')}</span>
+    </NavLink>
   )
 }

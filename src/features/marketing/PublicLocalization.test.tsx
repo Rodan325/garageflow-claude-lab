@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { MarketingShell } from '@/components/shells/MarketingShell'
 import { LanguageProvider, type Lang } from '@/i18n'
 import { HomePage } from './HomePage'
-import { PilotPage } from './PilotPage'
+import { SolutionsPage } from './SolutionsPage'
 import { NotFoundPage } from './NotFoundPage'
 
 beforeAll(() => {
@@ -60,6 +60,7 @@ describe('public navigation and localization', () => {
     expect(within(header).queryByText('Espace client')).toBeNull()
     expect(screen.queryByText('Voir l’app client')).toBeNull()
     expect(document.body.textContent).not.toMatch(/GarageFlow/i)
+    expect(document.body.textContent).not.toMatch(/Programme pilote|Offre pilote|prototype|MVP|Démo locale|Sans engagement/i)
 
     fireEvent.click(accountButton)
     expect(screen.getByTestId('location')).toHaveTextContent('/login')
@@ -71,7 +72,7 @@ describe('public navigation and localization', () => {
     expect(document.documentElement.lang).toBe('ar')
     expect(document.documentElement.dir).toBe('rtl')
     expect(screen.getAllByText('الدخول إلى حسابك').length).toBeGreaterThan(0)
-    expect(screen.getByText('ما الذي يبطئ عمل الورشة اليوم؟')).toBeInTheDocument()
+    expect(screen.getByText('تجربة ما بعد البيع ما زالت مشتتة')).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/Réservation en ligne|Ce qui ralentit|Accéder à votre espace|Espace garage|Espace client/)
   })
 
@@ -81,19 +82,19 @@ describe('public navigation and localization', () => {
     expect(document.documentElement.lang).toBe('en')
     expect(document.documentElement.dir).toBe('ltr')
     expect(screen.getAllByText('Access your account').length).toBeGreaterThan(0)
-    expect(screen.getByText('What slows a garage down today')).toBeInTheDocument()
+    expect(screen.getByText('An after-sales experience that is still too fragmented')).toBeInTheDocument()
     expect(container.textContent).not.toMatch(/Problèmes|Parcours|Offre pilote|Accéder à votre espace/)
   })
 
-  it('renders the pilot and not-found pages in Arabic without forcing French or LTR', () => {
-    const pilot = renderPage('ar', <MarketingShell><PilotPage /></MarketingShell>)
+  it('renders the solutions and not-found pages in Arabic without pilot language or forced LTR', () => {
+    const solutions = renderPage('ar', <MarketingShell><SolutionsPage /></MarketingShell>)
 
     expect(document.documentElement.lang).toBe('ar')
     expect(document.documentElement.dir).toBe('rtl')
-    expect(screen.getByText('البرنامج التجريبي')).toBeInTheDocument()
-    expect(pilot.container.textContent).not.toMatch(/Programme pilote|Ce qui est inclus|Audit gratuit|Démarrer la démo|Revenir à l’accueil/)
+    expect(screen.getByRole('heading', { name: 'أدر تجربة العميل الكاملة داخل ورشتك' })).toBeInTheDocument()
+    expect(solutions.container.textContent).not.toMatch(/Programme pilote|prototype|MVP|Sans engagement|Démo locale/)
 
-    pilot.unmount()
+    solutions.unmount()
     const notFound = renderPage('ar', <NotFoundPage />)
     expect(screen.getByText('هذه الصفحة غير موجودة أو تم نقلها.')).toBeInTheDocument()
     expect(notFound.container.textContent).not.toMatch(/Cette page|Accueil|Application client/)

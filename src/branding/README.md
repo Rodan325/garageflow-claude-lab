@@ -27,8 +27,8 @@ Without any of the above, the app is byte-for-byte the default Clikarage.
 `gf-brand`, strip the `brand` URL param via `history.replaceState`, clear the
 selected center, and restore the default title, favicon, theme-color and CSS
 vars. It is wired to `/#/demo/reset`, the "Revenir à Clikarage" button in the
-demo disclaimer, and the DemoBanner "Quitter la démo" / "Réinitialiser les
-données" actions. After reset + refresh, no Speedy element remains.
+demo disclaimer. Persistent reset controls are intentionally absent from
+presentation accounts. After reset + refresh, no Speedy element remains.
 
 ## Assets & PWA manifest
 

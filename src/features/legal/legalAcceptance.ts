@@ -5,7 +5,7 @@
  * et contexte. RLS : un utilisateur ne lit/écrit QUE ses propres acceptations.
  * Aucune adresse IP n'est collectée côté frontend.
  *
- * En mode démo local (sans Supabase), tout est considéré comme accepté et
+ * Dans les comptes de présentation, tout est considéré comme accepté et
  * rien n'est enregistré — la démo ne doit jamais être bloquée par la gate.
  */
 import { supabase } from '@/lib/supabase'
