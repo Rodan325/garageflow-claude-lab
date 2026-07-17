@@ -4,7 +4,8 @@ import { join } from 'node:path'
 
 const root = process.cwd()
 const migrationsDirectory = join(root, 'supabase', 'migrations')
-const migration0004 = readFileSync(join(migrationsDirectory, '0004_seed.sql'), 'utf8')
+const historicalSeedName = '20260613125843_seed.sql'
+const migration0004 = readFileSync(join(migrationsDirectory, historicalSeedName), 'utf8')
 const seed = readFileSync(join(root, 'supabase', 'seed.sql'), 'utf8')
 
 function insertStatement(table: string) {
@@ -83,7 +84,7 @@ describe('historical seed migration bootstrap', () => {
   it('does not make later migrations depend on demonstration fixture IDs', () => {
     const names = readdirSync(migrationsDirectory).sort()
     const after0004 = names
-      .slice(names.indexOf('0004_seed.sql') + 1)
+      .slice(names.indexOf(historicalSeedName) + 1)
       .map((name) => readFileSync(join(migrationsDirectory, name), 'utf8'))
       .join('\n')
     const historicalIds = [
