@@ -314,6 +314,24 @@ values
   ('72000000-0000-4000-8000-000000000007', 'f2222222-0000-4000-8000-000000000007', '22222222-2222-4222-8222-222222222222', '22222222-2222-4222-8222-22222222c003', 'vehicle_delivered', 'closed', 'b0000000-0000-4000-8000-000000000005', now() - interval '7 days', null, 'The service request is closed.', null, true, 'simulated')
 on conflict (id) do nothing;
 
+-- Timeline inserts above intentionally exercise the notification triggers. In
+-- seeded environments no provider is connected, so make those deterministic
+-- fixtures visibly simulated instead of leaving them pending for dispatch.
+-- The tuple filter keeps this update idempotent and scoped to seed-owned rows.
+update public.notification_outbox
+set status = 'simulated',
+    provider = 'demo-simulator',
+    provider_message_id = 'simulated-seed-' || id::text,
+    attempts = 1
+where (service_request_id, template_key) in (
+  ('f1111111-0000-4000-8000-000000000001'::uuid, 'appointment_confirmed'),
+  ('f2222222-0000-4000-8000-000000000001'::uuid, 'approval_required'),
+  ('f2222222-0000-4000-8000-000000000006'::uuid, 'vehicle_ready')
+)
+  and channel = 'in_app'
+  and status = 'pending'
+  and provider is null;
+
 insert into public.workshop_recommendations (
   id, garage_id, center_id, service_request_id, title, description, category,
   urgency, reason, estimated_price, estimated_duration_minutes,

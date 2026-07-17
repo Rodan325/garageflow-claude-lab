@@ -60,6 +60,19 @@ describe('historical seed migration bootstrap', () => {
     expect(new Set(emails).size).toBe(emails.length)
   })
 
+  it('marks trigger-generated seed notifications as simulated', () => {
+    const simulationUpdate = seed.match(
+      /update public\.notification_outbox[\s\S]*?and provider is null;/i,
+    )?.[0]
+
+    expect(simulationUpdate).toBeDefined()
+    expect(simulationUpdate).toContain("status = 'simulated'")
+    expect(simulationUpdate).toContain("provider = 'demo-simulator'")
+    expect(simulationUpdate).toContain("'appointment_confirmed'")
+    expect(simulationUpdate).toContain("'approval_required'")
+    expect(simulationUpdate).toContain("'vehicle_ready'")
+  })
+
   it('does not make later migrations depend on demonstration fixture IDs', () => {
     const names = readdirSync(migrationsDirectory).sort()
     const after0004 = names
