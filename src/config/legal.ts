@@ -1,6 +1,7 @@
 /**
  * Informations légales PUBLIQUES centralisées (mentions légales, confidentialité,
- * CGU, pilote, DPA, footer). Source unique consommée par toutes les pages légales.
+ * CGU, confidentialité, DPA, historique pilote et footer). Source unique
+ * consommée par toutes les pages légales.
  *
  * IMPORTANT : ce fichier ne doit contenir QUE des informations publiques.
  * Jamais de clé Supabase, clé API, token, secret, variable d'environnement
@@ -54,14 +55,16 @@ export const legalConfig = {
   backendProviderName: 'Supabase, Inc.',
   backendProviderWebsite: 'https://supabase.com',
   backendPurpose: 'Base de données, authentification et infrastructure technique',
-  // Région réelle du projet Supabase pilote (vérifiée dans le dashboard : eu-west-3).
+  // Région réelle du projet Supabase de production (vérifiée : eu-west-3).
   backendDataRegion: 'eu-west-3 — West EU (Paris)',
   backendDataRegionPublic:
-    'Région Supabase du projet pilote : eu-west-3 — West EU (Paris). Les données du projet pilote sont hébergées dans une région européenne Supabase.',
+    'Région principale Supabase : eu-west-3 — West EU (Paris). Les données principales sont hébergées dans une région européenne Supabase.',
 
   dpo: 'Aucun délégué à la protection des données désigné à ce stade',
   cnilWebsite: 'https://www.cnil.fr',
 
+  // Valeurs historiques requises pour restituer sans mutation le document
+  // pilote 2026-07-02. Elles ne décrivent plus l'offre commerciale courante.
   pilotVersion: 'Version pilote',
   lastUpdated: '2026-07-02',
 
@@ -84,12 +87,17 @@ export const legalConfig = {
  * concernés via la LegalAcceptanceGate.
  */
 export const legalVersions = {
-  terms: '2026-07-02',
-  privacy: '2026-07-02',
+  terms: 'terms-2026-01',
+  privacy: 'privacy-2026-01',
   pilotAgreement: '2026-07-02',
-  dpa: '2026-07-02',
-  legalNotice: '2026-07-02',
+  dpa: 'dpa-2026-01',
+  legalNotice: 'legal-2026-01',
 }
+
+export const HISTORICAL_LEGAL_VERSION = '2026-07-02'
+
+/** No effective date is published until it has been approved for deployment. */
+export const legalEffectiveDate: string | null = null
 
 export type LegalDocumentType = 'terms' | 'privacy' | 'pilot_agreement' | 'dpa' | 'legal_notice'
 export type LegalRole = 'client' | 'garage' | 'admin'
@@ -106,7 +114,7 @@ export const LEGAL_DOCUMENT_VERSIONS: Record<LegalDocumentType, string> = {
 /** Documents dont l'acceptation est OBLIGATOIRE selon le rôle. */
 export const REQUIRED_LEGAL_DOCS: Record<LegalRole, LegalDocumentType[]> = {
   client: ['terms', 'privacy'],
-  garage: ['terms', 'privacy', 'pilot_agreement', 'dpa'],
+  garage: ['terms', 'privacy', 'dpa'],
   admin: ['terms', 'privacy'],
 }
 
@@ -114,7 +122,13 @@ export const REQUIRED_LEGAL_DOCS: Record<LegalRole, LegalDocumentType[]> = {
 export const LEGAL_DOCUMENT_META: Record<LegalDocumentType, { label: string; route: string }> = {
   terms: { label: 'Conditions d’utilisation', route: '/terms' },
   privacy: { label: 'Politique de confidentialité', route: '/privacy' },
-  pilot_agreement: { label: 'Conditions du pilote garage', route: '/pilot-agreement' },
+  pilot_agreement: { label: 'Conditions pilote historiques', route: '/pilot-agreement' },
   dpa: { label: 'Accord de sous-traitance RGPD', route: '/dpa' },
   legal_notice: { label: 'Mentions légales', route: '/legal' },
+}
+
+export function legalDocumentRoute(documentType: LegalDocumentType, version: string) {
+  const route = LEGAL_DOCUMENT_META[documentType].route
+  if (documentType === 'pilot_agreement' || version === LEGAL_DOCUMENT_VERSIONS[documentType]) return route
+  return `${route}?version=${encodeURIComponent(version)}`
 }
