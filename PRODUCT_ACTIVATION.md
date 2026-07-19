@@ -111,11 +111,12 @@ Email, SMS, push, DMS, CRM, calendar, webhook and REST providers are interfaces 
 
 ## Blocking legal review
 
-The current legal documents remain versioned working documents and must not be represented as legally finalized for commercial onboarding.
+The commercial legal corpus has been technically and editorially separated from the historical pilot documents. It remains a versioned working draft and must not be represented as legally finalized for commercial onboarding. See `docs/LEGAL_PRODUCTION_REVIEW.md`.
 
 Legal review required before production onboarding:
-- replace pilot-specific contractual wording;
-- align DPA with attachment/document processing;
+- validate the current commercial terms, privacy policy and DPA;
+- confirm the effective date, order-form hierarchy and liability framework;
+- confirm subprocessors, transfer safeguards and attachment/document processing;
 - define retention for notification recipient addresses;
 - validate marketing reminder consent and legal basis.
 

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { legalConfig as c, legalVersions } from '@/config/legal'
+import { historicalLegalConfig20260702 as c, historicalLegalVersions20260702 as legalVersions } from './historicalLegal20260702'
 import { LegalLayout, H2, P, UL, MailLink, ExtLink } from './LegalLayout'
 import { LocalizedLegalPage } from './LocalizedLegalPage'
 import { useLang } from '@/i18n'

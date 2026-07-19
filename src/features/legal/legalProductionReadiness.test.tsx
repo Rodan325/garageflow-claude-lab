@@ -21,12 +21,13 @@ const currentDocuments: Array<[CommercialLegalDocumentKey, () => React.ReactNode
 ]
 
 const historicalHashes: Record<string, string> = {
-  'HistoricalLegalNotice20260702Page.tsx': '4c9a1526b30f205c156beda186c7887d06229a4c2b389a3298b5e2a8dace2e8d',
-  'HistoricalPrivacy20260702Page.tsx': '813cfe744d7adc2a779e717d8bfc51db9ad7e6889a2423a74a5af2314c3a442c',
-  'HistoricalTerms20260702Page.tsx': 'e4a22c67ca4a5b0044d121183e334a37da82f12bac050926d320fa618f0dbb17',
-  'HistoricalDpa20260702Page.tsx': '70d98a78ea0a44943ea691a8a51c47d15b8a5f904b3ead0577a3fabb0e7c2f1d',
-  'HistoricalPilotAgreement20260702Page.tsx': 'd3b9a9dcce289d270f11ea77683df22b4fa385a56f38331ce651e9d5235adc66',
+  'HistoricalLegalNotice20260702Page.tsx': 'cef0e102374c318eb64848741223bbfdf3c317ed0efe7e9cdc711793f8da722e',
+  'HistoricalPrivacy20260702Page.tsx': '6da9102b1eb8e08211f810932faaa4968b18cd76cffc96ec557e55c82c86b86e',
+  'HistoricalTerms20260702Page.tsx': '1a02e722478d9259786fde5f4188cef6cadd6ea29b106cd6cc1a15a21965300c',
+  'HistoricalDpa20260702Page.tsx': '2c5fdba1c6c97f753cd2839c5f73b6e002827638727c9d6ec68b63f97b8be1aa',
+  'HistoricalPilotAgreement20260702Page.tsx': 'cbbe35e40ada60422664ee44c7d04bf96d14225a924647574e9f476bc83b9dbe',
   'legalContent.ts': 'e5b802f70935f436a1e204d063def3c96194cffafc84054cfa9233a0448f126c',
+  'historicalLegal20260702.ts': '642493149cc917db180b4069d123df59dc18a7eb8005cb9d6ac1a74b9858da5d',
 }
 
 function renderPage(Page: () => React.ReactNode, lang: Lang, entry = '/') {
@@ -54,6 +55,14 @@ describe('commercial legal corpus', () => {
     }
   })
 
+  it.each(['en', 'ar'] as const)('does not leak common French legal headings into %s', (lang) => {
+    const visible = currentDocuments
+      .map(([key]) => JSON.stringify(getCommercialLegalDocument(key, lang)))
+      .join(' ')
+
+    expect(visible).not.toMatch(/Mentions légales|Politique de confidentialité|Conditions d’utilisation|Accord de sous-traitance des données/)
+  })
+
   it('contains no pilot, beta, experimental or visible GarageFlow wording', () => {
     for (const lang of ['fr', 'en', 'ar'] as const) {
       for (const [key] of currentDocuments) {
@@ -69,6 +78,15 @@ describe('commercial legal corpus', () => {
     expect(container).toHaveTextContent('RODANBTECH')
     expect(container).toHaveTextContent('103 878 187 00014')
     expect(container.querySelector('a[href="mailto:anas.rodriguez@rodanbtech.com"]')).not.toBeNull()
+    expect(container.querySelector('a[href="/pilot-agreement"]')).toBeNull()
+  })
+
+  it('keeps every public and professional legal route registered', () => {
+    const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
+    for (const route of ['/legal', '/privacy', '/terms', '/pilot-agreement', '/dpa']) {
+      expect(appSource).toContain(`path="${route}"`)
+    }
+    expect(appSource).toContain('path="legal-status"')
   })
 
   it('uses explicit commercial versions and excludes pilot terms from new garage acceptance', () => {
@@ -98,6 +116,7 @@ describe('historical legal corpus', () => {
     const { container } = renderPage(TermsPage, 'fr', '/terms?version=2026-07-02')
     expect(screen.getByRole('note')).toHaveTextContent('Document historique')
     expect(container).toHaveTextContent('Conditions générales d’utilisation')
+    expect(container).toHaveTextContent('Version du document : 2026-07-02')
     expect(container).toHaveTextContent('2026-07-02')
   })
 })
