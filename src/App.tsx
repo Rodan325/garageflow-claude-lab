@@ -50,6 +50,7 @@ import { TermsPage } from '@/features/legal/TermsPage'
 import { PilotAgreementPage } from '@/features/legal/PilotAgreementPage'
 import { DpaPage } from '@/features/legal/DpaPage'
 import { LegalStatusPage } from '@/features/legal/LegalStatusPage'
+import { LegalV2Route } from '@/features/legal/LegalV2Route'
 import { NotFoundPage } from '@/features/marketing/NotFoundPage'
 
 export function App() {
@@ -99,6 +100,13 @@ export function App() {
         <Route path="/legal" element={<LegalPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/terms/pro" element={<LegalV2Route documentId="terms_pro" />} />
+        <Route path="/terms/client" element={<LegalV2Route documentId="terms_client" />} />
+        <Route path="/cookies" element={<LegalV2Route documentId="cookies" />} />
+        <Route path="/subprocessors" element={<LegalV2Route documentId="subprocessors" />} />
+        <Route path="/security" element={<LegalV2Route documentId="security" />} />
+        <Route path="/service-levels" element={<LegalV2Route documentId="service_levels" />} />
+        <Route path="/ai-policy" element={<LegalV2Route documentId="ai_policy" />} />
         <Route path="/pilot-agreement" element={<PilotAgreementPage />} />
         <Route path="/dpa" element={<DpaPage />} />
 

@@ -4,6 +4,7 @@ import { useBrand } from '@/branding'
 import { cn } from '@/lib/utils'
 import { useLang, useT } from '@/i18n'
 import type { Brand } from '@/branding'
+import { legalDocsV2Enabled, subprocessorRegistryEnabled } from '@/lib/features'
 
 /**
  * Discreet legal footer, embedded on every surface (landing, login, signup,
@@ -15,7 +16,13 @@ export function LegalFooter({ className, brandOverride }: { className?: string; 
   const displayedBrand = brandOverride ?? brand
   const t = useT()
   const { tr } = useLang()
-  const links = [
+  const links = legalDocsV2Enabled() ? [
+    { to: '/legal', label: t.footer.legal },
+    { to: '/privacy', label: t.footer.privacy },
+    { to: '/terms/client', label: t.footer.terms },
+    { to: '/cookies', label: tr('Cookies et traceurs') },
+    ...(subprocessorRegistryEnabled() ? [{ to: '/subprocessors', label: tr('Prestataires') }] : []),
+  ] : [
     { to: '/legal', label: t.footer.legal },
     { to: '/privacy', label: t.footer.privacy },
     { to: '/terms', label: t.footer.terms },

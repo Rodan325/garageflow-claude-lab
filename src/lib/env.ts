@@ -44,6 +44,15 @@ export const env = {
   enableMaintenanceReminders: clean(import.meta.env.VITE_ENABLE_MAINTENANCE_REMINDERS) === 'true',
   enableNetworkDashboard: clean(import.meta.env.VITE_ENABLE_NETWORK_DASHBOARD) === 'true',
   enableIntegrations: clean(import.meta.env.VITE_ENABLE_INTEGRATIONS) === 'true',
+  enableLegalDocsV2: clean(import.meta.env.VITE_LEGAL_DOCS_V2_ENABLED) === 'true',
+  enableLegalAcceptanceV2: clean(import.meta.env.VITE_LEGAL_ACCEPTANCE_V2_ENABLED) === 'true',
+  enableDpaSelfService: clean(import.meta.env.VITE_DPA_SELF_SERVICE_ENABLED) === 'true',
+  enableSubprocessorRegistry: clean(import.meta.env.VITE_SUBPROCESSOR_REGISTRY_ENABLED) === 'true',
+  enableVercelAnalytics: clean(import.meta.env.VITE_VERCEL_ANALYTICS_ENABLED) === 'true',
+  enableStripe: clean(import.meta.env.VITE_STRIPE_ENABLED) === 'true',
+  enableAiFeatures: clean(import.meta.env.VITE_AI_FEATURES_ENABLED) === 'true',
+  enableDocumentStorage: clean(import.meta.env.VITE_DOCUMENT_STORAGE_ENABLED) === 'true',
+  enableTransactionalEmail: clean(import.meta.env.VITE_TRANSACTIONAL_EMAIL_ENABLED) === 'true',
   /** Optional white-label brand for a dedicated build/preview (e.g. 'speedy'). Empty = default. */
   brand: clean(import.meta.env.VITE_BRAND),
 }

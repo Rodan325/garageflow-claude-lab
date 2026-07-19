@@ -58,6 +58,26 @@ export function maintenanceRemindersEnabled(): boolean {
   return isDemo() || env.enableMaintenanceReminders
 }
 
+export function legalDocsV2Enabled(): boolean {
+  return env.enableLegalDocsV2
+}
+
+export function legalAcceptanceV2Enabled(): boolean {
+  return env.enableLegalDocsV2 && env.enableLegalAcceptanceV2
+}
+
+export function dpaSelfServiceEnabled(): boolean {
+  return legalAcceptanceV2Enabled() && env.enableDpaSelfService
+}
+
+export function subprocessorRegistryEnabled(): boolean {
+  return legalDocsV2Enabled() && env.enableSubprocessorRegistry
+}
+
+export function aiFeaturesEnabled(): boolean {
+  return env.enableAiFeatures
+}
+
 /**
  * True when a PostgREST/Postgres error means the queried table or column does
  * not exist yet (migration not applied). Used to fail soft instead of throwing.

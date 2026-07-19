@@ -777,6 +777,8 @@ const ar: Record<string, string> = {
 }
 
 Object.assign(en, {
+  'Cookies et traceurs': 'Cookies and trackers',
+  'Prestataires': 'Providers',
   'Parcours et historique': 'Journey and history',
   'Garage indépendant': 'Independent garage',
   'Pilotage quotidien': 'Daily operations',
@@ -850,6 +852,8 @@ Object.assign(en, {
 })
 
 Object.assign(ar, {
+  'Cookies et traceurs': 'ملفات الارتباط وأدوات التتبع',
+  'Prestataires': 'مزودو الخدمات',
   'Parcours et historique': 'المسار والسجل',
   'Garage indépendant': 'ورشة مستقلة',
   'Pilotage quotidien': 'الإدارة اليومية',

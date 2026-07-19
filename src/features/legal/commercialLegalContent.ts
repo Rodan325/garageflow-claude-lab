@@ -2,22 +2,23 @@ import type { Lang } from '@/i18n'
 
 export type CommercialLegalDocumentKey = 'legal' | 'privacy' | 'terms' | 'dpa'
 
-type LocalizedText = Record<Lang, string>
+export type LocalizedText = Record<Lang, string>
 
-interface LegalSectionSource {
+export interface LegalSectionSource {
   id: string
   title: LocalizedText
   paragraphs: LocalizedText[]
   items?: LocalizedText[]
 }
 
-interface LegalDocumentSource {
+export interface LegalDocumentSource {
   title: LocalizedText
   introduction?: LocalizedText
   sections: LegalSectionSource[]
 }
 
-const text = (fr: string, en: string, ar: string): LocalizedText => ({ fr, en, ar })
+export const legalText = (fr: string, en: string, ar: string): LocalizedText => ({ fr, en, ar })
+const text = legalText
 
 export const commercialLegalContent: Record<CommercialLegalDocumentKey, LegalDocumentSource> = {
   legal: {
