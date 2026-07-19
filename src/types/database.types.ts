@@ -744,7 +744,10 @@ export type Database = {
           created_at: string
           document_type: string
           document_version: string
+          displayed_language: string | null
+          document_id: string | null
           id: string
+          organization_id: string | null
           role: string
           user_agent: string | null
           user_id: string
@@ -755,7 +758,10 @@ export type Database = {
           created_at?: string
           document_type: string
           document_version: string
+          displayed_language?: string | null
+          document_id?: string | null
           id?: string
+          organization_id?: string | null
           role: string
           user_agent?: string | null
           user_id: string
@@ -766,12 +772,23 @@ export type Database = {
           created_at?: string
           document_type?: string
           document_version?: string
+          displayed_language?: string | null
+          document_id?: string | null
           id?: string
+          organization_id?: string | null
           role?: string
           user_agent?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "legal_acceptances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "garages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       delivery_reports: {
         Row: {

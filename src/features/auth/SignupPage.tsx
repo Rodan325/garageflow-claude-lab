@@ -49,6 +49,7 @@ export function SignupPage() {
       ],
       'client',
       'signup',
+      { displayedLanguage: lang, organizationId: null },
     )
       .catch(() => {
         toast.error(
@@ -57,7 +58,7 @@ export function SignupPage() {
         )
       })
       .finally(() => navigate(redirect || '/app', { replace: true }))
-  }, [done, ready, session, accountType, redirect, navigate, toast, t])
+  }, [done, ready, session, accountType, redirect, navigate, toast, t, lang])
 
   // Safety net: when Supabase returns a session we normally land in /app via the
   // effect above. If the session never materialises, don't hang on /signup —

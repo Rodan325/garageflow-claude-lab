@@ -36,7 +36,7 @@ const GATE_TEXT: Record<'client' | 'garage', string> = {
  */
 export function LegalAcceptanceGate({ role, children }: { role: LegalRole; children: React.ReactNode }) {
   const { lang, tr } = useLang()
-  const { demo, userId, signOut } = useAuth()
+  const { demo, userId, membership, signOut } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
   const [checked, setChecked] = useState<Record<string, boolean>>({})
@@ -69,6 +69,10 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
         missing.map((doc) => ({ documentType: doc, version: LEGAL_DOCUMENT_VERSIONS[doc] })),
         role,
         'legal_gate',
+        {
+          displayedLanguage: lang,
+          organizationId: role === 'garage' ? membership?.garage_id ?? null : null,
+        },
       )
       await qc.invalidateQueries({ queryKey: ['legal-missing', userId, role] })
     } catch {

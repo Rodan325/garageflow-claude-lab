@@ -16,6 +16,7 @@ import {
   type LegalDocumentType,
   type LegalRole,
 } from '@/config/legal'
+import type { Lang } from '@/i18n'
 
 export type AcceptanceContext = 'signup' | 'legal_gate' | 'garage_onboarding' | 'quote_acceptance'
 
@@ -27,6 +28,14 @@ export interface LegalAcceptanceRow {
   document_version: string
   accepted_at: string
   acceptance_context: string
+  displayed_language: Lang | null
+  document_id: string | null
+  organization_id: string | null
+}
+
+export interface LegalAcceptanceEvidence {
+  displayedLanguage: Lang
+  organizationId?: string | null
 }
 
 const userAgent = () => (typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 500) : null)
@@ -37,6 +46,7 @@ export async function recordLegalAcceptance(
   version: string,
   role: LegalRole,
   context: AcceptanceContext,
+  evidence?: LegalAcceptanceEvidence,
 ): Promise<void> {
   if (isDemo()) return
   const { data: auth } = await supabase.auth.getUser()
@@ -58,6 +68,9 @@ export async function recordLegalAcceptance(
     role,
     document_type: documentType,
     document_version: version,
+    document_id: `${documentType}:${version}`,
+    displayed_language: evidence?.displayedLanguage ?? null,
+    organization_id: evidence?.organizationId ?? null,
     user_agent: userAgent(),
     acceptance_context: context,
   })
@@ -69,9 +82,10 @@ export async function recordMultipleLegalAcceptances(
   items: { documentType: LegalDocumentType; version: string }[],
   role: LegalRole,
   context: AcceptanceContext,
+  evidence?: LegalAcceptanceEvidence,
 ): Promise<void> {
   for (const item of items) {
-    await recordLegalAcceptance(item.documentType, item.version, role, context)
+    await recordLegalAcceptance(item.documentType, item.version, role, context, evidence)
   }
 }
 
@@ -104,7 +118,7 @@ export async function listOwnLegalAcceptances(userId: string): Promise<LegalAcce
   if (isDemo()) return []
   const { data, error } = await supabase
     .from('legal_acceptances')
-    .select('id, user_id, role, document_type, document_version, accepted_at, acceptance_context')
+    .select('id, user_id, role, document_type, document_version, accepted_at, acceptance_context, displayed_language, document_id, organization_id')
     .eq('user_id', userId)
     .order('accepted_at', { ascending: false })
   if (error) throw error
