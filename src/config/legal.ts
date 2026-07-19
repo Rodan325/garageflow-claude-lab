@@ -17,7 +17,7 @@ export const legalConfig = {
   editorLegalStatus: 'Entrepreneur individuel',
   publicationDirector: 'Anas RODRIGUEZ BENKARROUM',
 
-  editorAddress: '47 RUE VIVIENNE, 75002 PARIS, France',
+  editorAddress: '47 rue Vivienne, 75002 Paris, France',
 
   contactEmail: 'anas.rodriguez@rodanbtech.com',
   privacyContactEmail: 'anas.rodriguez@rodanbtech.com',

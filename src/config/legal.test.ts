@@ -37,7 +37,7 @@ describe('legalConfig — informations réelles RODANBTECH', () => {
     expect(legalConfig.siret).toBe('103 878 187 00014')
     expect(legalConfig.contactEmail).toBe('anas.rodriguez@rodanbtech.com')
     expect(legalConfig.contactPhone).toBe('+33 7 81 18 93 65')
-    expect(legalConfig.editorAddress).toBe('47 RUE VIVIENNE, 75002 PARIS, France')
+    expect(legalConfig.editorAddress).toBe('47 rue Vivienne, 75002 Paris, France')
     expect(legalConfig.lastUpdated.trim().length).toBeGreaterThan(0)
   })
 
@@ -65,11 +65,12 @@ describe('legalConfig — informations réelles RODANBTECH', () => {
     }
   })
 
-  it('les versions légales sont renseignées et cohérentes', () => {
-    for (const [key, version] of Object.entries(legalVersions)) {
-      expect(version.trim().length, `legalVersions.${key} est vide`).toBeGreaterThan(0)
-      expect(version, `legalVersions.${key} doit être une date AAAA-MM-JJ`).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    }
+  it('les versions légales commerciales sont explicites et la version pilote reste historique', () => {
+    expect(legalVersions.terms).toBe('terms-2026-01')
+    expect(legalVersions.privacy).toBe('privacy-2026-01')
+    expect(legalVersions.dpa).toBe('dpa-2026-01')
+    expect(legalVersions.legalNotice).toBe('legal-2026-01')
+    expect(legalVersions.pilotAgreement).toBe('2026-07-02')
     // Chaque type de document connu a une version courante et des métadonnées d'affichage.
     for (const doc of ['terms', 'privacy', 'pilot_agreement', 'dpa', 'legal_notice'] as const) {
       expect(LEGAL_DOCUMENT_VERSIONS[doc]?.trim().length).toBeGreaterThan(0)
@@ -80,19 +81,20 @@ describe('legalConfig — informations réelles RODANBTECH', () => {
 
   it('les documents requis par rôle sont corrects', () => {
     expect(REQUIRED_LEGAL_DOCS.client).toEqual(['terms', 'privacy'])
-    expect(REQUIRED_LEGAL_DOCS.garage).toEqual(['terms', 'privacy', 'pilot_agreement', 'dpa'])
+    expect(REQUIRED_LEGAL_DOCS.garage).toEqual(['terms', 'privacy', 'dpa'])
     expect(REQUIRED_LEGAL_DOCS.admin).toEqual(['terms', 'privacy'])
     // le garage doit toujours accepter AU MOINS ce que le client accepte
     for (const doc of REQUIRED_LEGAL_DOCS.client) expect(REQUIRED_LEGAL_DOCS.garage).toContain(doc)
   })
 
-  it('le périmètre pilote est verrouillé (pas de paiement, pas de documents sensibles)', () => {
+  it('les capacités commerciales non activées restent déclarées comme telles', () => {
     expect(legalConfig.documentsSensitiveDisabled).toBe(true)
     expect(legalConfig.analyticsEnabled).toBe(false)
     expect(legalConfig.marketingCookiesEnabled).toBe(false)
     expect(legalConfig.commercialOffer.paymentEnabledInApp).toBe(false)
     expect(legalConfig.commercialOffer.onlinePaymentEnabled).toBe(false)
     expect(legalConfig.commercialOffer.sensitiveDocumentsEnabled).toBe(false)
+    // Conservé uniquement pour restituer le contrat pilote historique.
     expect(legalConfig.commercialOffer.pilotDurationDays).toBe(30)
   })
 })

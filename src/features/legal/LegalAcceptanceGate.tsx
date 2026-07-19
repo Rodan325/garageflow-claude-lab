@@ -24,7 +24,7 @@ const GATE_TEXT: Record<'client' | 'garage', string> = {
   client:
     'Pour continuer, vous devez accepter les Conditions d’utilisation et reconnaître avoir pris connaissance de la Politique de confidentialité.',
   garage:
-    'Pour continuer en tant que garage pilote, vous devez accepter les Conditions d’utilisation, reconnaître avoir pris connaissance de la Politique de confidentialité, accepter les Conditions du pilote garage et l’Accord de sous-traitance RGPD.',
+    'Pour continuer, vous devez accepter les Conditions d’utilisation, reconnaître avoir pris connaissance de la Politique de confidentialité et accepter l’Accord de sous-traitance des données.',
 }
 
 /**
@@ -89,7 +89,7 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
             </div>
             <div>
               <h1 className="text-lg font-bold">{tr('Documents à accepter')}</h1>
-              <p className="text-xs text-muted-foreground">{legalConfig.appName} · {legalConfig.pilotVersion}</p>
+              <p className="text-xs text-muted-foreground">{legalConfig.appName} · {tr('Service professionnel')}</p>
             </div>
           </div>
 

@@ -11,9 +11,9 @@ import { DpaPage } from './DpaPage'
 const documents = [
   ['legal', LegalPage, 'Mentions légales'],
   ['privacy', PrivacyPage, 'Politique de confidentialité'],
-  ['terms', TermsPage, "Conditions générales d’utilisation"],
+  ['terms', TermsPage, "Conditions d’utilisation et de service"],
   ['pilot', PilotAgreementPage, 'Conditions du pilote garage'],
-  ['dpa', DpaPage, 'Accord de sous-traitance RGPD'],
+  ['dpa', DpaPage, 'Accord de sous-traitance des données'],
 ] as const
 
 function renderLegal(Page: () => React.ReactNode, lang: Lang) {
@@ -37,7 +37,8 @@ describe.each(documents)('%s legal localization', (_key, Page, frenchTitle) => {
 
     expect(document.documentElement.dir).toBe('ltr')
     expect(screen.getByText('This translation is provided for information purposes. In the event of a discrepancy, the French version prevails.')).toBeInTheDocument()
-    expect(container).toHaveTextContent('RODANBTECH — Anas RODRIGUEZ BENKARROUM')
+    expect(container).toHaveTextContent('RODANBTECH')
+    expect(container).toHaveTextContent('Anas RODRIGUEZ BENKARROUM')
     expect(container).toHaveTextContent('Clikarage')
     expect(screen.getByRole('heading', { level: 1 })).not.toHaveTextContent(frenchTitle)
   })
@@ -47,7 +48,8 @@ describe.each(documents)('%s legal localization', (_key, Page, frenchTitle) => {
 
     expect(document.documentElement.dir).toBe('rtl')
     expect(screen.getByText('تُقدَّم هذه الترجمة لأغراض إعلامية. وفي حال وجود اختلاف، تكون النسخة الفرنسية هي المرجع.')).toBeInTheDocument()
-    expect(container).toHaveTextContent('RODANBTECH — Anas RODRIGUEZ BENKARROUM')
+    expect(container).toHaveTextContent('RODANBTECH')
+    expect(container).toHaveTextContent('Anas RODRIGUEZ BENKARROUM')
     expect(screen.getByRole('heading', { level: 1 })).not.toHaveTextContent(frenchTitle)
   })
 })
@@ -56,7 +58,7 @@ describe('French legal reference', () => {
   it('can be restored directly from a translated page', () => {
     renderLegal(LegalPage, 'en')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reference French version' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open the reference French version' }))
 
     expect(document.documentElement.lang).toBe('fr')
     expect(document.documentElement.dir).toBe('ltr')

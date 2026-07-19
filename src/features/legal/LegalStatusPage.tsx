@@ -11,6 +11,7 @@ import {
   LEGAL_DOCUMENT_VERSIONS,
   REQUIRED_LEGAL_DOCS,
   legalConfig,
+  legalDocumentRoute,
 } from '@/config/legal'
 import { listOwnLegalAcceptances } from './legalAcceptance'
 import { LOCALES, useLang } from '@/i18n'
@@ -29,9 +30,11 @@ export function LegalStatusPage() {
     queryFn: () => listOwnLegalAcceptances(userId!),
   })
 
-  const required = demo
-    ? REQUIRED_LEGAL_DOCS.garage.filter((doc) => doc !== 'pilot_agreement')
-    : REQUIRED_LEGAL_DOCS.garage
+  const required = REQUIRED_LEGAL_DOCS.garage
+  const historicalAcceptances = (acceptances ?? []).filter((acceptance) => {
+    const type = acceptance.document_type as keyof typeof LEGAL_DOCUMENT_VERSIONS
+    return type === 'pilot_agreement' || LEGAL_DOCUMENT_VERSIONS[type] !== acceptance.document_version
+  })
 
   return (
     <div>
@@ -91,12 +94,38 @@ export function LegalStatusPage() {
         <CardHeader><CardTitle>{tr('Documents contractuels')}</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
           <Link to="/terms" className="font-medium text-primary hover:underline">{tr('Conditions d’utilisation')}</Link>
-          {!demo && <Link to="/pilot-agreement" className="font-medium text-primary hover:underline">{tr('Conditions du pilote garage')}</Link>}
           <Link to="/dpa" className="font-medium text-primary hover:underline">{tr('Accord de sous-traitance RGPD')}</Link>
           <Link to="/privacy" className="font-medium text-primary hover:underline">{tr('Politique de confidentialité')}</Link>
           <Link to="/legal" className="font-medium text-primary hover:underline">{tr('Mentions légales')}</Link>
         </CardContent>
       </Card>
+
+      {!demo && historicalAcceptances.length > 0 && (
+        <Card className="mt-5">
+          <CardHeader><CardTitle>{tr('Acceptations historiques')}</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              {tr('Ces documents sont conservés comme preuve des versions antérieurement acceptées. Ils ne sont plus proposés aux nouveaux utilisateurs.')}
+            </p>
+            {historicalAcceptances.map((acceptance) => {
+              const type = acceptance.document_type as keyof typeof LEGAL_DOCUMENT_META
+              const meta = LEGAL_DOCUMENT_META[type]
+              if (!meta) return null
+              return (
+                <Link
+                  key={acceptance.id}
+                  to={legalDocumentRoute(type, acceptance.document_version)}
+                  target="_blank"
+                  className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-primary hover:bg-muted/40 hover:underline"
+                >
+                  <span>{tr(meta.label)}</span>
+                  <bdi dir="ltr" className="text-xs text-muted-foreground">{acceptance.document_version}</bdi>
+                </Link>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <p className="mt-4 text-xs text-muted-foreground">
         {tr('Contact : {email} · Les acceptations sont conservées dans un journal horodaté (version du document, date, contexte).', { email: legalConfig.contactEmail })}
