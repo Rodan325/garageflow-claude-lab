@@ -120,6 +120,16 @@ Legal review required before production onboarding:
 - define retention for notification recipient addresses;
 - validate marketing reminder consent and legal basis.
 
+The staged V2 legal release is governed by:
+
+- `docs/legal/LEGAL_INTEGRATION_MAPPING.md`;
+- `docs/legal/LEGAL_DECISIONS_REQUIRED.md`;
+- `docs/legal/LEGAL_RELEASE_CHECKLIST.md`;
+- `docs/legal/LEGAL_PROVIDER_VERIFICATION.md`;
+- `docs/legal/LEGAL_ACCEPTANCE_MIGRATION_PLAN.md`.
+
+No V2 legal document can become effective merely through a frontend deployment. A reviewed database migration must register the approved hashes and real effective date first, and the legal feature flags must remain false until the staged validation is complete.
+
 ## Validation boundary
 
 Static TypeScript, lint, unit, build and security checks can run locally. Database reconstruction, RLS anti-leak tests, Storage policy tests and advisor output require an explicitly non-production migrated database. They must not be reported as successful until that environment has been used.
