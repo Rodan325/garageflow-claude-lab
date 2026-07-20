@@ -29,15 +29,21 @@ for (const name of [
   delete childEnv[name]
 }
 
-const result = spawnSync(
-  process.execPath,
-  [`--env-file=${envFile}`, resolve('scripts/rls-antileak.mjs')],
-  { env: childEnv, stdio: 'inherit' },
-)
-
-if (result.error) {
-  console.error(`RLS SAFETY GUARD: unable to start validation: ${result.error.message}`)
-  process.exit(2)
+const validationScripts = [resolve('scripts/rls-antileak.mjs')]
+if (process.env.LEGAL_V2_RLS_FIXTURES === 'true') {
+  validationScripts.push(resolve('scripts/legal-v2-rls.mjs'))
 }
 
-process.exit(result.status ?? 1)
+for (const validationScript of validationScripts) {
+  const result = spawnSync(
+    process.execPath,
+    [`--env-file=${envFile}`, validationScript],
+    { env: childEnv, stdio: 'inherit' },
+  )
+
+  if (result.error) {
+    console.error(`RLS SAFETY GUARD: unable to start validation: ${result.error.message}`)
+    process.exit(2)
+  }
+  if (result.status !== 0) process.exit(result.status ?? 1)
+}
