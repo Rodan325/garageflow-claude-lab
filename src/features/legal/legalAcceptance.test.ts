@@ -30,7 +30,7 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
-import { listOwnLegalAcceptances, recordLegalAcceptance } from './legalAcceptance'
+import { listOwnLegalAcceptances, recordLegalAcceptance, recordLegalV2Acceptance } from './legalAcceptance'
 
 beforeEach(() => {
   state.existing = []
@@ -41,6 +41,14 @@ beforeEach(() => {
 })
 
 describe('legal acceptance evidence', () => {
+  it('cannot record V2 evidence while the acceptance flag and documents are not effective', async () => {
+    await expect(recordLegalV2Acceptance('terms_client', 'client', 'signup', {
+      displayedLanguage: 'fr',
+      organizationId: null,
+    })).rejects.toThrow(/disabled|not effective/i)
+    expect(state.inserted).toHaveLength(0)
+  })
+
   it('records the displayed language, stable document id, and organization', async () => {
     await recordLegalAcceptance('terms', 'terms-2026-01', 'garage', 'legal_gate', {
       displayedLanguage: 'ar',

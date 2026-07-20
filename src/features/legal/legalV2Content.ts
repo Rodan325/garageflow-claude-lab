@@ -215,9 +215,9 @@ const cookies: LegalDocumentSource = {
       'تُستخدم جلسة المصادقة وضمانات الأمن وتفضيلات اللغة والمظهر وخيارات التنقل وذاكرات PWA اللازمة لتوفير الخدمة المطلوبة. وقد يؤدي تعطيلها في المتصفح إلى منع الدخول أو تدهور التشغيل.',
     )]),
     section('inventory', text('3. Inventaire opérationnel', '3. Operational inventory', '3. الجرد التشغيلي'), [text(
-      'Les clés techniques historiques `gf-*` et `garageflow-auth` sont conservées pour compatibilité. Le stockage de démonstration ne contient que les données simulées créées dans le navigateur. Les rôles de démonstration et brouillons temporaires sont isolés par onglet dans le stockage de session.',
-      'Historical technical keys `gf-*` and `garageflow-auth` are retained for compatibility. Demo storage contains only simulated data created in the browser. Demo roles and temporary drafts are isolated per tab in session storage.',
-      'تُحفظ المفاتيح التقنية التاريخية `gf-*` و`garageflow-auth` للتوافق. ولا يحتوي تخزين العرض إلا على بيانات محاكاة تُنشأ في المتصفح. وتُعزل أدوار العرض والمسودات المؤقتة لكل تبويب في تخزين الجلسة.',
+      'Certaines clés techniques historiques sont conservées pour compatibilité sans être utilisées comme marque visible. Le stockage de démonstration ne contient que les données simulées créées dans le navigateur. Les rôles de démonstration et brouillons temporaires sont isolés par onglet dans le stockage de session.',
+      'Some historical technical keys are retained for compatibility without being used as visible branding. Demo storage contains only simulated data created in the browser. Demo roles and temporary drafts are isolated per tab in session storage.',
+      'تُحفظ بعض المفاتيح التقنية التاريخية للتوافق من دون استخدامها كعلامة ظاهرة. ولا يحتوي تخزين العرض إلا على بيانات محاكاة تُنشأ في المتصفح. وتُعزل أدوار العرض والمسودات المؤقتة لكل تبويب في تخزين الجلسة.',
     )]),
     section('analytics', text('4. Mesure d’audience', '4. Audience measurement', '4. قياس الجمهور'), [text(
       'Aucun outil de mesure d’audience Vercel Analytics ou traceur marketing n’est actif dans cette version. Le flag correspondant est désactivé par défaut. Toute activation future exige une mise à jour de cette page et, lorsque la loi l’impose, un choix préalable de l’utilisateur.',
@@ -261,9 +261,9 @@ const subprocessors: LegalDocumentSource = {
       'الخدمة النشطة: استضافة الواجهة والنشر وCDN. وتسمّي الشروط وDPA المطبقة شركة Vercel Inc. ولا ينشط Vercel Analytics.',
     )]),
     section('domain-email', text('3. Domaine et messagerie', '3. Domain and email', '3. النطاق والبريد'), [text(
-      'Squarespace est utilisé pour le domaine, le DNS et le site vitrine ; pour un client hors États-Unis, ses conditions générales désignent en principe Squarespace Ireland Limited. Google Workspace est utilisé pour la messagerie professionnelle. Les entités exactes et DPA du compte doivent être confirmés avant mise en vigueur.',
-      'Squarespace is used for domain, DNS and the showcase site; for a non-US customer its general terms generally designate Squarespace Ireland Limited. Google Workspace is used for professional email. Exact account entities and DPAs must be confirmed before effectiveness.',
-      'يُستخدم Squarespace للنطاق وDNS والموقع التعريفي؛ وتحدد شروطه العامة عادة Squarespace Ireland Limited للعميل خارج الولايات المتحدة. ويُستخدم Google Workspace للبريد المهني. ويجب تأكيد كيانات الحساب وDPA الدقيقة قبل النفاذ.',
+      'Squarespace est utilisé pour le domaine, le DNS et le site vitrine ; pour un client hors États-Unis, ses conditions générales désignent en principe Squarespace Ireland Limited. Google Workspace est utilisé pour la messagerie professionnelle. La mise en vigueur du registre est conditionnée à l’archivage des entités exactes et DPA figurant dans les comptes fournisseurs.',
+      'Squarespace is used for domain, DNS and the showcase site; for a non-US customer its general terms generally designate Squarespace Ireland Limited. Google Workspace is used for professional email. The register becomes effective only after the exact entities and DPAs shown in provider accounts have been archived.',
+      'يُستخدم Squarespace للنطاق وDNS والموقع التعريفي؛ وتحدد شروطه العامة عادة Squarespace Ireland Limited للعميل خارج الولايات المتحدة. ويُستخدم Google Workspace للبريد المهني. ولا يدخل السجل حيز النفاذ إلا بعد أرشفة الكيانات الدقيقة وDPA الظاهرة في حسابات المزودين.',
     )]),
     section('inactive', text('4. Services inactifs', '4. Inactive services', '4. الخدمات غير النشطة'), [text(
       'Stripe, les fournisseurs d’intelligence artificielle, SMS, DMS, CRM, calendrier, email transactionnel et push ne reçoivent aucune donnée par Clikarage tant que leur intégration et leur flag ne sont pas activés. Les notifications de démonstration restent simulées.',
