@@ -96,7 +96,17 @@ function reportStyles(rtl: boolean, accent: string) {
     attachmentImage: { width: '100%', height: 86, objectFit: 'cover' as const },
     attachmentPlaceholder: { height: 86, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e2e8f0', color: '#64748b' },
     attachmentName: { padding: 5, direction: 'ltr' as const, fontFamily: 'Helvetica', fontSize: 7, textAlign: 'left' as const },
-    footer: { position: 'absolute', bottom: 18, left: 38, right: 38, color: '#94a3b8', fontSize: 7, textAlign: 'center' },
+    footer: {
+      position: 'absolute',
+      bottom: 28,
+      left: 38,
+      right: 38,
+    },
+    footerText: {
+      color: '#94a3b8',
+      fontSize: 7,
+      textAlign: 'center',
+    },
   })
 }
 
@@ -198,6 +208,12 @@ export function deliveryReportDocument({
   return (
     <Document title={`${text.title} ${report.report_number}`}>
       <Page size="A4" style={styles.page}>
+        <View fixed style={styles.footer}>
+          <Text
+            style={styles.footerText}
+            render={({ pageNumber, totalPages }) => `${text.legal} · ${text.page} ${pageNumber}/${totalPages}`}
+          />
+        </View>
         <View style={styles.header}>
           <View>
             <Text style={styles.garage}>{garage?.name ?? 'Clikarage'}</Text>
@@ -286,11 +302,6 @@ export function deliveryReportDocument({
         </View>
         {renderReportSection({ title: text.warranty, values: [report.warranty_terms], fallback: text.noValue, styles })}
         {renderReportSection({ title: text.validation, values: [report.final_validation], fallback: text.noValue, styles })}
-        <Text
-          fixed
-          style={styles.footer}
-          render={({ pageNumber, totalPages }) => `${text.legal} · ${text.page} ${pageNumber}/${totalPages}`}
-        />
       </Page>
     </Document>
   )

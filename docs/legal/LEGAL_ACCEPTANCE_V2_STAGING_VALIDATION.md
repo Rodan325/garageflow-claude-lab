@@ -78,8 +78,8 @@ Le seul `db push` a cible `zazdhzmfrtecxtglhoso` apres double verification du pr
 - La migration forward a ete appliquee sans modifier les deux migrations deja validees.
 - `test:rls` general : 101 reussis, 0 echec.
 - `test:rls` juridique V2 : 18 reussis, 0 echec.
-- Tests juridiques cibles : 59 reussis, 0 echec lors de la validation initiale ; 41 reussis, 0 echec lors du controle final des contrats et de l'archive.
-- Suite applicative complete apres revue : 345 reussis, 0 echec.
+- Tests juridiques cibles finaux : 68 reussis, 0 echec, incluant les contrats de repetabilite et le rendu PDF arabe.
+- Suite applicative complete apres revue : 349 reussis, 0 echec.
 - Typecheck : reussi.
 - Lint : reussi, 0 erreur et 2 avertissements Fast Refresh preexistants.
 - Build : reussi ; avertissement non bloquant sur la taille d'un chunk.
@@ -87,7 +87,17 @@ Le seul `db push` a cible `zazdhzmfrtecxtglhoso` apres double verification du pr
 
 Docker Desktop et les services indispensables (PostgreSQL, Auth, REST, Kong et Storage) etaient operationnels. `analytics` et `pg_meta` sont restes en etat unhealthy avec une erreur locale `input/output error`; cette limite de l'outillage local n'a pas affecte PostgreSQL, les migrations, Auth, REST, Storage ou les tests RLS.
 
-Une derniere tentative de `test:rls` local apres la revue applicative a obtenu 100/101 : un rappel fictif `local_validation` laisse par une execution anterieure a declenche l'index d'idempotence. Les 119 scenarios avaient deja reussi localement et sur staging apres reconstruction et nettoyage. Le nettoyage final de cet artefact local n'a pas pu etre repete dans cette session, car l'acces Docker hors sandbox a ete refuse par la limite d'approbation de l'environnement. Cette reserve ne concerne ni le SQL juridique, ni staging, ni une ressource distante.
+La reserve de repetabilite locale a ete reproduite et corrigee. Deux causes independantes existaient : les rappels de validation utilisaient des sources fixes alors que leur lien vers la demande est volontairement conserve avec `ON DELETE SET NULL`, ce qui provoquait une collision avec l'index d'idempotence lors d'une execution suivante ; l'URL signee locale expirait apres une seconde et pouvait expirer avant sa premiere lecture. Chaque execution utilise desormais un identifiant UUID distinct, le teardown local supprime dans un bloc `finally` les rappels, demandes, acceptations et versions documentaires de validation, puis refuse de terminer si un residu subsiste. Le TTL local de l'URL signee est de cinq secondes, sans modification du test d'expiration.
+
+Trois executions consecutives ont ete lancees sur la meme base locale, sans reconstruction intermediaire :
+
+| Execution | Suite generale | Suite juridique V2 | Total | Residus apres teardown |
+| --- | --- | --- | --- | --- |
+| 1 | 101/101 | 18/18 | 119/119 | 0 |
+| 2 | 101/101 | 18/18 | 119/119 | 0 |
+| 3 | 101/101 | 18/18 | 119/119 | 0 |
+
+Le controle SQL final a confirme zero utilisateur, organisation, demande, rappel, acceptation ou version documentaire portant les marqueurs de validation, ainsi que zero objet Storage. Le helper de nettoyage refuse toute cible autre que `http://127.0.0.1` ou `http://localhost` et n'est jamais appele pour staging.
 
 ## Resultats staging
 
@@ -107,6 +117,8 @@ Une derniere tentative de `test:rls` local apres la revue applicative a obtenu 1
 En local, les huit lignes etaient toujours presentes apres migration, les neuf nouveaux champs etaient `NULL` pour 8/8 lignes et l'empreinte SHA-256 des colonnes historiques restait exactement `5268894c...73f94`. En staging, les huit fixtures existaient encore apres migration et les neuf nouveaux champs etaient `NULL` pour 8/8 lignes. Elles ont ensuite ete supprimees dans le nettoyage du test, puisque le staging n'en contenait aucune avant la validation.
 
 Les migrations ne contiennent aucun `UPDATE`, `DELETE` ou backfill de `public.legal_acceptances`. La migration forward remplace uniquement la fonction de garde. Les champs restent donc inconnus (`NULL`) pour une preuve historique lorsque l'information n'existait pas au moment de l'acceptation.
+
+Les huit lignes historiques etaient des fixtures transitoires de validation de migration. Leur contenu a ete verifie avant leur nettoyage controle ; la base locale courante ne conserve aucune acceptation de validation. Ce nettoyage ne constitue pas une mutation par migration et ne modifie pas la preuve de compatibilite relevee avant/apres application.
 
 ## Contraintes, index, fonctions et RLS
 
@@ -170,6 +182,16 @@ Aucune derive destructive ou inconnue n'a ete detectee. Aucun P0 ou P1 ne reste 
 
 Limite non bloquante : les services locaux `analytics` et `pg_meta` n'ont pas passe leur healthcheck Docker, alors que tous les services necessaires a cette mission etaient fonctionnels. Ce point releve de l'environnement Docker local, pas du SQL juridique.
 
+## Validation visuelle du PDF arabe
+
+Le rapport arabe a ete regenere depuis le dernier corpus avec l'empreinte SHA-256 `24203a8ac5aecedddca306bb8ca520982a905b2061fd0ccf79f00274b9f05b58`. L'empreinte couvre le composant PDF et sa fixture de generation. Le PDF A4 comporte deux pages et les deux captures versionnees ont ete remplacees uniquement apres inspection :
+
+- `output/pdf/clikarage-delivery-report-ar.pdf` ;
+- `docs/assets/legal/clikarage-delivery-report-ar-page-1.png` ;
+- `docs/assets/legal/clikarage-delivery-report-ar-page-2.png`.
+
+Les ligatures arabes, l'ordre RTL des titres, paragraphes et listes, les champs techniques LTR, les dates, heures, montants, adresses email, references et noms de fichiers sont lisibles. Aucun chevauchement, debordement, glyphe manquant ou coupure de pagination n'a ete observe. Les pieds de page `1/2` et `2/2` sont integralement dans la page ; leur boite de pixels se termine avant le bord inferieur. Les rapports FR, EN et AR utilisent le meme composant et le meme ordre de sections, avec des libelles localises.
+
 ## Rollback logique
 
 Les migrations sont additives et compatibles avec les anciens clients. En cas de probleme avant activation :
@@ -188,7 +210,7 @@ La suppression physique des colonnes, fonctions ou preuves n'est pas un rollback
 Les trois migrations peuvent etre mergees avec les flags desactives. L'activation des documents commerciaux doit rester une etape separee, apres validation juridique humaine des textes, des versions, des hashes et de la date d'effet.
 
 LOCAL DOCKER — MIGRATIONS JURIDIQUES APPLIQUEES : OUI
-LOCAL DOCKER — TEST:RLS : OUI — 119/119
+LOCAL DOCKER — TEST:RLS : OUI — 3 EXECUTIONS CONSECUTIVES A 119/119
 STAGING — DERIVE CONTROLEE : OUI
 STAGING — MIGRATIONS JURIDIQUES APPLIQUEES : OUI
 STAGING — TEST:RLS : OUI — 119/119

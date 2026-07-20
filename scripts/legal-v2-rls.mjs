@@ -11,6 +11,12 @@ import { assertPublishableKey, assertSupabaseTestTarget } from './rls-target-gua
 const url = process.env.VITE_SUPABASE_URL
 const publishableKey = process.env.VITE_SUPABASE_ANON_KEY
 const testTarget = process.env.SUPABASE_TEST_TARGET || 'local'
+const fixtureRunId = process.env.RLS_FIXTURE_RUN_ID
+
+if (!fixtureRunId || !/^[0-9a-f-]{36}$/.test(fixtureRunId)) {
+  console.error('LEGAL V2 RLS SAFETY GUARD: RLS_FIXTURE_RUN_ID must be a generated UUID')
+  process.exit(2)
+}
 
 let target
 try {
@@ -35,6 +41,7 @@ const VERSION = 'rls-validation-20260720'
 const CLIENT_HASH = '5b2d8b1500f446459d79ee22976a0f632db2cedf2329116961c99501e97b3640'
 const DPA_HASH = '5c88474d7df764bf96ce8f90f2f83edc48429e47359aece2a740fce63782766e'
 const BAD_HASH = '0'.repeat(64)
+const APPLICATION_VERSION = `rls-validation:${fixtureRunId}`
 const PASSWORD = 'LocalDemo1234!'
 const ACCOUNTS = {
   ownerA: ['owner@demo-garage.fr', 'Demo1234!'],
@@ -81,7 +88,7 @@ function userEvidence(hash = CLIENT_HASH) {
     organization_id: null,
     document_sha256: hash,
     document_status: 'effective',
-    application_version: 'rls-validation',
+    application_version: APPLICATION_VERSION,
     acceptance_scope: 'user',
     authority_role: null,
     evidence_source: 'legal_gate',
@@ -99,7 +106,7 @@ function organizationEvidence(organizationId, hash = DPA_HASH) {
     organization_id: organizationId,
     document_sha256: hash,
     document_status: 'effective',
-    application_version: 'rls-validation',
+    application_version: APPLICATION_VERSION,
     acceptance_scope: 'organization',
     authority_role: 'untrusted-frontend-value',
     evidence_source: 'contract_admin',
@@ -134,7 +141,7 @@ async function run() {
       document_id: 'dpa:2026-07-02',
       displayed_language: 'fr',
       organization_id: null,
-      acceptance_context: 'legal_gate',
+      acceptance_context: `rls_validation:${fixtureRunId}:legacy`,
     })
     .select('id,document_version,organization_id,document_sha256')
     .single()
@@ -294,7 +301,7 @@ async function run() {
     (Boolean(updateAttempt.error) || updateAttempt.data.length === 0)
       && (Boolean(deleteAttempt.error) || deleteAttempt.data.length === 0)
       && !immutableRow.error
-      && immutableRow.data.application_version === 'rls-validation'
+      && immutableRow.data.application_version === APPLICATION_VERSION
       && immutableRow.data.document_sha256 === DPA_HASH,
     immutableRow.error,
   )

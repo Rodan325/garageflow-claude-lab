@@ -11,6 +11,12 @@ import { assertPublishableKey, assertSupabaseTestTarget } from './rls-target-gua
 const url = process.env.VITE_SUPABASE_URL
 const publishableKey = process.env.VITE_SUPABASE_ANON_KEY
 const testTarget = process.env.SUPABASE_TEST_TARGET || 'local'
+const fixtureRunId = process.env.RLS_FIXTURE_RUN_ID
+
+if (!fixtureRunId || !/^[0-9a-f-]{36}$/.test(fixtureRunId)) {
+  console.error('RLS SAFETY GUARD: RLS_FIXTURE_RUN_ID must be a generated UUID')
+  process.exit(2)
+}
 
 let target
 try {
@@ -389,7 +395,7 @@ async function run() {
     p_due_date: new Date(Date.now() + 180 * 86_400_000).toISOString().slice(0, 10),
     p_due_mileage: null,
     p_scheduled_at: new Date().toISOString(),
-    p_source: 'staging_journey_validation',
+    p_source: `rls_validation:${fixtureRunId}:journey`,
     p_language: 'en',
   })
   check('Closed journey creates one maintenance reminder', !journeyReminder.error && journeyReminder.data?.status === 'scheduled', journeyReminder.error)
@@ -772,7 +778,7 @@ async function run() {
     p_due_date: new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10),
     p_due_mileage: null,
     p_scheduled_at: new Date().toISOString(),
-    p_source: 'local_validation',
+    p_source: `rls_validation:${fixtureRunId}:reminder`,
     p_language: 'en',
   }
   const simultaneousReminders = await Promise.all([
@@ -850,7 +856,7 @@ async function run() {
   const anonList = await anonymous.storage.from(bucket).list('', { limit: 100 })
   check('Anonymous global Storage listing exposes no objects', Boolean(anonList.error) || anonList.data.length === 0, anonList.data)
 
-  const signedUrlTtlSeconds = testTarget === 'staging' ? 10 : 1
+  const signedUrlTtlSeconds = testTarget === 'staging' ? 10 : 5
   const signedUrl = await clientB1.storage.from(bucket).createSignedUrl(visiblePath, signedUrlTtlSeconds)
   check('Authorized customer can create a signed URL', !signedUrl.error && Boolean(signedUrl.data?.signedUrl), signedUrl.error)
   if (signedUrl.data?.signedUrl) {
@@ -978,9 +984,6 @@ async function run() {
     if (error) cleanupErrors.push(`request: ${error.message}`)
   }
   check('Request, quote, and Storage validation artifacts are removed cleanly', cleanupErrors.length === 0, cleanupErrors)
-  if (testTarget === 'staging') {
-    console.log('  [INFO] Reminder fixtures are source-tagged for privileged staging cleanup.')
-  }
   console.log(`\nResult: ${passed} passed, ${failed} failed.`)
   if (failed > 0) process.exitCode = 1
 }

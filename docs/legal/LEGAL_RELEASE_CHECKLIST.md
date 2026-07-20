@@ -5,14 +5,14 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 ## 1. Gate de merge avec flags OFF
 
 - [ ] Revue juridique francaise en cours ou planifiee ; aucune mention de validation par un avocat.
-- [ ] Corpus V2 `staged`/`draft`, `effectiveAt = null`.
-- [ ] Les neuf flags de `.env.example` sont `false`.
-- [ ] `/pilot-agreement` est figee, hors navigation principale et `noindex`.
-- [ ] Les huit acceptations historiques ne sont ni modifiees ni completees.
-- [ ] Les hashes du registre, du contenu et de la migration sont identiques.
-- [ ] `npm.cmd run typecheck`, `lint`, `test`, `build` et `security:scan` reussissent.
-- [ ] Aucun secret, `service_role`, token ou identite personnelle dans le diff.
-- [ ] Aucune migration appliquee et aucun changement Vercel.
+- [x] Corpus V2 `staged`/`draft`, `effectiveAt = null`.
+- [x] Les neuf flags de `.env.example` sont `false` et leur absence est fail-closed.
+- [x] `/pilot-agreement` est figee, hors navigation principale et `noindex`.
+- [x] Les huit acceptations historiques ne sont ni modifiees ni completees par les migrations.
+- [x] Les hashes du registre, du contenu et de la migration sont identiques.
+- [x] `npm.cmd run typecheck`, `lint`, `test`, `build` et `security:scan` reussissent.
+- [x] Aucun secret, `service_role`, token ou identite personnelle dans le diff.
+- [x] Aucune migration appliquee pendant cette validation finale et aucun changement Vercel.
 
 ## 2. Gate de validation humaine
 
@@ -28,24 +28,26 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 
 ## 3. Gate base locale et staging
 
-- [ ] Cible formellement non productive avant toute commande Supabase.
-- [ ] Reconstruction complete depuis zero.
-- [ ] Migration `20260719111617_add_legal_acceptance_versioning_contracts.sql` appliquee.
-- [ ] Migration `20260719235753_harden_legal_acceptance_v2.sql` appliquee.
-- [ ] Migration `20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql` appliquee.
-- [ ] Huit acceptations historiques preservees et champs ajoutes laisses `NULL`.
-- [ ] Test d'isolation multi-tenant des acceptations.
-- [ ] Acceptation DPA refusee pour un role non habilite.
-- [ ] Hash, langue, version, statut, application et source controles par la base.
-- [ ] Archive de la version acceptee recuperable.
-- [ ] Advisors Supabase examines et aucun P0 ouvert.
+- [x] Cible formellement non productive avant toute commande Supabase.
+- [x] Reconstruction complete depuis zero.
+- [x] Migration `20260719111617_add_legal_acceptance_versioning_contracts.sql` appliquee.
+- [x] Migration `20260719235753_harden_legal_acceptance_v2.sql` appliquee.
+- [x] Migration `20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql` appliquee.
+- [x] Huit acceptations historiques preservees et champs ajoutes laisses `NULL` pendant la validation de migration.
+- [x] Test d'isolation multi-tenant des acceptations.
+- [x] Acceptation DPA refusee pour un role non habilite.
+- [x] Hash, langue, version, statut, application et source controles par la base.
+- [x] Archive de la version acceptee recuperable.
+- [x] Trois executions RLS locales consecutives reussies a 119/119 sans reconstruction.
+- [x] Zero fixture juridique, organisation, utilisateur, demande, rappel ou document apres le teardown final.
+- [x] Advisors Supabase examines et aucun P0 ouvert.
 
 ## 4. Gate visuelle
 
 - [ ] Pages legales FR, EN et AR sur desktop et mobile.
 - [ ] Arabe RTL sans chevauchement ; emails, URL et identifiants en LTR.
 - [ ] Impression et selection de texte verifiees.
-- [ ] PDF arabe verifie contre les captures sous `docs/assets/legal/`.
+- [x] PDF arabe verifie contre les captures sous `docs/assets/legal/` (corpus SHA-256 `24203a8ac5aecedddca306bb8ca520982a905b2061fd0ccf79f00274b9f05b58`).
 - [ ] Aucun domaine tiers non inventorie dans le parcours juridique.
 - [ ] Aucune police Google distante ; les fontes de l'application sont locales ou systeme.
 

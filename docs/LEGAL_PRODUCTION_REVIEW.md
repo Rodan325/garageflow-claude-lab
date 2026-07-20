@@ -79,7 +79,7 @@ The Arabic handover report is generated with the bundled Amiri regular and bold 
 - Page 1: [`docs/assets/legal/clikarage-delivery-report-ar-page-1.png`](assets/legal/clikarage-delivery-report-ar-page-1.png)
 - Page 2: [`docs/assets/legal/clikarage-delivery-report-ar-page-2.png`](assets/legal/clikarage-delivery-report-ar-page-2.png)
 
-The committed captures were rendered at 1310 x 1853 pixels and visually inspected before the independent review. Arabic letters are joined, lists are RTL, dates are readable, technical values remain LTR, page numbers are present, and no clipping, overlap or missing glyph was observed. Those captures still predate the final localization of the three financial labels and are no longer sufficient as final visual evidence. The generator and PDF test now use Arabic labels with LTR amount values; the PDF and captures must be regenerated and inspected before activation.
+The committed PDF and both page captures were regenerated from corpus SHA-256 `24203a8ac5aecedddca306bb8ca520982a905b2061fd0ccf79f00274b9f05b58` after the final localization of the financial labels. Arabic letters are joined, sections and lists follow RTL order, and dates, amounts, email addresses, URLs, dossier references and attachment names remain readable in LTR where required. Both page footers and page numbers are inside the page bounds. Visual inspection found no clipping, overlap, overflow or missing glyph.
 
 ## Independent review corrections
 

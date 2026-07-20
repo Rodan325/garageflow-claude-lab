@@ -1,5 +1,7 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { createHash } from 'node:crypto'
+import { readFile, mkdir, writeFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+import { join, resolve } from 'node:path'
 import type { ServiceRequestAttachment } from '../src/features/attachments/model'
 import type { DeliveryReport } from '../src/features/reports/model'
 import { renderDeliveryReportPdfBlob } from '../src/features/reports/reportPdf'
@@ -89,7 +91,9 @@ const attachments: ServiceRequestAttachment[] = [
   },
 ]
 
-const outputDirectory = join(process.cwd(), 'output', 'pdf')
+const outputDirectory = process.env.ARABIC_PDF_OUTPUT_DIRECTORY
+  ? resolve(process.env.ARABIC_PDF_OUTPUT_DIRECTORY)
+  : join(process.cwd(), 'output', 'pdf')
 await mkdir(outputDirectory, { recursive: true })
 const blob = await renderDeliveryReportPdfBlob({
   report,
@@ -106,4 +110,16 @@ const blob = await renderDeliveryReportPdfBlob({
 })
 const outputPath = join(outputDirectory, 'clikarage-delivery-report-ar.pdf')
 await writeFile(outputPath, Buffer.from(await blob.arrayBuffer()))
-process.stdout.write(`${outputPath}\n`)
+
+const corpusHash = createHash('sha256')
+for (const [sourceName, sourceUrl] of [
+  ['src/features/reports/reportPdf.tsx', new URL('../src/features/reports/reportPdf.tsx', import.meta.url)],
+  ['scripts/render-arabic-delivery-report.tsx', new URL(import.meta.url)],
+] as const) {
+  corpusHash.update(sourceName)
+  corpusHash.update('\0')
+  corpusHash.update(await readFile(sourceUrl))
+  corpusHash.update('\0')
+}
+
+process.stdout.write(`${outputPath}\nCORPUS_SHA256=${corpusHash.digest('hex')}\n`)

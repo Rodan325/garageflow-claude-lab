@@ -61,6 +61,14 @@ describe('Arabic delivery report PDF', () => {
     })
   })
 
+  it('keeps the repeated footer inside the printable page area', () => {
+    const source = deliveryReportDocument({ report, request, garage, lang: 'ar' })
+    const page = source.props.children
+    const footer = page.props.children.find((child: { props?: { fixed?: boolean } }) => child?.props?.fixed)
+
+    expect(footer.props.style).toMatchObject({ bottom: 28 })
+  })
+
   it('renders a real PDF with the embedded Arabic font', async () => {
     const blob = await renderDeliveryReportPdfBlob({
       report,
