@@ -745,7 +745,13 @@ export type Database = {
           document_type: string
           document_version: string
           displayed_language: string | null
-          document_id: string | null
+            document_id: string | null
+            document_sha256: string | null
+            document_status: string | null
+            application_version: string | null
+            acceptance_scope: string | null
+            authority_role: string | null
+            evidence_source: string | null
           id: string
           organization_id: string | null
           role: string
@@ -759,7 +765,13 @@ export type Database = {
           document_type: string
           document_version: string
           displayed_language?: string | null
-          document_id?: string | null
+            document_id?: string | null
+            document_sha256?: string | null
+            document_status?: string | null
+            application_version?: string | null
+            acceptance_scope?: string | null
+            authority_role?: string | null
+            evidence_source?: string | null
           id?: string
           organization_id?: string | null
           role: string
@@ -773,7 +785,13 @@ export type Database = {
           document_type?: string
           document_version?: string
           displayed_language?: string | null
-          document_id?: string | null
+            document_id?: string | null
+            document_sha256?: string | null
+            document_status?: string | null
+            application_version?: string | null
+            acceptance_scope?: string | null
+            authority_role?: string | null
+            evidence_source?: string | null
           id?: string
           organization_id?: string | null
           role?: string

@@ -51,6 +51,7 @@ import { PilotAgreementPage } from '@/features/legal/PilotAgreementPage'
 import { DpaPage } from '@/features/legal/DpaPage'
 import { LegalStatusPage } from '@/features/legal/LegalStatusPage'
 import { LegalV2Route } from '@/features/legal/LegalV2Route'
+import { HistoricalLegalArchivePage } from '@/features/legal/HistoricalLegalArchivePage'
 import { NotFoundPage } from '@/features/marketing/NotFoundPage'
 
 export function App() {
@@ -108,6 +109,7 @@ export function App() {
         <Route path="/service-levels" element={<LegalV2Route documentId="service_levels" />} />
         <Route path="/ai-policy" element={<LegalV2Route documentId="ai_policy" />} />
         <Route path="/pilot-agreement" element={<PilotAgreementPage />} />
+        <Route path="/legal/archive/:documentId/:version" element={<HistoricalLegalArchivePage />} />
         <Route path="/dpa" element={<DpaPage />} />
 
         <Route path="/app" element={<ClientShell />}>

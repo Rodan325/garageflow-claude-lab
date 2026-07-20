@@ -144,6 +144,8 @@ export const LEGAL_V2_FLAG_NAMES = [
   'TRANSACTIONAL_EMAIL_ENABLED',
 ] as const
 
+export const LEGAL_EVIDENCE_APP_VERSION = '1.0.0'
+
 export function legalDocumentRecord(documentId: LegalV2DocumentId, language: Lang) {
   const definition = LEGAL_V2_DOCUMENTS[documentId]
   return { ...definition, language, sha256: definition.sha256[language] }

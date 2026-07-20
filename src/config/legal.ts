@@ -129,6 +129,7 @@ export const LEGAL_DOCUMENT_META: Record<LegalDocumentType, { label: string; rou
 
 export function legalDocumentRoute(documentType: LegalDocumentType, version: string) {
   const route = LEGAL_DOCUMENT_META[documentType].route
-  if (documentType === 'pilot_agreement' || version === LEGAL_DOCUMENT_VERSIONS[documentType]) return route
-  return `${route}?version=${encodeURIComponent(version)}`
+  if (version === LEGAL_DOCUMENT_VERSIONS[documentType]) return route
+  if (documentType === 'pilot_agreement' && version === HISTORICAL_LEGAL_VERSION) return '/pilot-agreement'
+  return `/legal/archive/${encodeURIComponent(documentType)}/${encodeURIComponent(version)}`
 }
