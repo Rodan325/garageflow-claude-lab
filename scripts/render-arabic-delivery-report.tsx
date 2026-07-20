@@ -98,7 +98,11 @@ const blob = await renderDeliveryReportPdfBlob({
   lang: 'ar',
   attachments,
   centerName: 'المركز الرئيسي - الرباط',
-  financialSummary: ['Subtotal: 1,120.00 EUR', 'VAT: 224.00 EUR', 'Total: 1,344.00 EUR'],
+  financialSummary: {
+    subtotal: '1,120.00 EUR',
+    tax: '224.00 EUR',
+    total: '1,344.00 EUR',
+  },
 })
 const outputPath = join(outputDirectory, 'clikarage-delivery-report-ar.pdf')
 await writeFile(outputPath, Buffer.from(await blob.arrayBuffer()))

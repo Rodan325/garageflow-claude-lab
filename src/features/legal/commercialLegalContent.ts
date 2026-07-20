@@ -43,9 +43,9 @@ export const commercialLegalContent: Record<CommercialLegalDocumentKey, LegalDoc
         title: text('2. Hébergement et prestataires techniques', '2. Hosting and technical providers', '2. الاستضافة ومقدمو الخدمات التقنية'),
         paragraphs: [
           text(
-            'L’interface web est hébergée par Vercel Inc. La base de données, l’authentification et le stockage technique sont fournis par Supabase, Inc., avec une base principale configurée dans la région eu-west-3 (Paris). Le domaine est administré au moyen des services Squarespace applicables au compte RODANBTECH.',
-            'The web interface is hosted by Vercel Inc. Database, authentication and technical storage services are provided by Supabase, Inc., with the primary database configured in the eu-west-3 (Paris) region. The domain is administered through the Squarespace services applicable to the RODANBTECH account.',
-            'تستضيف Vercel Inc. واجهة الويب. وتوفر Supabase, Inc. قاعدة البيانات والمصادقة والتخزين التقني، مع إعداد قاعدة البيانات الرئيسية في منطقة eu-west-3 (باريس). ويُدار اسم النطاق عبر خدمات Squarespace المطبقة على حساب RODANBTECH.',
+            'L’interface web est hébergée par Vercel Inc. La base de données, l’authentification et le stockage technique sont fournis par Supabase, avec une base principale configurée dans la région eu-west-3 (Paris). Le domaine est administré au moyen des services Squarespace applicables au compte RODANBTECH.',
+            'The web interface is hosted by Vercel Inc. Database, authentication and technical storage services are provided by Supabase, with the primary database configured in the eu-west-3 (Paris) region. The domain is administered through the Squarespace services applicable to the RODANBTECH account.',
+            'تستضيف Vercel Inc. واجهة الويب. وتوفر Supabase قاعدة البيانات والمصادقة والتخزين التقني، مع إعداد قاعدة البيانات الرئيسية في منطقة eu-west-3 (باريس). ويُدار اسم النطاق عبر خدمات Squarespace المطبقة على حساب RODANBTECH.',
           ),
           text(
             'Les rôles précis de ces prestataires, les éventuels transferts et les garanties applicables sont détaillés dans la Politique de confidentialité et, pour les clients professionnels, dans l’Accord de sous-traitance.',

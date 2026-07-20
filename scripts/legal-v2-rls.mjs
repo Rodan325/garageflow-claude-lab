@@ -26,8 +26,10 @@ try {
 }
 
 const IDS = {
-  organizationA: '91111111-1111-4111-8111-111111111111',
-  organizationB: '92222222-2222-4222-8222-222222222222',
+  organizationA: process.env.LEGAL_V2_ORGANIZATION_A
+    || '11111111-1111-4111-8111-111111111111',
+  organizationB: process.env.LEGAL_V2_ORGANIZATION_B
+    || '22222222-2222-4222-8222-222222222222',
 }
 const VERSION = 'rls-validation-20260720'
 const CLIENT_HASH = '5b2d8b1500f446459d79ee22976a0f632db2cedf2329116961c99501e97b3640'
@@ -38,6 +40,7 @@ const ACCOUNTS = {
   ownerA: ['owner@demo-garage.fr', 'Demo1234!'],
   memberA: ['frontdesk.independent@example.test', PASSWORD],
   ownerB: ['owner.network@example.test', PASSWORD],
+  centerManagerB: ['manager.north@example.test', PASSWORD],
   clientA: ['client@demo.fr', 'Demo1234!'],
 }
 
@@ -108,16 +111,53 @@ async function run() {
   console.log(`\nClikarage legal V2 RLS validation: ${target.origin}`)
   console.log('Safety: approved target, publishable key, temporary legal fixtures only.\n')
 
-  const [ownerA, memberA, ownerB, clientA] = await Promise.all([
+  const [ownerA, memberA, ownerB, centerManagerB, clientA] = await Promise.all([
     signedIn(ACCOUNTS.ownerA),
     signedIn(ACCOUNTS.memberA),
     signedIn(ACCOUNTS.ownerB),
+    signedIn(ACCOUNTS.centerManagerB),
     signedIn(ACCOUNTS.clientA),
   ])
   const anonymous = client()
   const clientUser = await clientA.auth.getUser()
   const ownerAUser = await ownerA.auth.getUser()
   const ownerBUser = await ownerB.auth.getUser()
+  const centerManagerBUser = await centerManagerB.auth.getUser()
+
+  const legacyDpa = await ownerA
+    .from('legal_acceptances')
+    .insert({
+      role: 'garage',
+      user_id: ownerAUser.data.user.id,
+      document_type: 'dpa',
+      document_version: '2026-07-02',
+      document_id: 'dpa:2026-07-02',
+      displayed_language: 'fr',
+      organization_id: null,
+      acceptance_context: 'legal_gate',
+    })
+    .select('id,document_version,organization_id,document_sha256')
+    .single()
+  check(
+    'The flags-off legacy DPA remains user scoped and acceptable',
+    !legacyDpa.error
+      && legacyDpa.data.document_version === '2026-07-02'
+      && legacyDpa.data.organization_id === null
+      && legacyDpa.data.document_sha256 === null,
+    legacyDpa.error,
+  )
+
+  const forgedLegacyDpa = await ownerB.from('legal_acceptances').insert({
+    role: 'garage',
+    user_id: ownerBUser.data.user.id,
+    document_type: 'dpa',
+    document_version: '2026-07-02',
+    document_id: 'dpa:2026-07-02',
+    displayed_language: 'fr',
+    organization_id: IDS.organizationB,
+    acceptance_context: 'legal_gate',
+  })
+  check('Legacy DPA evidence cannot claim organization authority', Boolean(forgedLegacyDpa.error), forgedLegacyDpa.error)
 
   const stagedAttempt = await clientA.from('legal_acceptances').insert({
     ...userEvidence(CLIENT_HASH),
@@ -159,6 +199,12 @@ async function run() {
     user_id: (await memberA.auth.getUser()).data.user.id,
   })
   check('A simple organization member cannot accept the DPA', Boolean(memberAttempt.error), memberAttempt.error)
+
+  const centerManagerAttempt = await centerManagerB.from('legal_acceptances').insert({
+    ...organizationEvidence(IDS.organizationB),
+    user_id: centerManagerBUser.data.user.id,
+  })
+  check('A center-scoped legacy admin cannot accept the organization DPA', Boolean(centerManagerAttempt.error), centerManagerAttempt.error)
 
   const crossOrganizationAttempt = await ownerB.from('legal_acceptances').insert({
     ...organizationEvidence(IDS.organizationA),

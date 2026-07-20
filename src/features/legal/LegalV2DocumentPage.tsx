@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { LEGAL_V2_DOCUMENTS, legalDocumentRecord, type LegalV2DocumentId } from '@/config/legalV2'
+import { LEGAL_V2_DOCUMENTS, legalDocumentRecord } from '@/config/legalV2'
 import { legalConfig } from '@/config/legal'
 import { useLang, type Lang } from '@/i18n'
 import { CommercialLegalLayout, LegalParagraph, LegalSectionTitle } from './CommercialLegalLayout'
-import { getLegalV2Document } from './legalV2Content'
+import { getLegalV2Document, type ClientLegalV2DocumentId } from './legalV2Content'
 
 const stagedCopy: Record<Lang, { title: string; body: string }> = {
   fr: {
@@ -20,13 +20,33 @@ const stagedCopy: Record<Lang, { title: string; body: string }> = {
   },
 }
 
-const identityCopy: Record<Lang, { title: string; publisher: string; product: string; contact: string; vat: string }> = {
-  fr: { title: 'Identité de l’éditeur', publisher: 'Éditeur et cocontractant', product: 'Produit', contact: 'Contact', vat: 'TVA' },
-  en: { title: 'Publisher identity', publisher: 'Publisher and contracting party', product: 'Product', contact: 'Contact', vat: 'VAT' },
-  ar: { title: 'هوية الناشر', publisher: 'الناشر والطرف المتعاقد', product: 'المنتج', contact: 'الاتصال', vat: 'ضريبة القيمة المضافة' },
+const identityCopy: Record<Lang, {
+  title: string
+  publisher: string
+  publisherValue: string
+  product: string
+  contact: string
+  vat: string
+  vatValue: string
+}> = {
+  fr: {
+    title: 'Identité de l’éditeur', publisher: 'Éditeur et cocontractant', product: 'Produit', contact: 'Contact', vat: 'TVA',
+    publisherValue: 'RODANBTECH — Anas RODRIGUEZ BENKARROUM, Entrepreneur individuel',
+    vatValue: 'TVA non applicable, article 293 B du Code général des impôts, sous réserve de confirmation du régime applicable.',
+  },
+  en: {
+    title: 'Publisher identity', publisher: 'Publisher and contracting party', product: 'Product', contact: 'Contact', vat: 'VAT',
+    publisherValue: 'RODANBTECH — Anas RODRIGUEZ BENKARROUM, sole trader',
+    vatValue: 'VAT not applicable under Article 293 B of the French General Tax Code, subject to confirmation of the applicable tax regime.',
+  },
+  ar: {
+    title: 'هوية الناشر', publisher: 'الناشر والطرف المتعاقد', product: 'المنتج', contact: 'الاتصال', vat: 'ضريبة القيمة المضافة',
+    publisherValue: 'RODANBTECH — Anas RODRIGUEZ BENKARROUM، مقاول فردي',
+    vatValue: 'لا تطبق ضريبة القيمة المضافة وفقًا للمادة 293 B من قانون الضرائب الفرنسي، مع مراعاة تأكيد النظام الضريبي المطبق.',
+  },
 }
 
-export function LegalV2DocumentPage({ documentId }: { documentId: LegalV2DocumentId }) {
+export function LegalV2DocumentPage({ documentId }: { documentId: ClientLegalV2DocumentId }) {
   const { lang } = useLang()
   const definition = LEGAL_V2_DOCUMENTS[documentId]
   const record = legalDocumentRecord(documentId, lang)
@@ -84,11 +104,11 @@ export function LegalV2DocumentPage({ documentId }: { documentId: LegalV2Documen
         <section className="mt-8 rounded-xl border border-border bg-muted/30 p-4 text-sm">
           <h2 className="font-semibold">{identity.title}</h2>
           <dl className="mt-3 grid gap-3 text-muted-foreground sm:grid-cols-2">
-            <Identity label={identity.publisher} value="RODANBTECH — Anas RODRIGUEZ BENKARROUM, Entrepreneur individuel" />
+            <Identity label={identity.publisher} value={identity.publisherValue} />
             <Identity label="SIREN / SIRET" value="103 878 187 · 103 878 187 00014" ltr />
             <Identity label={identity.product} value="Clikarage" ltr />
             <Identity label={identity.contact} value={legalConfig.contactEmail} ltr />
-            <Identity label={identity.vat} value="TVA non applicable, article 293 B du Code général des impôts." />
+            <Identity label={identity.vat} value={identity.vatValue} />
           </dl>
         </section>
       </article>

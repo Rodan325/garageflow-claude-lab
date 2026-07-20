@@ -26,7 +26,7 @@ Aucun P0 technique n'empeche le merge avec les flags OFF. Toute activation avant
 
 ## P1 avant activation technique
 
-- Executer les deux migrations additives sur une base locale puis staging explicitement non productifs.
+- Executer les trois migrations additives sur une base locale puis staging explicitement non productifs.
 - Verifier les huit acceptations historiques avant et apres migration, sans backfill.
 - Tester l'acceptation utilisateur, l'acceptation organisation et le refus d'un membre non habilite sur une base migree.
 - Passer les versions approuvees de `staged` a `effective` uniquement par une migration revue, avec date d'effet et hashes exacts.

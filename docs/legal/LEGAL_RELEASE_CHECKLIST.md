@@ -32,6 +32,7 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 - [ ] Reconstruction complete depuis zero.
 - [ ] Migration `20260719111617_add_legal_acceptance_versioning_contracts.sql` appliquee.
 - [ ] Migration `20260719235753_harden_legal_acceptance_v2.sql` appliquee.
+- [ ] Migration `20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql` appliquee.
 - [ ] Huit acceptations historiques preservees et champs ajoutes laisses `NULL`.
 - [ ] Test d'isolation multi-tenant des acceptations.
 - [ ] Acceptation DPA refusee pour un role non habilite.

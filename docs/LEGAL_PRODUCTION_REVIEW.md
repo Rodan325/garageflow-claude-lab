@@ -79,7 +79,11 @@ The Arabic handover report is generated with the bundled Amiri regular and bold 
 - Page 1: [`docs/assets/legal/clikarage-delivery-report-ar-page-1.png`](assets/legal/clikarage-delivery-report-ar-page-1.png)
 - Page 2: [`docs/assets/legal/clikarage-delivery-report-ar-page-2.png`](assets/legal/clikarage-delivery-report-ar-page-2.png)
 
-Both pages were rendered at 1310 x 1853 pixels and visually inspected. Arabic letters are joined, lists are RTL, dates are readable, technical values remain LTR, page numbers are present, and no clipping, overlap or missing glyph was observed.
+The committed captures were rendered at 1310 x 1853 pixels and visually inspected before the independent review. Arabic letters are joined, lists are RTL, dates are readable, technical values remain LTR, page numbers are present, and no clipping, overlap or missing glyph was observed. Those captures still predate the final localization of the three financial labels and are no longer sufficient as final visual evidence. The generator and PDF test now use Arabic labels with LTR amount values; the PDF and captures must be regenerated and inspected before activation.
+
+## Independent review corrections
+
+The post-validation review corrected nine merge-blocking issues without enabling the corpus: flags-off routes and active versions now remain frozen on `2026-07-02`; the legacy DPA path remains user-scoped; center-scoped legacy admins cannot accept an organization DPA; non-public service-level and AI-policy text is absent from the frontend runtime; Arabic PDF financial labels are localized in the generator; the V2 publisher/VAT identity block no longer leaks French into English or Arabic; the unverified `Supabase, Inc.` entity assertion was replaced with the neutral product name `Supabase`; and the language-switch regression test now covers the fail-closed historical layout as well as the V2 wording. The forward-only migration `20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql` contains no data rewrite.
 
 ## Blocking before contracting
 
@@ -114,4 +118,3 @@ Both pages were rendered at 1310 x 1853 pixels and visually inspected. Arabic le
 6. Verify new acceptances record version, language, stable document identifier and organization context.
 7. Monitor Auth/API logs without logging document URLs, tokens or personal data.
 8. Activate product modules only through the separately approved progressive rollout.
-

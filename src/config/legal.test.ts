@@ -65,11 +65,11 @@ describe('legalConfig — informations réelles RODANBTECH', () => {
     }
   })
 
-  it('les versions légales commerciales sont explicites et la version pilote reste historique', () => {
-    expect(legalVersions.terms).toBe('terms-2026-01')
-    expect(legalVersions.privacy).toBe('privacy-2026-01')
-    expect(legalVersions.dpa).toBe('dpa-2026-01')
-    expect(legalVersions.legalNotice).toBe('legal-2026-01')
+  it('conserve les versions historiques tant que le corpus commercial est sous flag', () => {
+    expect(legalVersions.terms).toBe('2026-07-02')
+    expect(legalVersions.privacy).toBe('2026-07-02')
+    expect(legalVersions.dpa).toBe('2026-07-02')
+    expect(legalVersions.legalNotice).toBe('2026-07-02')
     expect(legalVersions.pilotAgreement).toBe('2026-07-02')
     // Chaque type de document connu a une version courante et des métadonnées d'affichage.
     for (const doc of ['terms', 'privacy', 'pilot_agreement', 'dpa', 'legal_notice'] as const) {

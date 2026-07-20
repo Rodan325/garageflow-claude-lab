@@ -1,6 +1,6 @@
 # Plan de migration des preuves d'acceptation juridique
 
-Statut : plan uniquement. Aucune migration de ce chantier n'a ete appliquee a une base distante.
+Statut : migrations validees en local et sur le staging autorise uniquement. Aucune migration de ce chantier n'a ete appliquee en production.
 
 ## Etat historique
 
@@ -25,6 +25,14 @@ Ajoute des champs nullable pour la langue affichee, l'identifiant stable et l'or
 - Derive le role habilite cote base pour une acceptation d'organisation.
 - Ajoute une unicite partielle pour les nouvelles preuves utilisateur et organisation.
 - Revoque l'acces direct au registre prive et limite la RPC de lecture au role `authenticated` avec verification d'appartenance.
+
+### `20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql`
+
+- Conserve le DPA historique `2026-07-02` comme preuve strictement utilisateur tant que les flags V2 sont faux.
+- Refuse tout hash ou toute revendication d'organisation sur cette preuve historique.
+- Reserve l'acceptation DPA d'organisation aux roles generiques habilites ou aux anciens `owner/admin` non rattaches a un centre.
+- Enregistre le role ayant reellement autorise l'acceptation au lieu d'une valeur de compatibilite ambigue.
+- Remplace uniquement la fonction de garde et ne modifie aucune acceptation existante.
 
 ## Invariants
 
@@ -62,4 +70,4 @@ Le frontend doit ensuite etre active dans cet ordre : documents V2, registre des
 
 ## Validation actuelle
 
-Les tests unitaires verifient statiquement l'absence de backfill, les contraintes, les policies, les grants, les hashes et l'alignement du registre. L'execution SQL et les scenarios RLS doivent encore etre valides sur une base non productive migree avant toute application distante.
+La reconstruction Docker locale et le staging autorise presentent 36/36 migrations. Les suites RLS/RPC/Storage/concurrence obtiennent 101/101 et les scenarios juridiques 18/18 sur les deux environnements. Le dry-run staging final est vide. La production n'a pas ete consultee ou modifiee pendant cette validation.

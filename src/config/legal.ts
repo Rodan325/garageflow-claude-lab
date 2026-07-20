@@ -52,7 +52,8 @@ export const legalConfig = {
   frontendHostWebsite: 'https://vercel.com',
   frontendHostContact: 'Contact légal disponible via https://vercel.com',
 
-  backendProviderName: 'Supabase, Inc.',
+  // Keep the product name neutral until the account's contracting entity is verified.
+  backendProviderName: 'Supabase',
   backendProviderWebsite: 'https://supabase.com',
   backendPurpose: 'Base de données, authentification et infrastructure technique',
   // Région réelle du projet Supabase de production (vérifiée : eu-west-3).
@@ -87,11 +88,11 @@ export const legalConfig = {
  * concernés via la LegalAcceptanceGate.
  */
 export const legalVersions = {
-  terms: 'terms-2026-01',
-  privacy: 'privacy-2026-01',
+  terms: '2026-07-02',
+  privacy: '2026-07-02',
   pilotAgreement: '2026-07-02',
-  dpa: 'dpa-2026-01',
-  legalNotice: 'legal-2026-01',
+  dpa: '2026-07-02',
+  legalNotice: '2026-07-02',
 }
 
 export const HISTORICAL_LEGAL_VERSION = '2026-07-02'

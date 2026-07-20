@@ -9,6 +9,23 @@ import {
   type LocalizedCommercialLegalDocument,
 } from './commercialLegalContent'
 
+export type ClientLegalV2DocumentId = Exclude<LegalV2DocumentId, 'service_levels' | 'ai_policy'>
+
+export const CLIENT_LEGAL_V2_DOCUMENT_IDS: ClientLegalV2DocumentId[] = [
+  'legal',
+  'terms_pro',
+  'terms_client',
+  'privacy',
+  'cookies',
+  'dpa',
+  'subprocessors',
+  'security',
+]
+
+export function isClientLegalV2DocumentId(documentId: LegalV2DocumentId): documentId is ClientLegalV2DocumentId {
+  return documentId !== 'service_levels' && documentId !== 'ai_policy'
+}
+
 function section(
   id: string,
   title: ReturnType<typeof text>,
@@ -319,68 +336,6 @@ const security: LegalDocumentSource = {
   ],
 }
 
-const serviceLevels: LegalDocumentSource = {
-  title: text('Annexe de service et support', 'Service and support schedule', 'ملحق الخدمة والدعم'),
-  introduction: text(
-    'Cette annexe complète le bon de commande sans créer de SLA numérique qui n’y serait pas expressément convenu.',
-    'This schedule supplements the order form without creating a numerical SLA unless expressly agreed there.',
-    'يكمل هذا الملحق أمر الشراء دون إنشاء SLA رقمي لم يُتفق عليه صراحة فيه.',
-  ),
-  sections: [
-    section('availability', text('1. Disponibilité', '1. Availability', '1. التوفر'), [text(
-      'RODANBTECH met en œuvre des moyens raisonnables pour maintenir le service. Les interruptions liées à la maintenance, la sécurité, un fournisseur, internet, un cas de force majeure ou un environnement client sont exclues de tout calcul convenu, selon le bon de commande.',
-      'RODANBTECH uses reasonable measures to maintain the service. Interruptions caused by maintenance, security, a provider, the internet, force majeure or the customer environment are excluded from any agreed calculation as set out in the order form.',
-      'تتخذ RODANBTECH تدابير معقولة للحفاظ على الخدمة. وتُستبعد من أي حساب متفق عليه الانقطاعات الناتجة عن الصيانة أو الأمن أو مزود أو الإنترنت أو القوة القاهرة أو بيئة العميل وفق أمر الشراء.',
-    )]),
-    section('maintenance', text('2. Maintenance', '2. Maintenance', '2. الصيانة'), [text(
-      'Les maintenances susceptibles d’avoir un impact significatif sont annoncées lorsque cela est raisonnablement possible. Une intervention urgente de sécurité peut être réalisée sans préavis.',
-      'Maintenance likely to have a material impact is announced where reasonably possible. Urgent security work may be performed without notice.',
-      'يُعلن عن الصيانة التي يحتمل أن يكون لها أثر جوهري عندما يكون ذلك ممكنًا بصورة معقولة. ويمكن تنفيذ أعمال أمنية عاجلة دون إشعار.',
-    )]),
-    section('support', text('3. Support standard', '3. Standard support', '3. الدعم القياسي'), [text(
-      'Le support standard est accessible à anas.rodriguez@rodanbtech.com les jours ouvrés. Un objectif de premier retour peut être indiqué dans le bon de commande ; il ne constitue pas un délai de résolution garanti sauf engagement écrit.',
-      'Standard support is available at anas.rodriguez@rodanbtech.com on business days. An initial-response target may be stated in the order form; it is not a guaranteed resolution time unless agreed in writing.',
-      'يتوفر الدعم القياسي عبر anas.rodriguez@rodanbtech.com في أيام العمل. ويمكن تحديد هدف للرد الأول في أمر الشراء؛ ولا يمثل وقت حل مضمونًا إلا باتفاق مكتوب.',
-    )]),
-    section('recovery', text('4. Sauvegarde et reprise', '4. Backup and recovery', '4. النسخ الاحتياطي والاستعادة'), [text(
-      'Les modalités de sauvegarde, export et reprise dépendent du plan technique et du bon de commande. Les tests de restauration internes ne constituent pas une garantie contractuelle d’un RPO ou RTO non signé.',
-      'Backup, export and recovery arrangements depend on the technical plan and order form. Internal restore tests do not create a contractual RPO or RTO that was not signed.',
-      'تعتمد ترتيبات النسخ والتصدير والاستعادة على الخطة التقنية وأمر الشراء. ولا تنشئ اختبارات الاستعادة الداخلية RPO أو RTO تعاقديًا غير موقع.',
-    )]),
-    section('customer-duties', text('5. Coopération du client', '5. Customer cooperation', '5. تعاون العميل'), [text(
-      'Le client fournit les informations nécessaires au diagnostic, maintient ses équipements et accès, désigne ses contacts et applique les contournements raisonnables. Le support ne remplace pas les responsabilités métier, juridiques ou techniques du garage.',
-      'The customer provides information needed for diagnosis, maintains equipment and access, appoints contacts and applies reasonable workarounds. Support does not replace the garage’s business, legal or technical responsibilities.',
-      'يوفر العميل المعلومات اللازمة للتشخيص ويحافظ على معداته ووصوله ويعين جهات الاتصال ويطبق الحلول المعقولة. ولا يحل الدعم محل مسؤوليات الورشة المهنية أو القانونية أو التقنية.',
-    )]),
-  ],
-}
-
-const aiPolicy: LegalDocumentSource = {
-  title: text('Charte d’utilisation de l’intelligence artificielle', 'Artificial intelligence use policy', 'سياسة استخدام الذكاء الاصطناعي'),
-  introduction: text(
-    'Document interne préparatoire. Aucune fonctionnalité d’intelligence artificielle externe n’est active dans Clikarage.',
-    'Internal preparatory document. No external artificial-intelligence feature is active in Clikarage.',
-    'وثيقة داخلية تحضيرية. ولا توجد خاصية ذكاء اصطناعي خارجية نشطة في Clikarage.',
-  ),
-  sections: [
-    section('inactive', text('1. État actuel', '1. Current status', '1. الوضع الحالي'), [text(
-      'Le flag IA est désactivé. Aucun fournisseur IA ne reçoit les données client et aucune suggestion IA ne doit être présentée comme une fonctionnalité active.',
-      'The AI flag is off. No AI provider receives customer data and no AI suggestion may be represented as an active feature.',
-      'علم الذكاء الاصطناعي معطل. ولا يتلقى أي مزود ذكاء اصطناعي بيانات العملاء ولا يجوز عرض اقتراحات الذكاء الاصطناعي كخاصية نشطة.',
-    )]),
-    section('principles', text('2. Principes futurs', '2. Future principles', '2. المبادئ المستقبلية'), [text(
-      'Toute activation future exige finalité, fournisseur, DPA, sécurité, minimisation, transparence, contrôle humain et tests documentés. Les données ne servent pas à entraîner un modèle généraliste sans accord écrit.',
-      'Future activation requires documented purpose, provider, DPA, security, minimisation, transparency, human oversight and testing. Data is not used to train a general-purpose model without written agreement.',
-      'يتطلب أي تفعيل لاحق غرضًا ومزودًا وDPA وأمنًا وتقليلًا وشفافية وإشرافًا بشريًا واختبارات موثقة. ولا تُستخدم البيانات لتدريب نموذج عام دون اتفاق مكتوب.',
-    )]),
-    section('human-control', text('3. Contrôle humain', '3. Human oversight', '3. الإشراف البشري'), [text(
-      'Une sortie IA éventuelle reste une suggestion à vérifier. Elle ne constitue jamais un diagnostic mécanique, une expertise, une décision juridique, un prix garanti ou une instruction de sécurité.',
-      'Any future AI output remains a suggestion to verify. It is never a mechanical diagnosis, expert opinion, legal decision, guaranteed price or safety instruction.',
-      'تظل أي مخرجات ذكاء اصطناعي مستقبلية اقتراحًا يجب التحقق منه. ولا تمثل تشخيصًا ميكانيكيًا أو خبرة أو قرارًا قانونيًا أو سعرًا مضمونًا أو تعليمات أمنية.',
-    )]),
-  ],
-}
-
 function localized(source: LegalDocumentSource, lang: Lang): LocalizedCommercialLegalDocument {
   return {
     title: source.title[lang],
@@ -447,7 +402,7 @@ function termsPro(lang: Lang): LocalizedCommercialLegalDocument {
   return { ...document, title: lang === 'fr' ? 'Conditions générales de services et d’abonnement B2B' : lang === 'en' ? 'B2B service and subscription terms' : 'الشروط العامة للخدمات والاشتراك بين المهنيين', sections: [...document.sections, ...additions] }
 }
 
-export function getLegalV2Document(documentId: LegalV2DocumentId, lang: Lang): LocalizedCommercialLegalDocument {
+export function getLegalV2Document(documentId: ClientLegalV2DocumentId, lang: Lang): LocalizedCommercialLegalDocument {
   switch (documentId) {
     case 'legal': return localized(legal, lang)
     case 'terms_pro': return termsPro(lang)
@@ -457,12 +412,10 @@ export function getLegalV2Document(documentId: LegalV2DocumentId, lang: Lang): L
     case 'dpa': return dpa(lang)
     case 'subprocessors': return localized(subprocessors, lang)
     case 'security': return localized(security, lang)
-    case 'service_levels': return localized(serviceLevels, lang)
-    case 'ai_policy': return localized(aiPolicy, lang)
   }
 }
 
-export function serializeLegalV2Document(documentId: LegalV2DocumentId, lang: Lang) {
+export function serializeLegalV2Document(documentId: ClientLegalV2DocumentId, lang: Lang) {
   return JSON.stringify(getLegalV2Document(documentId, lang))
 }
 
@@ -473,8 +426,6 @@ export const LEGAL_V2_SOURCE_DOCUMENTS = {
   cookies,
   subprocessors,
   security,
-  serviceLevels,
-  aiPolicy,
   termsPro: commercialLegalContent.terms,
   dpa: commercialLegalContent.dpa,
 }

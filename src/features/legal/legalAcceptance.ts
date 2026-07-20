@@ -84,7 +84,9 @@ export async function recordLegalAcceptance(
     document_version: version,
     document_id: `${documentType}:${version}`,
     displayed_language: evidence?.displayedLanguage ?? null,
-    organization_id: evidence?.organizationId ?? null,
+    // Legacy evidence is always user-scoped. Organization-level authority is
+    // recorded only by recordLegalV2Acceptance and validated by the database.
+    organization_id: null,
     user_agent: userAgent(),
     acceptance_context: context,
   })

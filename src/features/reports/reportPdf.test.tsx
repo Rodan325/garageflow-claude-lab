@@ -54,6 +54,11 @@ describe('Arabic delivery report PDF', () => {
 
     expect(document.props.title).toContain(deliveryReportLabels('ar').title)
     expect(document.props.title).toContain(report.report_number)
+    expect(deliveryReportLabels('ar')).toMatchObject({
+      subtotal: 'المجموع الفرعي',
+      tax: 'ضريبة القيمة المضافة',
+      total: 'المجموع',
+    })
   })
 
   it('renders a real PDF with the embedded Arabic font', async () => {
@@ -63,7 +68,7 @@ describe('Arabic delivery report PDF', () => {
       garage,
       lang: 'ar',
       centerName: 'المركز الرئيسي',
-      financialSummary: ['Total: 120.00 EUR'],
+      financialSummary: { subtotal: '100.00 EUR', tax: '20.00 EUR', total: '120.00 EUR' },
     })
     const bytes = new Uint8Array(await blob.arrayBuffer())
 

@@ -72,13 +72,23 @@ describe('commercial legal corpus', () => {
     }
   })
 
-  it.each(currentDocuments)('renders the current %s route with official publisher and contact details', (_key, Page) => {
+  it('does not assert an unverified Supabase contracting entity', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/features/legal/commercialLegalContent.ts'), 'utf8')
+    expect(source).not.toContain('Supabase, Inc.')
+  })
+
+  it.each(currentDocuments)('keeps the flags-off %s route on the frozen corpus', (_key, Page) => {
     const { container } = renderPage(Page, 'fr')
-    expect(container).toHaveTextContent('Anas RODRIGUEZ BENKARROUM')
     expect(container).toHaveTextContent('RODANBTECH')
+    expect(container).toHaveTextContent('2026-07-02')
+    expect(container).not.toHaveTextContent('Document commercial en préparation')
+  })
+
+  it('keeps the official publisher identity on the flags-off legal notice', () => {
+    const { container } = renderPage(LegalPage, 'fr')
+    expect(container).toHaveTextContent('Anas RODRIGUEZ BENKARROUM')
     expect(container).toHaveTextContent('103 878 187 00014')
     expect(container.querySelector('a[href="mailto:anas.rodriguez@rodanbtech.com"]')).not.toBeNull()
-    expect(container.querySelector('a[href="/pilot-agreement"]')).toBeNull()
   })
 
   it('keeps every public and professional legal route registered', () => {
@@ -89,10 +99,10 @@ describe('commercial legal corpus', () => {
     expect(appSource).toContain('path="legal-status"')
   })
 
-  it('uses explicit commercial versions and excludes pilot terms from new garage acceptance', () => {
-    expect(LEGAL_DOCUMENT_VERSIONS.terms).toBe('terms-2026-01')
-    expect(LEGAL_DOCUMENT_VERSIONS.privacy).toBe('privacy-2026-01')
-    expect(LEGAL_DOCUMENT_VERSIONS.dpa).toBe('dpa-2026-01')
+  it('fails closed on historical versions and excludes the pilot agreement from new acceptance', () => {
+    expect(LEGAL_DOCUMENT_VERSIONS.terms).toBe('2026-07-02')
+    expect(LEGAL_DOCUMENT_VERSIONS.privacy).toBe('2026-07-02')
+    expect(LEGAL_DOCUMENT_VERSIONS.dpa).toBe('2026-07-02')
     expect(REQUIRED_LEGAL_DOCS.garage).toEqual(['terms', 'privacy', 'dpa'])
   })
 })

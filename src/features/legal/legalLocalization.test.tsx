@@ -58,7 +58,7 @@ describe('French legal reference', () => {
   it('can be restored directly from a translated page', () => {
     renderLegal(LegalPage, 'en')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open the reference French version' }))
+    fireEvent.click(screen.getByRole('button', { name: /reference French version/i }))
 
     expect(document.documentElement.lang).toBe('fr')
     expect(document.documentElement.dir).toBe('ltr')

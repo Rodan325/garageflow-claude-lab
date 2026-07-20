@@ -8,16 +8,20 @@ import { LanguageProvider, type Lang } from '@/i18n'
 import {
   LEGAL_V2_DOCUMENTS,
   LEGAL_V2_FLAG_NAMES,
-  type LegalV2DocumentId,
 } from '@/config/legalV2'
-import { getLegalV2Document, serializeLegalV2Document } from './legalV2Content'
+import {
+  CLIENT_LEGAL_V2_DOCUMENT_IDS,
+  getLegalV2Document,
+  serializeLegalV2Document,
+  type ClientLegalV2DocumentId,
+} from './legalV2Content'
 import { LegalV2DocumentPage } from './LegalV2DocumentPage'
 import { HistoricalLegalArchivePage } from './HistoricalLegalArchivePage'
 
-const documentIds = Object.keys(LEGAL_V2_DOCUMENTS) as LegalV2DocumentId[]
+const clientDocumentIds = CLIENT_LEGAL_V2_DOCUMENT_IDS
 const languages: Lang[] = ['fr', 'en', 'ar']
 
-function renderV2(documentId: LegalV2DocumentId, lang: Lang) {
+function renderV2(documentId: ClientLegalV2DocumentId, lang: Lang) {
   localStorage.setItem('gf-lang', lang)
   return render(
     <LanguageProvider>
@@ -49,7 +53,7 @@ describe('legal V2 registry and content', () => {
     }
   })
 
-  it.each(documentIds)('%s has clause parity in French, English and Arabic', (documentId) => {
+  it.each(clientDocumentIds)('%s has clause parity in French, English and Arabic', (documentId) => {
     const reference = getLegalV2Document(documentId, 'fr')
     for (const lang of languages) {
       const document = getLegalV2Document(documentId, lang)
@@ -60,7 +64,7 @@ describe('legal V2 registry and content', () => {
   })
 
   it('contains no visible pilot, prototype, placeholder or historical product branding', () => {
-    const visible = documentIds.flatMap((documentId) => languages.map((lang) => (
+    const visible = clientDocumentIds.flatMap((documentId) => languages.map((lang) => (
       serializeLegalV2Document(documentId, lang)
     ))).join('\n')
     expect(visible).not.toMatch(/programme pilote|offre pilote|version pilote|\bpilot\b|\bbeta\b|expérimental|test version|version d'essai|placeholder|GarageFlow/i)
@@ -68,13 +72,13 @@ describe('legal V2 registry and content', () => {
 
   it('does not leak reference French legal headings into English or Arabic', () => {
     for (const lang of ['en', 'ar'] as const) {
-      const visible = documentIds.map((documentId) => serializeLegalV2Document(documentId, lang)).join('\n')
+      const visible = clientDocumentIds.map((documentId) => serializeLegalV2Document(documentId, lang)).join('\n')
       expect(visible).not.toMatch(/Mentions légales|Politique de confidentialité|Conditions d’accès|Conditions générales de services|Accord de sous-traitance/)
     }
   })
 
   it('binds every localized document to its configured SHA-256', () => {
-    for (const documentId of documentIds) {
+    for (const documentId of clientDocumentIds) {
       for (const lang of languages) {
         const actual = createHash('sha256').update(serializeLegalV2Document(documentId, lang)).digest('hex')
         expect(actual, `${documentId}/${lang}`).toBe(LEGAL_V2_DOCUMENTS[documentId].sha256[lang])
@@ -91,6 +95,10 @@ describe('legal V2 registry and content', () => {
     expect(container).toHaveTextContent('Clikarage')
     expect(document.documentElement.dir).toBe(lang === 'ar' ? 'rtl' : 'ltr')
     expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex,nofollow')
+    if (lang !== 'fr') {
+      expect(container).not.toHaveTextContent('Entrepreneur individuel')
+      expect(container).not.toHaveTextContent('TVA non applicable')
+    }
   })
 
   it('contains no external Google Fonts request in the application shell', () => {
@@ -139,6 +147,10 @@ describe('legal acceptance V2 migration contract', () => {
     resolve(process.cwd(), 'supabase/migrations/20260719235753_harden_legal_acceptance_v2.sql'),
     'utf8',
   )
+  const failClosedMigration = readFileSync(
+    resolve(process.cwd(), 'supabase/migrations/20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql'),
+    'utf8',
+  )
 
   it('preserves historical rows and adds only nullable evidence columns', () => {
     expect(migration).toContain('add column if not exists document_sha256 text')
@@ -172,5 +184,31 @@ describe('legal acceptance V2 migration contract', () => {
     for (const document of Object.values(LEGAL_V2_DOCUMENTS)) {
       for (const hash of Object.values(document.sha256)) expect(migration).toContain(hash)
     }
+  })
+
+  it('preserves only user-scoped legacy DPA evidence while V2 remains disabled', () => {
+    expect(failClosedMigration).toContain("new.document_version = '2026-07-02'")
+    expect(failClosedMigration).toContain('new.organization_id is not null or new.document_sha256 is not null')
+    expect(failClosedMigration).not.toMatch(/update\s+(?:public\.)?legal_acceptances/i)
+    expect(failClosedMigration).not.toMatch(/delete\s+from\s+(?:public\.)?legal_acceptances/i)
+  })
+
+  it('records the authority role that actually authorized an organization acceptance', () => {
+    expect(failClosedMigration).toContain("when member.organization_role in ('organization_owner', 'network_admin')")
+    expect(failClosedMigration).toContain('member.center_id is null')
+    expect(failClosedMigration).toContain("and member.role in ('owner', 'admin') then member.role")
+    expect(failClosedMigration).not.toContain('coalesce(member.organization_role, member.role)')
+  })
+
+  it('keeps non-public legal documents unreachable from the generic route', () => {
+    const route = readFileSync(resolve(process.cwd(), 'src/features/legal/LegalV2Route.tsx'), 'utf8')
+    const runtimeContent = readFileSync(resolve(process.cwd(), 'src/features/legal/legalV2Content.ts'), 'utf8')
+    expect(route).toContain('!LEGAL_V2_DOCUMENTS[documentId].public')
+    expect(runtimeContent).not.toContain('Annexe de service et support')
+    expect(runtimeContent).not.toContain('Document interne préparatoire')
+    expect(runtimeContent).not.toContain('serviceLevels')
+    expect(runtimeContent).not.toContain('aiPolicy')
+    expect(LEGAL_V2_DOCUMENTS.service_levels.public).toBe(false)
+    expect(LEGAL_V2_DOCUMENTS.ai_policy.public).toBe(false)
   })
 })

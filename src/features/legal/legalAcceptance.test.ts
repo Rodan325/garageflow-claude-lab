@@ -49,7 +49,7 @@ describe('legal acceptance evidence', () => {
     expect(state.inserted).toHaveLength(0)
   })
 
-  it('records the displayed language, stable document id, and organization', async () => {
+  it('records legacy evidence without claiming organization authority', async () => {
     await recordLegalAcceptance('terms', 'terms-2026-01', 'garage', 'legal_gate', {
       displayedLanguage: 'ar',
       organizationId: 'garage-legal-test',
@@ -62,7 +62,7 @@ describe('legal acceptance evidence', () => {
       document_version: 'terms-2026-01',
       document_id: 'terms:terms-2026-01',
       displayed_language: 'ar',
-      organization_id: 'garage-legal-test',
+      organization_id: null,
     })
   })
 
@@ -79,9 +79,9 @@ describe('legal acceptance evidence', () => {
   it('remains idempotent for an already accepted document version', async () => {
     state.existing = [{ id: 'existing-acceptance' }]
 
-    await recordLegalAcceptance('dpa', 'dpa-2026-01', 'garage', 'legal_gate', {
+    await recordLegalAcceptance('dpa', '2026-07-02', 'garage', 'legal_gate', {
       displayedLanguage: 'fr',
-      organizationId: 'garage-legal-test',
+      organizationId: null,
     })
 
     expect(state.inserted).toHaveLength(0)
