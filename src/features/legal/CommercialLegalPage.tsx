@@ -74,4 +74,3 @@ function IdentityItem({ label, value, ltr = false }: { label: string; value: str
     </div>
   )
 }
-

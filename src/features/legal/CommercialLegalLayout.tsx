@@ -74,4 +74,3 @@ export function LegalSectionTitle({ children }: { children: React.ReactNode }) {
 export function LegalParagraph({ children }: { children: React.ReactNode }) {
   return <p className="mt-2 text-sm leading-7 text-muted-foreground">{children}</p>
 }
-

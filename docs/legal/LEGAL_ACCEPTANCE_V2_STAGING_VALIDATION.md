@@ -1,9 +1,9 @@
 # Validation locale et staging des acceptations juridiques V2
 
-Date de validation : 20 juillet 2026  
-Branche : `feat/legal-production-readiness`  
-SHA de depart : `ec2518b397ddd1bae141efda29c3615dacb58cbc`  
-Staging autorise : `zazdhzmfrtecxtglhoso`  
+Date de validation : 20 juillet 2026
+Branche : `feat/legal-production-readiness`
+SHA de depart : `ec2518b397ddd1bae141efda29c3615dacb58cbc`
+Staging autorise : `zazdhzmfrtecxtglhoso`
 Production interdite : `tftmfhwmzkhzlvgwcnje`
 
 ## Perimetre et garanties
