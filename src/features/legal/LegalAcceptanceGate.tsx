@@ -17,7 +17,15 @@ import {
   type LegalDocumentType,
   type LegalRole,
 } from '@/config/legal'
-import { getMissingLegalDocuments, recordMultipleLegalAcceptances } from './legalAcceptance'
+import { LEGAL_V2_DOCUMENTS } from '@/config/legalV2'
+import { legalAcceptanceV2Enabled } from '@/lib/features'
+import {
+  getMissingLegalDocuments,
+  getMissingLegalV2Documents,
+  recordLegalV2Acceptance,
+  recordMultipleLegalAcceptances,
+  type AcceptableLegalV2DocumentId,
+} from './legalAcceptance'
 import { LOCALES, useLang } from '@/i18n'
 
 const GATE_TEXT: Record<'client' | 'garage', string> = {
@@ -25,6 +33,24 @@ const GATE_TEXT: Record<'client' | 'garage', string> = {
     'Pour continuer, vous devez accepter les Conditions d’utilisation et reconnaître avoir pris connaissance de la Politique de confidentialité.',
   garage:
     'Pour continuer, vous devez accepter les Conditions d’utilisation, reconnaître avoir pris connaissance de la Politique de confidentialité et accepter l’Accord de sous-traitance des données.',
+}
+
+type GateDocument = LegalDocumentType | AcceptableLegalV2DocumentId
+
+const V2_LABELS: Record<AcceptableLegalV2DocumentId, string> = {
+  terms_pro: 'Conditions d’utilisation',
+  terms_client: 'Conditions d’utilisation',
+  dpa: 'Accord de sous-traitance RGPD',
+}
+
+function gateDocumentMeta(documentId: GateDocument, useV2: boolean) {
+  if (useV2) {
+    const id = documentId as AcceptableLegalV2DocumentId
+    const document = LEGAL_V2_DOCUMENTS[id]
+    return { label: V2_LABELS[id], route: document.route, version: document.version }
+  }
+  const id = documentId as LegalDocumentType
+  return { ...LEGAL_DOCUMENT_META[id], version: LEGAL_DOCUMENT_VERSIONS[id] }
 }
 
 /**
@@ -36,17 +62,21 @@ const GATE_TEXT: Record<'client' | 'garage', string> = {
  */
 export function LegalAcceptanceGate({ role, children }: { role: LegalRole; children: React.ReactNode }) {
   const { lang, tr } = useLang()
-  const { demo, userId, signOut } = useAuth()
+  const { demo, userId, membership, garage, signOut } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
 
+  const useV2 = legalAcceptanceV2Enabled()
+  const organizationId = role === 'garage' ? (membership?.garage_id ?? garage?.id ?? null) : null
   const enabled = !demo && isSupabaseConfigured && !!userId
-  const { data: missing, isLoading } = useQuery({
-    queryKey: ['legal-missing', userId, role],
+  const { data: missing, isLoading, isError } = useQuery<GateDocument[]>({
+    queryKey: ['legal-missing', useV2 ? 'v2' : 'legacy', userId, role, organizationId],
     enabled,
-    queryFn: () => getMissingLegalDocuments(userId!, role),
+    queryFn: async () => useV2
+      ? await getMissingLegalV2Documents(userId!, role, organizationId)
+      : await getMissingLegalDocuments(userId!, role),
   })
 
   if (!enabled) return <>{children}</>
@@ -54,6 +84,18 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
         <Spinner className="h-7 w-7" />
+      </div>
+    )
+  }
+  if (isError) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md p-6 text-center">
+          <h1 className="font-semibold">{tr('Une erreur est survenue')}</h1>
+          <Button className="mt-4" onClick={() => qc.invalidateQueries({ queryKey: ['legal-missing'] })}>
+            {tr('Réessayer')}
+          </Button>
+        </Card>
       </div>
     )
   }
@@ -65,16 +107,26 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
     if (!allChecked || !missing) return
     setSubmitting(true)
     try {
-      await recordMultipleLegalAcceptances(
-        missing.map((doc) => ({ documentType: doc, version: LEGAL_DOCUMENT_VERSIONS[doc] })),
-        role,
-        'legal_gate',
-        {
-          displayedLanguage: lang,
-          organizationId: null,
-        },
-      )
-      await qc.invalidateQueries({ queryKey: ['legal-missing', userId, role] })
+      if (useV2) {
+        for (const documentId of missing as AcceptableLegalV2DocumentId[]) {
+          const document = LEGAL_V2_DOCUMENTS[documentId]
+          await recordLegalV2Acceptance(documentId, role, 'legal_gate', {
+            displayedLanguage: lang,
+            organizationId: document.acceptanceScope === 'organization' ? organizationId : null,
+          })
+        }
+      } else {
+        await recordMultipleLegalAcceptances(
+          (missing as LegalDocumentType[]).map((doc) => ({ documentType: doc, version: LEGAL_DOCUMENT_VERSIONS[doc] })),
+          role,
+          'legal_gate',
+          {
+            displayedLanguage: lang,
+            organizationId: null,
+          },
+        )
+      }
+      await qc.invalidateQueries({ queryKey: ['legal-missing'] })
     } catch {
       toast.error(tr('Enregistrement impossible'), tr('L’enregistrement n’a pas pu être terminé.'))
     } finally {
@@ -97,11 +149,11 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground">{tr(GATE_TEXT[role === 'garage' ? 'garage' : 'client'])}</p>
+          {!useV2 && <p className="text-sm text-muted-foreground">{tr(GATE_TEXT[role === 'garage' ? 'garage' : 'client'])}</p>}
 
           <div className="mt-4 space-y-2">
-            {missing.map((doc: LegalDocumentType) => {
-              const meta = LEGAL_DOCUMENT_META[doc]
+            {(missing as GateDocument[]).map((doc) => {
+              const meta = gateDocumentMeta(doc, useV2)
               return (
                 <label
                   key={doc}
@@ -120,7 +172,7 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
                     </Link>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
                       <FileText className="mr-1 inline h-3 w-3" />
-                      {tr('Version du document : {version}', { version: LEGAL_DOCUMENT_VERSIONS[doc] })}
+                      {tr('Version du document : {version}', { version: meta.version })}
                     </span>
                   </span>
                 </label>

@@ -754,6 +754,7 @@ export type Database = {
             evidence_source: string | null
           id: string
           organization_id: string | null
+          organization_name_snapshot: string | null
           role: string
           user_agent: string | null
           user_id: string
@@ -774,6 +775,7 @@ export type Database = {
             evidence_source?: string | null
           id?: string
           organization_id?: string | null
+          organization_name_snapshot?: string | null
           role: string
           user_agent?: string | null
           user_id: string
@@ -794,19 +796,12 @@ export type Database = {
             evidence_source?: string | null
           id?: string
           organization_id?: string | null
+          organization_name_snapshot?: string | null
           role?: string
           user_agent?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "legal_acceptances_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "garages"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       delivery_reports: {
         Row: {
@@ -2172,6 +2167,23 @@ export type Database = {
       }
       has_garage_role: {
         Args: { p_garage_id: string; p_roles: string[] }
+        Returns: boolean
+      }
+      has_organization_legal_acceptance: {
+        Args: {
+          p_organization_id: string
+          p_document_id: string
+          p_document_version: string
+        }
+        Returns: boolean
+      }
+      has_organization_legal_acceptance_v2: {
+        Args: {
+          p_organization_id: string
+          p_document_id: string
+          p_document_version: string
+          p_document_hashes: string[]
+        }
         Returns: boolean
       }
       is_garage_member: { Args: { p_garage_id: string }; Returns: boolean }
