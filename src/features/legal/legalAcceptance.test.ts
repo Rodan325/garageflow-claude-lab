@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { LEGAL_V2_DOCUMENTS } from '@/config/legalV2'
 
 const state = vi.hoisted(() => ({
   existing: [] as Array<{ id: string }>,
@@ -30,7 +31,14 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
-import { listOwnLegalAcceptances, recordLegalAcceptance, recordLegalV2Acceptance } from './legalAcceptance'
+import {
+  isCurrentLegalV2Acceptance,
+  listOwnLegalAcceptances,
+  recordLegalAcceptance,
+  recordLegalV2Acceptance,
+  requiredLegalV2Documents,
+  type LegalV2AcceptanceCandidate,
+} from './legalAcceptance'
 
 beforeEach(() => {
   state.existing = []
@@ -102,6 +110,81 @@ describe('legal acceptance evidence', () => {
     }]
 
     await expect(listOwnLegalAcceptances('user-legal-test')).resolves.toEqual(state.listRows)
+  })
+})
+
+describe('V2 evidence matching', () => {
+  const effectiveTerms = {
+    ...LEGAL_V2_DOCUMENTS.terms_client,
+    status: 'effective' as const,
+    effectiveAt: '2026-08-01T00:00:00Z',
+  }
+  const correctRow: LegalV2AcceptanceCandidate = {
+    user_id: 'user-legal-test',
+    document_type: 'terms_client',
+    document_id: 'terms_client',
+    document_version: effectiveTerms.version,
+    displayed_language: 'fr',
+    organization_id: null,
+    document_sha256: effectiveTerms.sha256.fr,
+    document_status: 'effective',
+    acceptance_scope: 'user',
+  }
+
+  it('requires evidence when none exists and accepts the exact user proof', () => {
+    expect(isCurrentLegalV2Acceptance(correctRow, effectiveTerms, 'user-legal-test', null)).toBe(true)
+  })
+
+  it.each([
+    ['wrong document key', { document_id: 'terms' }],
+    ['wrong version', { document_version: 'terms-older' }],
+    ['wrong hash', { document_sha256: '0'.repeat(64) }],
+    ['wrong user', { user_id: 'other-user' }],
+    ['wrong scope', { acceptance_scope: 'organization' }],
+  ])('rejects a %s', (_label, override) => {
+    expect(isCurrentLegalV2Acceptance(
+      { ...correctRow, ...override },
+      effectiveTerms,
+      'user-legal-test',
+      null,
+    )).toBe(false)
+  })
+
+  it('requires a new acceptance when the configured version or hash changes', () => {
+    expect(isCurrentLegalV2Acceptance(correctRow, {
+      ...effectiveTerms,
+      version: 'terms-2026-02',
+    }, 'user-legal-test', null)).toBe(false)
+    expect(isCurrentLegalV2Acceptance(correctRow, {
+      ...effectiveTerms,
+      sha256: { ...effectiveTerms.sha256, fr: '1'.repeat(64) },
+    }, 'user-legal-test', null)).toBe(false)
+  })
+
+  it('matches organization evidence only inside the exact tenant', () => {
+    const document = {
+      ...LEGAL_V2_DOCUMENTS.dpa,
+      status: 'effective' as const,
+      effectiveAt: '2026-08-01T00:00:00Z',
+    }
+    const row: LegalV2AcceptanceCandidate = {
+      ...correctRow,
+      user_id: 'organization-owner',
+      document_type: 'dpa',
+      document_id: 'dpa',
+      document_version: document.version,
+      document_sha256: document.sha256.fr,
+      organization_id: 'organization-a',
+      acceptance_scope: 'organization',
+    }
+    expect(isCurrentLegalV2Acceptance(row, document, 'different-member', 'organization-a')).toBe(true)
+    expect(isCurrentLegalV2Acceptance(row, document, 'organization-owner', 'organization-b')).toBe(false)
+  })
+
+  it('includes DPA only when its dedicated self-service capability is enabled', () => {
+    expect(requiredLegalV2Documents('garage', false)).toEqual(['terms_pro'])
+    expect(requiredLegalV2Documents('garage', true)).toEqual(['terms_pro', 'dpa'])
+    expect(requiredLegalV2Documents('client', true)).toEqual(['terms_client'])
   })
 })
 

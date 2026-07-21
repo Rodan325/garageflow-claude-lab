@@ -222,12 +222,14 @@ async function run() {
   const ownerAAcceptance = await ownerA
     .from('legal_acceptances')
     .insert({ ...organizationEvidence(IDS.organizationA), user_id: ownerAUser.data.user.id })
-    .select('id,user_id,organization_id,document_id,document_sha256,document_status,acceptance_scope,authority_role')
+    .select('id,user_id,organization_id,organization_name_snapshot,document_id,document_sha256,document_status,acceptance_scope,authority_role')
     .single()
   check(
     'An authorized organization owner can accept the DPA',
     !ownerAAcceptance.error
       && ownerAAcceptance.data.organization_id === IDS.organizationA
+      && typeof ownerAAcceptance.data.organization_name_snapshot === 'string'
+      && ownerAAcceptance.data.organization_name_snapshot.length > 0
       && ownerAAcceptance.data.document_id === 'dpa'
       && ownerAAcceptance.data.document_sha256 === DPA_HASH
       && ownerAAcceptance.data.document_status === 'effective'
@@ -249,17 +251,27 @@ async function run() {
     ownerBAcceptance.error,
   )
 
-  const ownerAOrganizationStatus = await ownerA.rpc('has_organization_legal_acceptance', {
+  const ownerAOrganizationStatus = await ownerA.rpc('has_organization_legal_acceptance_v2', {
     p_organization_id: IDS.organizationA,
     p_document_id: 'dpa',
     p_document_version: VERSION,
+    p_document_hashes: [DPA_HASH],
   })
-  check('An organization member can resolve their organization acceptance', !ownerAOrganizationStatus.error && ownerAOrganizationStatus.data === true, ownerAOrganizationStatus.error)
+  check('An organization member resolves only the exact organization acceptance hash', !ownerAOrganizationStatus.error && ownerAOrganizationStatus.data === true, ownerAOrganizationStatus.error)
 
-  const crossOrganizationStatus = await ownerB.rpc('has_organization_legal_acceptance', {
+  const wrongHashOrganizationStatus = await ownerA.rpc('has_organization_legal_acceptance_v2', {
     p_organization_id: IDS.organizationA,
     p_document_id: 'dpa',
     p_document_version: VERSION,
+    p_document_hashes: [BAD_HASH],
+  })
+  check('An organization acceptance with another hash is treated as missing', !wrongHashOrganizationStatus.error && wrongHashOrganizationStatus.data === false, wrongHashOrganizationStatus.error)
+
+  const crossOrganizationStatus = await ownerB.rpc('has_organization_legal_acceptance_v2', {
+    p_organization_id: IDS.organizationA,
+    p_document_id: 'dpa',
+    p_document_version: VERSION,
+    p_document_hashes: [DPA_HASH],
   })
   check('The organization acceptance RPC rejects a foreign organization', Boolean(crossOrganizationStatus.error), crossOrganizationStatus.error)
 

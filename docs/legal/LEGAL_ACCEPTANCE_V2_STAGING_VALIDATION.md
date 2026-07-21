@@ -222,3 +222,87 @@ PRODUCTION MODIFIEE : NON
 P0 RESTANTS : AUCUN
 P1 RESTANTS : AUCUN
 PRET POUR MERGE AVEC FLAGS OFF : OUI
+
+## Addendum du 21 juillet 2026 - correction des trois P1
+
+Cet addendum complete la validation precedente et remplace ses compteurs pour
+la presente passe. La production et Vercel n'ont ete ni consultes ni modifies.
+Tous les flags sont restes desactives.
+
+### Perimetre corrige
+
+- `/dpa` exige desormais la chaine fail-closed complete : documents V2,
+  acceptations V2, puis DPA self-service. Une valeur absente, vide, `false`,
+  `1`, `TRUE` ou invalide ne l'active pas.
+- `LegalAcceptanceGate` interroge les preuves V2 lorsque le flux V2 est actif.
+  Il controle le document, la version, le hash, la portee et le tenant. Une
+  erreur de lecture bloque le passage. Flags OFF, le comportement legacy reste
+  inchange et aucune preuve V2 n'est creee.
+- `20260720230821_preserve_legal_acceptance_evidence_lifecycle.sql` supprime les
+  deux dependances FK destructives, conserve les UUID comme identifiants
+  pseudonymes immuables, fige le nom de l'organisation cote serveur et inclut
+  le hash dans les index uniques V2. Elle ne contient aucun `UPDATE`, `DELETE`,
+  `TRUNCATE` ou backfill de `public.legal_acceptances`.
+
+### Validation locale actualisee
+
+- Reconstruction exacte : 37/37 migrations et seed appliques.
+- Migration historique modifiee : aucune ; les empreintes des quatre migrations
+  juridiques anterieures sont controlees automatiquement.
+- Matrice flags, routes, gate V2 et contrats SQL : 54/54.
+- Suite applicative : 384/384.
+- Test RLS execution 1 : 101/101 general + 19/19 juridique = 120/120.
+- Test RLS execution 2 : 101/101 general + 19/19 juridique = 120/120.
+- Test RLS execution 3 : 101/101 general + 19/19 juridique = 120/120.
+- Cycle de vie transactionnel : la preuve survit a la suppression de la version,
+  de l'acteur et de l'organisation, puis la transaction est annulee.
+- Etat final : zero fixture juridique, demande, rappel ou objet Storage.
+- Typecheck, build et security scan : reussis. Lint : zero erreur et deux
+  avertissements Fast Refresh preexistants.
+
+Docker Desktop s'est arrete une fois pendant l'initialisation. Apres
+redemarrage, les services auxiliaires `analytics` et `pg_meta` ont encore
+retourne une erreur Windows `input/output error`. La stack minimale PostgreSQL,
+Auth, Kong, REST et Storage a ete reconstruite et a porte toutes les validations.
+
+### Validation staging actualisee
+
+- Cible unique : `zazdhzmfrtecxtglhoso` ; production interdite :
+  `tftmfhwmzkhzlvgwcnje`.
+- Derive avant application : uniquement `20260720230821`.
+- Historique apres application : 37/37 ; dry-run final vide.
+- RLS/RPC/Storage/concurrence : 101/101.
+- Juridique V2 : 19/19.
+- Cycle de vie transactionnel distant : reussi avec rollback integral.
+- Nettoyage final : zero version, preuve, utilisateur, organisation, demande,
+  rappel ou objet Storage de validation.
+
+Neuf demandes, deux rappels et deux objets Storage fictifs datant du test du
+20 juillet ont ete identifies par leurs marqueurs de validation. Les objets ont
+ete supprimes par l'API Storage avec le compte fictif habilite, puis les lignes
+de validation ont ete supprimees du staging. Aucun contenu metier reel n'a ete
+utilise.
+
+### Huit preuves historiques simulees
+
+La validation precedente avait compare les huit preuves avant/apres migration :
+8/8 champs nouveaux `NULL` et empreinte historique identique
+`5268894c...73f94`. Ces fixtures avaient ensuite ete nettoyees ; le local
+reconstruit et le staging contenaient donc zero acceptation au debut de cette
+passe. La nouvelle migration est couverte par un contrat sans reecriture et ne
+peut ni backfiller ni modifier ces preuves. Cet addendum ne pretend pas avoir
+recontrole huit lignes absentes des environnements nettoyes.
+
+LOCAL DOCKER - MIGRATION CYCLE DE VIE : OUI
+LOCAL DOCKER - TEST:RLS : OUI - 3 EXECUTIONS A 120/120
+STAGING - DERIVE CONTROLEE : OUI
+STAGING - MIGRATION CYCLE DE VIE APPLIQUEE : OUI
+STAGING - TEST:RLS : OUI - 120/120
+HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : OUI, SELON LE SNAPSHOT PRECEDENT ET LE CONTRAT SANS REECRITURE
+ISOLATION MULTI-TENANT : OUI
+CONTROLE D'HABILITATION DPA : OUI
+FLAGS TOUJOURS OFF : OUI
+PRODUCTION MODIFIEE : NON
+P0 RESTANTS : AUCUN
+P1 RESTANTS : AUCUN
+PRET POUR NOUVELLE REVUE INDEPENDANTE : OUI

@@ -12,7 +12,7 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 - [x] Les hashes du registre, du contenu et de la migration sont identiques.
 - [x] `npm.cmd run typecheck`, `lint`, `test`, `build` et `security:scan` reussissent.
 - [x] Aucun secret, `service_role`, token ou identite personnelle dans le diff.
-- [x] Aucune migration appliquee pendant cette validation finale et aucun changement Vercel.
+- [x] Aucune migration production et aucun changement Vercel ; la migration de preuve a ete appliquee uniquement en local et sur staging.
 
 ## 2. Gate de validation humaine
 
@@ -33,12 +33,14 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 - [x] Migration `20260719111617_add_legal_acceptance_versioning_contracts.sql` appliquee.
 - [x] Migration `20260719235753_harden_legal_acceptance_v2.sql` appliquee.
 - [x] Migration `20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql` appliquee.
+- [x] Migration `20260720230821_preserve_legal_acceptance_evidence_lifecycle.sql` appliquee en local et staging.
 - [x] Huit acceptations historiques preservees et champs ajoutes laisses `NULL` pendant la validation de migration.
 - [x] Test d'isolation multi-tenant des acceptations.
 - [x] Acceptation DPA refusee pour un role non habilite.
 - [x] Hash, langue, version, statut, application et source controles par la base.
 - [x] Archive de la version acceptee recuperable.
-- [x] Trois executions RLS locales consecutives reussies a 119/119 sans reconstruction.
+- [x] Trois executions RLS locales consecutives reussies a 120/120 sans reconstruction.
+- [x] Cycle de vie local et staging : la preuve survit a la suppression de l'acteur, de l'organisation et de la version documentaire.
 - [x] Zero fixture juridique, organisation, utilisateur, demande, rappel ou document apres le teardown final.
 - [x] Advisors Supabase examines et aucun P0 ouvert.
 
