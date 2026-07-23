@@ -7,7 +7,7 @@
  */
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fixtureSnapshotDifferences } from './rls-fixture-lifecycle.mjs'
 import {
@@ -233,9 +233,44 @@ function executeSql(sql) {
   const sqlFile = join(tmpdir(), `clikarage-rls-${fixtureRunId}-${action}.sql`)
   writeFileSync(sqlFile, sql, { encoding: 'utf8', flag: 'wx' })
   try {
+    const npmExecPath = process.env.npm_execpath
+    const npxCliPath = npmExecPath
+      ? join(dirname(npmExecPath), 'npx-cli.js')
+      : null
+    const command = npxCliPath && existsSync(npxCliPath)
+      ? process.execPath
+      : process.platform === 'win32'
+        ? 'npx.cmd'
+        : 'npx'
+    const args = npxCliPath && existsSync(npxCliPath)
+      ? [
+          npxCliPath,
+          'supabase',
+          'db',
+          'query',
+          '--linked',
+          '--file',
+          sqlFile,
+          '--output-format',
+          'text',
+          '--agent',
+          'no',
+        ]
+      : [
+          'supabase',
+          'db',
+          'query',
+          '--linked',
+          '--file',
+          sqlFile,
+          '--output-format',
+          'text',
+          '--agent',
+          'no',
+        ]
     const query = spawnSync(
-      'npx.cmd',
-      ['supabase', 'db', 'query', '--linked', '--file', sqlFile],
+      command,
+      args,
       { encoding: 'utf8' },
     )
     if (query.error || query.status !== 0) {
