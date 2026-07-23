@@ -12,8 +12,16 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 - [x] Les hashes du registre, du contenu et de la migration sont identiques.
 - [x] Le rendu, le hash et l'acceptation utilisent le meme modele canonique
   couvrant aussi l'identite de l'editeur et la mention TVA.
+- [x] Les pages de revue utilisent ce meme modele canonique, y compris avec
+  les flags V2 desactives.
+- [x] Aucun PDF juridique runtime n'est genere dans cette release. Le hash ne
+  couvre donc aucun PDF inexistant ; tout futur export juridique devra
+  consommer le modele canonique.
 - [x] Le DPA `public: false` est inaccessible aux anonymes et son acceptation
   exige l'habilitation organisationnelle et la chaine complete de flags.
+- [x] Les ecritures directes `anon`/`authenticated` sur les preuves sont
+  revoquees ; la RPC courante derive l'acteur, la version, le hash et
+  l'habilitation cote serveur.
 - [x] Aucun fichier interne ou mixte ne reste sous `docs/legal/`.
 - [x] `npm.cmd run typecheck`, `lint`, `test`, `build` et `security:scan` reussissent.
 - [x] Aucun secret, `service_role`, token ou identite personnelle dans le diff.
@@ -43,6 +51,10 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
   appliquee sur Docker local apres reconstruction 38/38.
 - [x] Migration `20260723110428_refresh_legal_canonical_document_hashes.sql`
   appliquee seule sur staging ; historique 38/38 et dry-run final vide.
+- [x] Migration
+  `20260723185453_restrict_legal_acceptance_writes_to_current_document_rpc.sql`
+  reconstruite et validee uniquement sur Docker local ; staging non modifie
+  pendant cette passe.
 - [x] Snapshot staging avant/apres : zero acceptation et empreinte identique.
   Les huit preuves historiques simulees n'etaient pas presentes sur staging ;
   ne pas presenter ce controle comme une comparaison de huit lignes distantes.

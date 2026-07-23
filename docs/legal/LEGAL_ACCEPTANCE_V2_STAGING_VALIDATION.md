@@ -112,13 +112,23 @@ Le controle SQL final a confirme zero utilisateur, organisation, demande, rappel
 - Etat final du registre : 30 lignes, dont 27 `staged`, 3 `draft` et 0 `effective`.
 - Etat final des acceptations staging : retour au compte initial de 0.
 
-## Huit acceptations historiques
+## Huit fixtures historiques de validation
 
-En local, les huit lignes etaient toujours presentes apres migration, les neuf nouveaux champs etaient `NULL` pour 8/8 lignes et l'empreinte SHA-256 des colonnes historiques restait exactement `5268894c...73f94`. En staging, les huit fixtures existaient encore apres migration et les neuf nouveaux champs etaient `NULL` pour 8/8 lignes. Elles ont ensuite ete supprimees dans le nettoyage du test, puisque le staging n'en contenait aucune avant la validation.
+En local, le test dedie avait cree huit lignes fictives avant migration. Les
+neuf nouveaux champs sont restes `NULL` pour 8/8 lignes et l'empreinte SHA-256
+des colonnes historiques est restee `5268894c...73f94`.
+
+Les huit lignes precedemment citees sur staging etaient elles aussi des
+fixtures temporaires d'une ancienne validation. Elles avaient ete nettoyees
+avant la migration des hashes canoniques. Staging contenait donc zero
+acceptation avant cette migration et zero apres ; l'empreinte du jeu vide est
+restee identique. La preservation distante de huit preuves ne peut pas etre
+revendiquee. L'immutabilite est etablie par les tests locaux et RLS dedies.
 
 Les migrations ne contiennent aucun `UPDATE`, `DELETE` ou backfill de `public.legal_acceptances`. La migration forward remplace uniquement la fonction de garde. Les champs restent donc inconnus (`NULL`) pour une preuve historique lorsque l'information n'existait pas au moment de l'acceptation.
 
-Les huit lignes historiques etaient des fixtures transitoires de validation de migration. Leur contenu a ete verifie avant leur nettoyage controle ; la base locale courante ne conserve aucune acceptation de validation. Ce nettoyage ne constitue pas une mutation par migration et ne modifie pas la preuve de compatibilite relevee avant/apres application.
+La base locale courante ne conserve aucune acceptation de validation. Le
+nettoyage des fixtures ne constitue pas une mutation par migration.
 
 ## Contraintes, index, fonctions et RLS
 
@@ -214,7 +224,7 @@ LOCAL DOCKER — TEST:RLS : OUI — 3 EXECUTIONS CONSECUTIVES A 119/119
 STAGING — DERIVE CONTROLEE : OUI
 STAGING — MIGRATIONS JURIDIQUES APPLIQUEES : OUI
 STAGING — TEST:RLS : OUI — 119/119
-HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : OUI
+HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : NON VERIFIABLE A DISTANCE ; HUIT FIXTURES LOCALES INCHANGEES
 ISOLATION MULTI-TENANT : OUI
 CONTROLE D'HABILITATION DPA : OUI
 FLAGS TOUJOURS OFF : OUI
@@ -298,7 +308,7 @@ LOCAL DOCKER - TEST:RLS : OUI - 3 EXECUTIONS A 120/120
 STAGING - DERIVE CONTROLEE : OUI
 STAGING - MIGRATION CYCLE DE VIE APPLIQUEE : OUI
 STAGING - TEST:RLS : OUI - 120/120
-HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : OUI, SELON LE SNAPSHOT PRECEDENT ET LE CONTRAT SANS REECRITURE
+HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : NON VERIFIABLE A DISTANCE ; IMMUTABILITE COUVERTE PAR TESTS
 ISOLATION MULTI-TENANT : OUI
 CONTROLE D'HABILITATION DPA : OUI
 FLAGS TOUJOURS OFF : OUI
@@ -306,6 +316,49 @@ PRODUCTION MODIFIEE : NON
 P0 RESTANTS : AUCUN
 P1 RESTANTS : AUCUN
 PRET POUR NOUVELLE REVUE INDEPENDANTE : OUI
+
+## Annexe - ecritures juridiques courantes via RPC du 23 juillet 2026
+
+Cette validation est strictement locale. La migration additive
+`20260723185453_restrict_legal_acceptance_writes_to_current_document_rpc.sql`
+n'a pas ete appliquee au staging pendant cette passe.
+
+La reconstruction Docker a applique les 39 migrations et `supabase/seed.sql`
+depuis une base vide. La migration :
+
+- revoque `INSERT`, `UPDATE` et `DELETE` directs sur
+  `public.legal_acceptances` pour `anon` et `authenticated` ;
+- conserve les lectures autorisees par RLS ;
+- expose une RPC de statut et une RPC d'acceptation avec
+  `SECURITY DEFINER`, `search_path` vide et droits `authenticated`
+  explicitement accordes ;
+- derive cote serveur l'acteur, l'horodatage, la version, le hash, la portee
+  et l'habilitation ;
+- refuse l'archive pilote, le DPA historique `2026-07-02`, les documents non
+  courants, les membres non habilites et les appels cross-tenant ;
+- ne contient aucun `UPDATE`, `DELETE` ou backfill de preuve existante.
+
+La suite locale a valide 101/101 controles generaux et 25/25 controles
+juridiques V2. Elle couvre notamment le refus d'un `INSERT` Data API, la
+determination serveur du hash courant, l'idempotence, la portee
+`organization` de `terms_pro`, l'absence d'action pour un membre simple,
+l'autorite finale SQL et le nettoyage complet des fixtures.
+
+La page `/pro/legal-status` utilise le registre et les preuves V2 lorsque le
+flag d'acceptation V2 est actif. Avec les flags OFF, le parcours legacy
+fail-closed reste en lecture seule et ne cree aucune preuve V2. Les pages de
+revue rendent le modele canonique ; aucun PDF juridique runtime n'est genere
+dans cette release.
+
+LOCAL DOCKER - RECONSTRUCTION : OUI - 39/39
+LOCAL DOCKER - TEST:RLS GENERAL : OUI - 101/101
+LOCAL DOCKER - TEST:RLS JURIDIQUE V2 : OUI - 25/25
+INSERT DIRECT DATA API : REFUSE
+HASH ET VERSION : DERIVES COTE SERVEUR
+FIXTURES RESIDUELLES : ZERO
+STAGING - NOUVELLE MIGRATION APPLIQUEE : NON
+PRODUCTION CONSULTEE OU MODIFIEE : NON
+FLAGS : OFF
 
 ## Addendum final du 23 juillet 2026 - validation staging des hashes canoniques
 
@@ -397,7 +450,7 @@ FLAGS TOUJOURS OFF : OUI
 PRODUCTION CONSULTEE OU MODIFIEE : NON
 VERCEL PRODUCTION MODIFIE : NON
 P0 RESTANTS : AUCUN
-P1 RESTANTS : AUCUN TECHNIQUE ; ABSENCE DES HUIT LIGNES ATTENDUES DOCUMENTEE
+P1 RESTANTS : AUCUN TECHNIQUE ; ZERO ACCEPTATION STAGING AVANT/APRES DOCUMENTE
 PRET POUR REVUE INDEPENDANTE : OUI, AVEC CETTE RESERVE FACTUELLE
 
 ## Annexe - validation locale prealable du 23 juillet 2026
@@ -485,7 +538,7 @@ backfill des acceptations dans les migrations juridiques forward.
 LOCAL DOCKER - RECONSTRUCTION : OUI - 38/38
 LOCAL DOCKER - TEST:RLS : OUI - 120/120
 STAGING - ETAT LORS DE CETTE PASSE LOCALE : MIGRATION NON ENCORE APPLIQUEE
-HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : OUI, CONTRAT SANS REECRITURE ET SNAPSHOT PRECEDENT
+HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : NON VERIFIABLE A DISTANCE ; HUIT FIXTURES DE TEST DEJA NETTOYEES
 DPA PRIVE ET HABILITATION : OUI
 HASH CANONIQUE COMPLET : OUI
 FLAGS TOUJOURS OFF : OUI
