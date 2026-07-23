@@ -2,9 +2,10 @@
 
 Statut au 20 juillet 2026 : corpus V2 integre pour revue et staging, derriere flags desactives. Aucune date d'effet n'est configuree et aucun document V2 ne peut etre accepte en production.
 
-Source de travail immuable : `docs/legal/source/Clikarage_Pack_Juridique_Complet_FR_2026_Sans_Pilote.md`.
-
-Empreinte SHA-256 de la source : `54EA0DD8454893A00F66FCCA83068C3E20E1166201F7D5639502B2535E40F899`.
+La source de travail initiale et sa revue de preintegration ont ete archivees
+hors du depot public, car elles melangeaient corpus publiable, hypotheses
+internes et fiche de validation. Le modele canonique versionne sous
+`src/features/legal/` est la seule source du rendu et des hashes applicatifs.
 
 ## Documents publiables
 
@@ -39,9 +40,12 @@ Les contenus FR, EN et AR utilisent les memes identifiants de clauses. Le franca
 - Les archives ajoutent `noindex`, `nofollow` et `noarchive`, et ne proposent aucune action d'acceptation.
 - Les anciennes acceptations conservent leur version et ne sont jamais reecrites.
 
-## Elements internes
+## Documents non publics
 
-Les matrices de decision, durees de conservation de travail, ecarts techniques, informations fournisseur a confirmer et procedures de migration restent dans `docs/legal/internal/`. Elles ne sont importees par aucun composant frontend.
+Les matrices de travail, procedures internes et sources mixtes sont conservees
+dans un espace prive distinct. Elles ne sont ni suivies par Git, ni importees
+par le frontend. Leur contenu utile doit etre transforme en documentation
+publique nettoyee avant toute reintegration.
 
 ## Frontieres connues
 
