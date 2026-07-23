@@ -1,7 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { runWithFixtureLifecycle } from './rls-fixture-lifecycle.mjs'
 
 const requestedEnvFile = process.env.SUPABASE_RLS_ENV_FILE || '.env.local'
 const allowedEnvFiles = new Set(['.env.local', '.env.staging.local'])
@@ -46,7 +48,9 @@ if (legalV2FixturesEnabled) validationScripts.push(resolve('scripts/legal-v2-rls
 if (legalV2FixturesEnabled) childEnv.LEGAL_V2_RLS_FIXTURES = 'true'
 
 const fixtureRunId = randomUUID()
+const baselineFile = join(tmpdir(), `clikarage-rls-baseline-${fixtureRunId}.json`)
 childEnv.RLS_FIXTURE_RUN_ID = fixtureRunId
+childEnv.RLS_FIXTURE_BASELINE_FILE = baselineFile
 
 function runNodeScript(script, args = []) {
   return spawnSync(
@@ -56,45 +60,37 @@ function runNodeScript(script, args = []) {
   )
 }
 
-const localFixtureHelper = resolve('scripts/local-rls-fixtures.mjs')
+const fixtureHelper = resolve('scripts/rls-fixture-admin.mjs')
+
+function requireSuccess(result, context) {
+  if (result.error) throw new Error(`${context}: ${result.error.message}`)
+  if (result.status !== 0) throw new Error(`${context}: exited with ${result.status ?? 1}`)
+}
+
 let exitStatus = 0
-
 try {
-  if (usesLocalDocker) {
-    const prepare = runNodeScript(localFixtureHelper, ['prepare'])
-    if (prepare.error) {
-      console.error(`RLS SAFETY GUARD: unable to prepare local fixtures: ${prepare.error.message}`)
-      exitStatus = 2
-    } else if (prepare.status !== 0) {
-      exitStatus = prepare.status ?? 1
-    }
-  }
-
-  if (exitStatus === 0) {
+  await runWithFixtureLifecycle({
+    prepare: async () => {
+      const result = runNodeScript(fixtureHelper, ['prepare'])
+      requireSuccess(result, 'unable to capture the fixture baseline')
+      return baselineFile
+    },
+    run: async () => {
     for (const validationScript of validationScripts) {
       const result = runNodeScript(validationScript)
-
-      if (result.error) {
-        console.error(`RLS SAFETY GUARD: unable to start validation: ${result.error.message}`)
-        exitStatus = 2
-        break
-      }
-      if (result.status !== 0) {
-        exitStatus = result.status ?? 1
-        break
-      }
+        requireSuccess(result, `validation failed in ${validationScript}`)
     }
-  }
+    },
+    cleanup: async () => {
+      const result = runNodeScript(fixtureHelper, ['cleanup'])
+      requireSuccess(result, 'fixture cleanup did not restore the baseline')
+    },
+  })
+} catch (error) {
+  console.error(`RLS SAFETY GUARD: ${error.message}`)
+  exitStatus = 1
 } finally {
-  if (usesLocalDocker) {
-    const cleanup = runNodeScript(localFixtureHelper, ['cleanup'])
-    if (cleanup.error) {
-      console.error(`RLS SAFETY GUARD: unable to clean local fixtures: ${cleanup.error.message}`)
-      exitStatus = 2
-    } else if (cleanup.status !== 0) {
-      exitStatus = cleanup.status ?? 1
-    }
-  }
+  if (existsSync(baselineFile)) unlinkSync(baselineFile)
 }
 
 process.exit(exitStatus)

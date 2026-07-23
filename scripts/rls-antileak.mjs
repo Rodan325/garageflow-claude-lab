@@ -64,6 +64,7 @@ const ACCOUNTS = {
 let passed = 0
 let failed = 0
 const cleanup = { requests: [], storagePaths: [], quotes: [] }
+const cleanupOwners = new Map()
 
 function detail(value) {
   if (!value) return ''
@@ -116,7 +117,7 @@ async function createRequest(supabase, { garageId, centerId, clientId, label }) 
       garage_id: garageId,
       center_id: centerId,
       client_id: clientId,
-      service_name: `Local validation ${label}`,
+      service_name: `Local validation ${fixtureRunId} ${label}`,
       vehicle_label: `Fictitious vehicle ${label}`,
       requested_date: tomorrow,
       requested_time: '09:00',
@@ -158,10 +159,36 @@ async function proposeRecommendation(staff, recommendationId) {
   return result.data
 }
 
+async function cleanupRunArtifacts() {
+  console.log('\nCleanup')
+  const cleanupErrors = []
+  for (const item of cleanup.storagePaths) {
+    if (item.paths.length) {
+      const { error } = await item.client.storage.from(item.bucket).remove(item.paths)
+      if (error) cleanupErrors.push(`storage: ${error.message}`)
+    }
+  }
+  for (const item of cleanup.quotes) {
+    const { error } = await item.client.from('quotes').delete().eq('id', item.id)
+    if (error) cleanupErrors.push(`quote: ${error.message}`)
+  }
+  for (const item of cleanup.requests.reverse()) {
+    const remover = cleanupOwners.get(item.garageId)
+    if (!remover) {
+      cleanupErrors.push(`request: no authorized cleanup owner for garage ${item.garageId}`)
+      continue
+    }
+    const { error } = await remover.from('service_requests').delete().eq('id', item.id)
+    if (error) cleanupErrors.push(`request: ${error.message}`)
+  }
+  check('Request, quote, and Storage validation artifacts are removed cleanly', cleanupErrors.length === 0, cleanupErrors)
+}
+
 async function run() {
   console.log(`\nClikarage ${testTarget} security validation: ${target.origin}`)
   console.log('Safety: approved target, publishable key, fictitious accounts only.\n')
 
+  try {
   const health = await fetch(`${target.origin}/auth/v1/health`, {
     headers: { apikey: publishableKey },
   })
@@ -199,6 +226,8 @@ async function run() {
     clientB1,
     clientB2,
   ] = sessions
+  cleanupOwners.set(IDS.garageA, ownerA)
+  cleanupOwners.set(IDS.garageB, ownerB)
   const anonymous = client()
 
   console.log('RLS isolation')
@@ -788,6 +817,21 @@ async function run() {
   check('Duplicate reminder creation is idempotent or rejected', countSuccess(simultaneousReminders) === 1, simultaneousReminders.map((result) => result.error?.message))
   const reminder = simultaneousReminders.find((result) => !result.error)?.data
   if (reminder) {
+    const applicationDelete = await ownerA
+      .from('maintenance_reminders')
+      .delete()
+      .eq('id', reminder.id)
+    const reminderAfterDelete = await ownerA
+      .from('maintenance_reminders')
+      .select('id')
+      .eq('id', reminder.id)
+    check(
+      'Application roles cannot delete reminder fixtures directly',
+      Boolean(applicationDelete.error)
+        && !reminderAfterDelete.error
+        && reminderAfterDelete.data.length === 1,
+      applicationDelete.error ?? reminderAfterDelete.error,
+    )
     const simultaneousConversions = await Promise.all([
       ownerA.rpc('mark_maintenance_reminder_converted', { p_reminder_id: reminder.id, p_request_id: reportRequest.id }),
       clientA2.rpc('mark_maintenance_reminder_converted', { p_reminder_id: reminder.id, p_request_id: reportRequest.id }),
@@ -966,24 +1010,10 @@ async function run() {
   check('Organization owner can delete their own logo', !deleteOwnLogo.error, deleteOwnLogo.error)
   cleanup.storagePaths.at(-2).paths = []
 
-  console.log('\nCleanup')
-  const cleanupErrors = []
-  for (const item of cleanup.storagePaths) {
-    if (item.paths.length) {
-      const { error } = await item.client.storage.from(item.bucket).remove(item.paths)
-      if (error) cleanupErrors.push(`storage: ${error.message}`)
-    }
+  } finally {
+    await cleanupRunArtifacts()
   }
-  for (const item of cleanup.quotes) {
-    const { error } = await item.client.from('quotes').delete().eq('id', item.id)
-    if (error) cleanupErrors.push(`quote: ${error.message}`)
-  }
-  for (const item of cleanup.requests.reverse()) {
-    const remover = item.garageId === IDS.garageA ? ownerA : ownerB
-    const { error } = await remover.from('service_requests').delete().eq('id', item.id)
-    if (error) cleanupErrors.push(`request: ${error.message}`)
-  }
-  check('Request, quote, and Storage validation artifacts are removed cleanly', cleanupErrors.length === 0, cleanupErrors)
+
   console.log(`\nResult: ${passed} passed, ${failed} failed.`)
   if (failed > 0) process.exitCode = 1
 }
