@@ -259,17 +259,27 @@ export function isCurrentLegalV2Acceptance(
   return row.user_id === userId && row.organization_id === null
 }
 
-async function hasCurrentUserLegalV2Acceptance(
+export async function hasCurrentLegalV2Acceptance(
   documentId: AcceptableLegalV2DocumentId,
   userId: string,
+  organizationId: string | null,
+  language: Lang,
 ): Promise<boolean> {
   const document = LEGAL_V2_DOCUMENTS[documentId]
+  if (document.status !== 'effective' || !document.effectiveAt || !document.requiresAcceptance) return false
+  if (document.acceptanceScope === 'organization') {
+    if (!organizationId) return false
+    const status = await getLegalV2AcceptanceStatus(documentId, language, organizationId)
+    return status.accepted
+  }
   const { data, error } = await supabase
     .from('legal_acceptances')
     .select('user_id,document_type,document_id,document_version,displayed_language,organization_id,document_sha256,document_status,acceptance_scope')
     .eq('user_id', userId)
     .eq('document_type', documentId)
     .eq('document_version', document.version)
+    .eq('displayed_language', language)
+    .eq('document_sha256', document.sha256[language])
   if (error) throw error
   return (data ?? []).some((row) => isCurrentLegalV2Acceptance(
     row as LegalV2AcceptanceCandidate,
@@ -277,35 +287,6 @@ async function hasCurrentUserLegalV2Acceptance(
     userId,
     null,
   ))
-}
-
-async function hasCurrentOrganizationLegalV2Acceptance(
-  documentId: AcceptableLegalV2DocumentId,
-  organizationId: string,
-): Promise<boolean> {
-  const document = LEGAL_V2_DOCUMENTS[documentId]
-  const { data, error } = await supabase.rpc('has_organization_legal_acceptance_v2', {
-    p_organization_id: organizationId,
-    p_document_id: document.documentId,
-    p_document_version: document.version,
-    p_document_hashes: Object.values(document.sha256),
-  })
-  if (error) throw error
-  return data === true
-}
-
-export async function hasCurrentLegalV2Acceptance(
-  documentId: AcceptableLegalV2DocumentId,
-  userId: string,
-  organizationId: string | null,
-): Promise<boolean> {
-  const document = LEGAL_V2_DOCUMENTS[documentId]
-  if (document.status !== 'effective' || !document.effectiveAt || !document.requiresAcceptance) return false
-  if (document.acceptanceScope === 'organization') {
-    if (!organizationId) return false
-    return hasCurrentOrganizationLegalV2Acceptance(documentId, organizationId)
-  }
-  return hasCurrentUserLegalV2Acceptance(documentId, userId)
 }
 
 export async function getMissingLegalV2Documents(
