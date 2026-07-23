@@ -128,6 +128,32 @@ begin
   ) then raise exception 'initial immutable snapshot is incomplete'; end if;
 end $$;
 
+update private.legal_document_versions
+set sha256 = '${'b'.repeat(64)}'
+where document_id = 'terms_pro'
+  and document_version = '${version}'
+  and language = 'fr';
+
+select set_config('request.jwt.claim.sub', '${actorId}', true);
+set local role authenticated;
+do $$
+declare v_status record;
+begin
+  select *
+  into v_status
+  from public.get_current_legal_acceptance_status_v2(
+    'terms_pro',
+    'fr',
+    '${organizationId}'
+  );
+
+  if v_status.accepted
+    or v_status.document_sha256 <> '${'b'.repeat(64)}' then
+    raise exception 'historical hash incorrectly satisfies the current document';
+  end if;
+end $$;
+reset role;
+
 delete from private.legal_document_versions
 where document_id = 'terms_pro' and document_version = '${version}' and language = 'fr';
 delete from auth.users where id = '${actorId}';

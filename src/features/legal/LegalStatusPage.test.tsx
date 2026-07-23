@@ -12,11 +12,16 @@ const state = vi.hoisted(() => ({
   getStatuses: vi.fn(),
   listAcceptances: vi.fn(),
   record: vi.fn(),
+  legacyRoute: vi.fn(),
 }))
 
 vi.mock('@/lib/features', () => ({
   legalAcceptanceV2Enabled: () => state.v2,
 }))
+vi.mock('@/config/legal', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/config/legal')>()
+  return { ...actual, legalDocumentRoute: state.legacyRoute }
+})
 vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({
     userId: 'owner-a',
@@ -74,6 +79,29 @@ function status(
   }
 }
 
+function evidence(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'evidence-v2',
+    user_id: 'owner-a',
+    role: 'garage',
+    document_type: 'terms_pro',
+    document_version: 'terms-2025-12',
+    accepted_at: '2026-07-20T12:00:00Z',
+    acceptance_context: 'legal_gate',
+    displayed_language: 'fr',
+    document_id: 'terms_pro',
+    organization_id: 'organization-a',
+    organization_name_snapshot: 'Organization A',
+    document_sha256: 'b'.repeat(64),
+    document_status: 'effective',
+    application_version: 'legal-current-document-rpc-v2',
+    acceptance_scope: 'organization',
+    authority_role: 'organization_owner',
+    evidence_source: 'legal_gate',
+    ...overrides,
+  }
+}
+
 beforeEach(() => {
   localStorage.setItem('gf-lang', 'fr')
   state.v2 = false
@@ -82,6 +110,7 @@ beforeEach(() => {
   state.getStatuses.mockReset().mockImplementation(async () => state.statuses)
   state.listAcceptances.mockReset().mockImplementation(async () => state.acceptances)
   state.record.mockReset().mockResolvedValue(undefined)
+  state.legacyRoute.mockReset().mockReturnValue('/legacy-history')
 })
 
 afterEach(() => {
@@ -148,5 +177,70 @@ describe('professional legal status V2', () => {
       displayedLanguage: 'fr',
       organizationId: 'organization-a',
     }))
+  })
+
+  it('renders an old V2 terms proof with its exact route, locale, version, and hash', async () => {
+    state.v2 = true
+    state.statuses = [status('terms_pro'), status('dpa', { accepted: true })]
+    state.acceptances = [evidence()]
+
+    expect(() => renderPage()).not.toThrow()
+
+    const link = await screen.findByRole('link', {
+      name: /Conditions d’utilisation professionnelles.*terms-2025-12.*FR/i,
+    })
+    expect(link).toHaveAttribute('href', '/terms/pro')
+    expect(screen.getByText(/terms-2025-12/)).toBeInTheDocument()
+    expect(screen.getByText(/Langue : FR/)).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(`SHA-256 ${'b'.repeat(64)}`))).toBeInTheDocument()
+    expect(state.legacyRoute).not.toHaveBeenCalled()
+  })
+
+  it('keeps a current-version proof with an old hash in V2 history without crashing', async () => {
+    state.v2 = true
+    state.statuses = [status('terms_pro'), status('dpa', { accepted: true })]
+    state.acceptances = [evidence({ document_version: 'terms-2026-01' })]
+
+    renderPage()
+
+    expect(await screen.findByText(new RegExp(`SHA-256 ${'b'.repeat(64)}`))).toBeInTheDocument()
+    expect(screen.getByRole('link', {
+      name: /Conditions d’utilisation professionnelles.*terms-2026-01.*FR/i,
+    })).toHaveAttribute('href', '/terms/pro')
+    expect(state.legacyRoute).not.toHaveBeenCalled()
+  })
+
+  it('shows a proof accepted in another locale as V2 history', async () => {
+    state.v2 = true
+    state.statuses = [status('terms_pro'), status('dpa', { accepted: true })]
+    state.acceptances = [evidence({
+      document_version: 'terms-2026-01',
+      displayed_language: 'ar',
+      document_sha256: 'c'.repeat(64),
+    })]
+
+    renderPage()
+
+    expect(await screen.findByText(/Langue : AR/)).toBeInTheDocument()
+    expect(screen.getByRole('link', {
+      name: /Conditions d’utilisation professionnelles.*terms-2026-01.*AR/i,
+    })).toHaveAttribute('href', '/terms/pro')
+    expect(state.legacyRoute).not.toHaveBeenCalled()
+  })
+
+  it('renders an unknown V2 evidence key without a link or exception', async () => {
+    state.v2 = true
+    state.statuses = [status('terms_pro', { accepted: true }), status('dpa', { accepted: true })]
+    state.acceptances = [evidence({
+      id: 'unknown-evidence',
+      document_type: 'future_contract',
+      document_id: 'future_contract',
+    })]
+
+    expect(() => renderPage()).not.toThrow()
+
+    expect(await screen.findByText('future_contract')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /future_contract/i })).toBeNull()
+    expect(state.legacyRoute).not.toHaveBeenCalled()
   })
 })

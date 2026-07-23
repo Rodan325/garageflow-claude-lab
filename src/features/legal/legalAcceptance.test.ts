@@ -244,6 +244,7 @@ describe('V2 evidence matching', () => {
     ['wrong document key', { document_id: 'terms' }],
     ['wrong version', { document_version: 'terms-older' }],
     ['wrong hash', { document_sha256: '0'.repeat(64) }],
+    ['wrong locale', { displayed_language: 'ar' }],
     ['wrong user', { user_id: 'other-user' }],
     ['wrong scope', { acceptance_scope: 'organization' }],
   ])('rejects a %s', (_label, override) => {
@@ -302,6 +303,10 @@ describe('legal acceptance migration contract', () => {
     join(process.cwd(), 'supabase/migrations/20260723185453_restrict_legal_acceptance_writes_to_current_document_rpc.sql'),
     'utf8',
   )
+  const exactLocaleMigration = readFileSync(
+    join(process.cwd(), 'supabase/migrations/20260723220125_bind_legal_acceptance_evidence_to_exact_locale_hash.sql'),
+    'utf8',
+  )
 
   it('is additive and never rewrites historical acceptances', () => {
     expect(migration).toContain('add column if not exists displayed_language text')
@@ -332,5 +337,30 @@ describe('legal acceptance migration contract', () => {
     expect(writeRestrictionMigration).toContain("document.document_version = '2026-07-02'")
     expect(writeRestrictionMigration).not.toMatch(/update\s+(?:public\.)?legal_acceptances/i)
     expect(writeRestrictionMigration).not.toMatch(/delete\s+from\s+(?:public\.)?legal_acceptances/i)
+  })
+
+  it('binds status, idempotence, and concurrent lookup to the exact locale hash', () => {
+    expect(exactLocaleMigration).toContain('acceptance.displayed_language = v_document.language')
+    expect(exactLocaleMigration).toContain('acceptance.document_sha256 = v_document.sha256')
+    expect(exactLocaleMigration).toContain('legal_acceptances_v2_user_locale_unique')
+    expect(exactLocaleMigration).toContain('legal_acceptances_v2_organization_locale_unique')
+    expect(exactLocaleMigration).toMatch(
+      /user_id,\s*document_id,\s*document_version,\s*displayed_language,\s*document_sha256/s,
+    )
+    expect(exactLocaleMigration).toMatch(
+      /organization_id,\s*document_id,\s*document_version,\s*displayed_language,\s*document_sha256/s,
+    )
+    expect(exactLocaleMigration).toContain('document.requires_acceptance is true')
+    expect(exactLocaleMigration).toContain('v_document.language,')
+    expect(exactLocaleMigration).toContain('v_document.sha256')
+    expect(exactLocaleMigration).not.toMatch(/p_(?:actor_id|accepted_at|document_version|document_sha256)/)
+  })
+
+  it('keeps the locale-hash migration forward-only and historical evidence immutable', () => {
+    expect(exactLocaleMigration).toContain("p_document_key = 'pilot_agreement'")
+    expect(exactLocaleMigration).toContain("document.document_version = '2026-07-02'")
+    expect(exactLocaleMigration).not.toMatch(/\bupdate\s+(?:public\.)?legal_acceptances\b/i)
+    expect(exactLocaleMigration).not.toMatch(/\bdelete\s+from\s+(?:public\.)?legal_acceptances\b/i)
+    expect(exactLocaleMigration).not.toMatch(/\btruncate\s+(?:table\s+)?(?:public\.)?legal_acceptances\b/i)
   })
 })

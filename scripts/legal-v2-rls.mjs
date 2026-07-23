@@ -39,6 +39,8 @@ const IDS = {
 const VERSION = 'rls-validation-20260720'
 const CLIENT_HASH = '75148cb8161fa94a561ce55528d2fd9184ea2ad91f5e3a8619016f38fc6d31a7'
 const TERMS_PRO_HASH = 'bfb31cbfcb840155475d8ae6ad236893730de4558d1a3564143b4097dcadf170'
+const TERMS_PRO_EN_HASH = 'b1e9e013d85d1c6d38f15b3bc8aae3e1953a472040b130fa6dac41dbff3c561c'
+const TERMS_PRO_AR_HASH = 'a98b4bd3d0a8a5f46c4744efe3417dcf6e8634a99d519e36652c975e8c77406a'
 const DPA_HASH = '484d5bba3263046198fb04b4326b1b683a66c386d21dc26f1ce937dc17878120'
 const PASSWORD = 'LocalDemo1234!'
 const ACCOUNTS = {
@@ -76,10 +78,10 @@ async function signedIn([email, password]) {
   return supabase
 }
 
-function rpcArgs(documentKey, organizationId = null) {
+function rpcArgs(documentKey, organizationId = null, language = 'fr') {
   return {
     p_document_key: documentKey,
-    p_language: 'fr',
+    p_language: language,
     p_organization_id: organizationId,
   }
 }
@@ -216,7 +218,7 @@ async function run() {
       && clientEvidence.data.document_sha256 === CLIENT_HASH
       && clientEvidence.data.document_status === 'effective'
       && clientEvidence.data.acceptance_scope === 'user'
-      && clientEvidence.data.application_version === 'legal-current-document-rpc-v1',
+      && clientEvidence.data.application_version === 'legal-current-document-rpc-v2',
     clientEvidence.error,
   )
 
@@ -291,6 +293,65 @@ async function run() {
     dpaAcceptance.error,
   )
 
+  const frenchTermsStatus = await ownerA.rpc(
+    'get_current_legal_acceptance_status_v2',
+    rpcArgs('terms_pro', IDS.organizationA, 'fr'),
+  )
+  const arabicTermsBefore = await ownerA.rpc(
+    'get_current_legal_acceptance_status_v2',
+    rpcArgs('terms_pro', IDS.organizationA, 'ar'),
+  )
+  const englishTermsBefore = await ownerA.rpc(
+    'get_current_legal_acceptance_status_v2',
+    rpcArgs('terms_pro', IDS.organizationA, 'en'),
+  )
+  check(
+    'A French professional-terms proof satisfies only the French current document',
+    !frenchTermsStatus.error
+      && frenchTermsStatus.data?.[0]?.accepted === true
+      && frenchTermsStatus.data?.[0]?.document_sha256 === TERMS_PRO_HASH,
+    frenchTermsStatus.error,
+  )
+  check(
+    'A French professional-terms proof does not satisfy Arabic',
+    !arabicTermsBefore.error
+      && arabicTermsBefore.data?.[0]?.accepted === false
+      && arabicTermsBefore.data?.[0]?.document_sha256 === TERMS_PRO_AR_HASH,
+    arabicTermsBefore.error,
+  )
+  check(
+    'A French professional-terms proof does not satisfy English',
+    !englishTermsBefore.error
+      && englishTermsBefore.data?.[0]?.accepted === false
+      && englishTermsBefore.data?.[0]?.document_sha256 === TERMS_PRO_EN_HASH,
+    englishTermsBefore.error,
+  )
+
+  const arabicTermsAcceptance = await ownerA.rpc(
+    'accept_current_legal_document_v2',
+    rpcArgs('terms_pro', IDS.organizationA, 'ar'),
+  )
+  const arabicEvidence = await ownerA
+    .from('legal_acceptances')
+    .select('displayed_language,document_sha256,document_version,organization_id')
+    .eq('id', arabicTermsAcceptance.data)
+    .single()
+  check(
+    'Arabic acceptance stores the exact Arabic locale and canonical hash',
+    !arabicTermsAcceptance.error
+      && !arabicEvidence.error
+      && arabicEvidence.data.displayed_language === 'ar'
+      && arabicEvidence.data.document_sha256 === TERMS_PRO_AR_HASH
+      && arabicEvidence.data.document_version === VERSION
+      && arabicEvidence.data.organization_id === IDS.organizationA,
+    arabicTermsAcceptance.error ?? arabicEvidence.error,
+  )
+  check(
+    'The Arabic acceptance is distinct from the French proof',
+    !arabicTermsAcceptance.error && arabicTermsAcceptance.data !== termsAcceptance.data,
+    arabicTermsAcceptance.error,
+  )
+
   const organizationEvidence = await ownerA
     .from('legal_acceptances')
     .select('id,user_id,organization_id,organization_name_snapshot,document_id,document_version,document_sha256,acceptance_scope,authority_role')
@@ -353,7 +414,7 @@ async function run() {
     Boolean(updateAttempt.error)
       && Boolean(deleteAttempt.error)
       && !immutableRow.error
-      && immutableRow.data.application_version === 'legal-current-document-rpc-v1'
+      && immutableRow.data.application_version === 'legal-current-document-rpc-v2'
       && immutableRow.data.document_sha256 === TERMS_PRO_HASH,
     immutableRow.error,
   )
