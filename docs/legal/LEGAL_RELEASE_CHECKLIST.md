@@ -55,11 +55,10 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
   `20260723185453_restrict_legal_acceptance_writes_to_current_document_rpc.sql`
   reconstruite localement puis appliquee seule sur staging ; historique 39/39
   et dry-run final vide.
-- [ ] Migration
+- [x] Migration
   `20260723220125_bind_legal_acceptance_evidence_to_exact_locale_hash.sql`
-  presente localement comme migration 40, non appliquee au staging.
-  Le bootstrap SQL local l'a appliquee avec le seed, mais le test RLS final
-  reste a relancer apres resolution de l'etat `unhealthy` d'Analytics Docker.
+  appliquee seule sur staging apres un dry-run limite a cette version ;
+  historique final 40/40 et dry-run final vide.
 - [x] Snapshot staging avant/apres : zero acceptation et empreinte identique.
   Les huit preuves historiques simulees n'etaient pas presentes sur staging ;
   ne pas presenter ce controle comme une comparaison de huit lignes distantes.
@@ -76,8 +75,9 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 - [x] Cycle de vie local et staging : la preuve survit a la suppression de l'acteur, de l'organisation et de la version documentaire.
 - [x] Les deux rappels laisses par l'ancienne suite staging ont ete nettoyes
   administrativement lors de la validation precedente.
-- [ ] Nouveau teardown baseline/finally a valider sur Docker local : il doit
-  echouer sur tout rappel, demande, preuve, document ou objet Storage residuel.
+- [x] Nouveau teardown baseline/finally valide sur Docker local et staging :
+  un rappel marque a provoque l'echec attendu, le `finally` a execute le
+  nettoyage administratif et le baseline final a ete restaure exactement.
 - [x] Ecritures Data API directes refusees, RPC courante idempotente et
   transaction staging annulee integralement ; 101/101 controles generaux et
   25/25 controles juridiques.

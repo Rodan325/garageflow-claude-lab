@@ -725,3 +725,131 @@ n'introduit aucune cle serveur dans le frontend.
 La validation comportementale RLS/RPC de la migration 40 et du nouveau
 teardown reste a relancer sur Docker local avant toute application staging.
 Cette limite est une reserve de validation, pas un succes simule.
+
+## Validation staging de la migration 40 - 24 juillet 2026
+
+Cet addendum remplace l'etat provisoire ci-dessus pour la migration
+`20260723220125_bind_legal_acceptance_evidence_to_exact_locale_hash.sql`.
+La seule cible distante consultee et modifiee pendant cette passe est le
+staging autorise `zazdhzmfrtecxtglhoso`. Supabase Production et Vercel
+Production n'ont ete ni consultes ni modifies. Tous les flags sont restes
+absents ou `false`.
+
+### Etat avant et application
+
+- HEAD local et distant :
+  `1a4adb74be194272cdc8c5123776b062507188ef`.
+- Historique staging avant : 39/40.
+- Dry-run avant : uniquement
+  `20260723220125_bind_legal_acceptance_evidence_to_exact_locale_hash.sql`.
+- Preuves juridiques : 0 ; empreinte du jeu vide inchangee.
+- Demandes marquees `Local validation` : 0.
+- Rappels marques `rls_validation:*` : 0.
+- Documents juridiques temporaires : 0.
+- Objets Storage : 0.
+- Un rappel metier preexistant, de source `delivery_report`, etait present. Il
+  ne portait aucun marqueur de test et a ete preserve.
+- Registre prive : 30 lignes, 27 `staged`, 3 `draft`, 0 `effective`.
+- La migration unique a ete appliquee une seule fois par `supabase db push`,
+  sans seed, backfill manuel ou modification d'une migration historique.
+- Historique staging apres : 40/40.
+- Dry-run final : vide (`Remote database is up to date`).
+
+La migration remplace uniquement les deux RPC juridiques et ajoute deux index
+uniques partiels incluant la langue et le hash. Elle ne contient aucun
+`UPDATE`, `DELETE`, `TRUNCATE`, backfill ou insertion dans
+`public.legal_acceptances`.
+
+### Langue, hash et habilitations
+
+Une transaction staging dediee a cree temporairement trois documents
+`terms_pro` effectifs et trois preuves localisees, puis a execute un
+`ROLLBACK` integral. Les assertions SQL ont confirme :
+
+- FR enregistre la version et le hash FR exacts ;
+- la preuve FR satisfait uniquement FR, jamais AR ou EN ;
+- AR enregistre le hash AR exact ;
+- EN enregistre le hash EN exact ;
+- `terms_pro` reste de portee `organization` ;
+- un membre simple est refuse ;
+- un representant habilite est autorise ;
+- une tentative cross-tenant est refusee ;
+- acteur, organisation, date, version et hash sont resolus cote serveur.
+
+Le premier essai transactionnel a rencontre le trigger existant qui cree deja
+le profil lors de l'insertion `auth.users`. La transaction a ete rejetee et un
+controle immediat a confirme zero residu. Le scenario corrige a ensuite reussi
+et le controle apres `ROLLBACK` a confirme zero utilisateur, organisation,
+document ou preuve temporaire.
+
+Les tests Data API/RPC ont aussi confirme le refus de l'insertion directe, de
+`pilot_agreement`, du DPA historique `2026-07-02`, d'une ancienne version de
+`terms_pro`, d'un ancien hash, des mises a jour et des suppressions directes.
+Les RPC restent `SECURITY DEFINER` avec `search_path=''`. Seuls
+`authenticated`, `postgres` et `service_role` conservent `EXECUTE`; les roles
+applicatifs n'ont aucun grant direct `INSERT`, `UPDATE` ou `DELETE` sur les
+preuves.
+
+### Suites et anti-fuite
+
+- RLS/RPC/Storage/concurrence staging : 102/102.
+- RLS juridique V2 staging : 30/30.
+- Cycle transactionnel langue/hash : reussi, rollback integral.
+- Legal Status V2 : ancienne preuve et cle inconnue rendues sans crash ;
+  `terms_pro` route vers `/terms/pro` et aucun resolver legacy n'est utilise
+  pour une preuve V2.
+- Suite applicative : 432/432.
+- Typecheck : reussi.
+- Lint : zero erreur, deux avertissements Fast Refresh preexistants.
+- Security scan : reussi, aucun secret evident detecte.
+
+Le premier lancement staging du harness a revele une incompatibilite Windows
+Node 24 : `spawnSync('npx.cmd', ...)` retournait `EINVAL`, puis la sortie
+agent JSON n'etait pas directement parsable. Le helper utilise desormais
+`npx-cli.js` via le binaire Node courant et impose
+`--output-format text --agent no`. Cette correction ne touche ni au schema, ni
+au runtime applicatif, ni aux droits des roles.
+
+Le controle anti-fuite negatif a ensuite cree un rappel portant un UUID de
+run. Le controle final a echoue comme attendu et a affiche l'identifiant du
+residu. Le nettoyage administratif, limite au staging autorise, s'est execute
+dans le `finally`, a supprime le rappel et a restaure exactement le baseline.
+Le snapshot final confirme :
+
+- preuves juridiques : 0, empreinte identique ;
+- demandes de validation : 0 ;
+- rappels de validation : 0 ;
+- documents juridiques temporaires : 0 ;
+- utilisateurs transactionnels : 0 ;
+- objets Storage : 0 ;
+- rappel metier `delivery_report` preexistant : 1, inchange.
+
+STAGING AVANT : 39/40
+STAGING APRES : 40/40
+MIGRATION UNIQUE APPLIQUEE : OUI
+DRY-RUN FINAL : VIDE
+PREUVES AVANT/APRES : 0/0, EMPREINTE IDENTIQUE
+FR REFUSE POUR AR : OUI
+FR REFUSE POUR EN : OUI
+HASH FR EXACT : OUI
+HASH AR EXACT : OUI
+HASH EN EXACT : OUI
+ANCIEN HASH REFUSE : OUI
+MEMBRE SIMPLE REFUSE : OUI
+REPRESENTANT AUTORISE : OUI
+CROSS-TENANT REFUSE : OUI
+HISTORIQUE V2 SANS CRASH : OUI
+RESOLVER LEGACY ABSENT POUR V2 : OUI
+RAPPEL VOLONTAIRE DETECTE : OUI
+SUITE ECHOUE AVEC RESIDU : OUI
+FINALLY EXECUTE : OUI
+BASELINE FINAL IDENTIQUE : OUI
+RLS/RPC/STORAGE : 102/102
+JURIDIQUE RLS : 30/30
+FIXTURES FINALES : ZERO
+FLAGS OFF : OUI
+PRODUCTION CONSULTEE OU MODIFIEE : NON
+VERCEL PRODUCTION MODIFIE : NON
+P0 RESTANTS : AUCUN
+P1 RESTANTS : AUCUN
+PRET POUR REVUE INDEPENDANTE : OUI
