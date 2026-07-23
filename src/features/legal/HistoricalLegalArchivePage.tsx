@@ -7,6 +7,7 @@ import { TermsPage as HistoricalTerms } from './HistoricalTerms20260702Page'
 import { DpaPage as HistoricalDpa } from './HistoricalDpa20260702Page'
 import { PilotAgreementPage as HistoricalPilotAgreement } from './HistoricalPilotAgreement20260702Page'
 import { HistoricalDocumentNotice } from './HistoricalDocumentNotice'
+import { DpaAccessGuard } from './DpaAccessGuard'
 
 const historicalDocuments = {
   legal: HistoricalLegalNotice,
@@ -23,5 +24,6 @@ export function HistoricalLegalArchivePage() {
     return <NotFoundPage />
   }
   const Page = historicalDocuments[documentId as keyof typeof historicalDocuments]
-  return <HistoricalDocumentNotice><Page /></HistoricalDocumentNotice>
+  const content = <HistoricalDocumentNotice><Page /></HistoricalDocumentNotice>
+  return documentId === 'dpa' ? <DpaAccessGuard>{content}</DpaAccessGuard> : content
 }

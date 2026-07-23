@@ -27,6 +27,7 @@ import {
   type AcceptableLegalV2DocumentId,
 } from './legalAcceptance'
 import { LOCALES, useLang } from '@/i18n'
+import { isAuthorizedDpaRepresentative } from './DpaAccessGuard'
 
 const GATE_TEXT: Record<'client' | 'garage', string> = {
   client:
@@ -70,6 +71,11 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
 
   const useV2 = legalAcceptanceV2Enabled()
   const organizationId = role === 'garage' ? (membership?.garage_id ?? garage?.id ?? null) : null
+  const canAcceptDpa = isAuthorizedDpaRepresentative({
+    role: membership?.role ?? null,
+    organizationRole: membership?.organization_role ?? null,
+    centerId: membership?.center_id ?? null,
+  })
   const enabled = !demo && isSupabaseConfigured && !!userId
   const { data: missing, isLoading, isError } = useQuery<GateDocument[]>({
     queryKey: ['legal-missing', useV2 ? 'v2' : 'legacy', userId, role, organizationId],
@@ -101,7 +107,8 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
   }
   if (!missing || missing.length === 0) return <>{children}</>
 
-  const allChecked = missing.every((doc) => checked[doc])
+  const hasUnauthorizedDpa = useV2 && missing.includes('dpa') && !canAcceptDpa
+  const allChecked = !hasUnauthorizedDpa && missing.every((doc) => checked[doc])
 
   async function accept() {
     if (!allChecked || !missing) return
@@ -154,6 +161,19 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
           <div className="mt-4 space-y-2">
             {(missing as GateDocument[]).map((doc) => {
               const meta = gateDocumentMeta(doc, useV2)
+              if (useV2 && doc === 'dpa' && !canAcceptDpa) {
+                return (
+                  <div key={doc} className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                    <p className="font-medium">{tr(meta.label)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {tr('Seul un propriétaire ou représentant habilité de l’organisation peut accepter ce document.')}
+                    </p>
+                    <Link to={meta.route} target="_blank" className="mt-2 inline-block font-medium text-primary hover:underline">
+                      {tr('Consulter le document')}
+                    </Link>
+                  </div>
+                )
+              }
               return (
                 <label
                   key={doc}
