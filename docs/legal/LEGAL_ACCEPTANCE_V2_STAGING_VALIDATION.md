@@ -317,6 +317,118 @@ P0 RESTANTS : AUCUN
 P1 RESTANTS : AUCUN
 PRET POUR NOUVELLE REVUE INDEPENDANTE : OUI
 
+## Addendum du 23 juillet 2026 - RPC d'acceptation courante sur staging
+
+### Cible, derive et snapshot initial
+
+- Branche et SHA verifies avant toute ecriture :
+  `feat/legal-production-readiness` a
+  `0dfb60d466e71e507bba1ec35b0e86e91f0a8831`.
+- Projet unique utilise : staging `zazdhzmfrtecxtglhoso`.
+- Projet production interdit `tftmfhwmzkhzlvgwcnje` : non consulte et non
+  modifie.
+- Historique initial : 38 migrations distantes sur 39 locales.
+- Dry-run initial : uniquement
+  `20260723185453_restrict_legal_acceptance_writes_to_current_document_rpc.sql`.
+- Preuves initiales : zero ligne ; empreinte MD5 non sensible du jeu vide
+  `d41d8cd9...427e`.
+- Registre `effective` initial : zero ligne ; aucune fixture juridique
+  precedente.
+- Avant migration, `authenticated` disposait de `SELECT` et `INSERT` sur
+  `public.legal_acceptances`, avec une policy `INSERT`. Les deux RPC courantes
+  n'existaient pas.
+
+### Application et controles de securite
+
+La CLI Supabase `2.109.1` a applique uniquement la migration `20260723185453`
+au staging. Aucun seed, backfill manuel ou autre migration n'a ete execute.
+L'historique final est 39/39 et le dry-run final est vide.
+
+Apres migration :
+
+- `anon` et `authenticated` ne disposent d'aucun droit direct `INSERT`,
+  `UPDATE` ou `DELETE` sur les preuves ;
+- la policy d'insertion legacy a disparu et seules les policies de lecture
+  attendues subsistent ;
+- RLS reste active ;
+- `get_current_legal_acceptance_status_v2` et
+  `accept_current_legal_document_v2` sont `SECURITY DEFINER`, utilisent un
+  `search_path` explicitement vide, refusent `public` et `anon`, et accordent
+  `EXECUTE` uniquement a `authenticated`.
+
+La suite Data API a confirme le refus des insertions directes, de
+`pilot_agreement`, du DPA historique `2026-07-02`, d'une ancienne version de
+`terms_pro`, ainsi que l'impossibilite de fournir une version ou un hash au
+RPC. Le serveur derive l'acteur, la date, la version, le hash, la portee,
+l'organisation et l'habilitation. `terms_pro` et le DPA exigent un
+representant habilite ; un membre simple, un responsable limite a un centre et
+un autre tenant sont refuses. Une preuve courante repetee est idempotente et
+reste non modifiable et non supprimable.
+
+### Tests et rollback
+
+- RLS/RPC/Storage staging : 101/101.
+- RLS juridique V2 : 25/25.
+- Tests juridiques applicatifs cibles : 134/134.
+- Suite applicative complete : 422/422.
+- Transaction distante dediee : 10 assertions reussies, dont preuve
+  `terms_pro` autorisee, preuve `terms_client` individuelle, refus du membre
+  simple, refus cross-tenant, hash/version serveur, idempotence et
+  immutabilite. La transaction a ete integralement annulee.
+- Typecheck : reussi.
+- Lint : zero erreur, deux avertissements Fast Refresh preexistants.
+- Build : reussi, avec l'avertissement de taille de bundles preexistant.
+- Security scan : aucun secret evident ; 12 occurrences textuelles
+  non bloquantes deja inventoriees.
+
+La suite generale cree volontairement deux rappels fictifs afin de tester leur
+idempotence. Les roles ordinaires ne possedent, a juste titre, aucun droit de
+suppression directe sur cette table. Le nettoyage final a donc supprime
+uniquement les marqueurs `rls_validation:*` au moyen de l'acces administratif
+staging de validation, sans elargir les grants applicatifs. L'etat final
+confirme zero rappel de validation, zero demande de validation, zero preuve,
+zero version juridique de test et zero objet Storage.
+
+### Preuves, flags et conclusion
+
+Le snapshot apres migration est strictement identique au snapshot initial :
+zero acceptation et meme empreinte du jeu vide. Aucune preuve historique ou V2
+ne se trouvait sur staging pendant l'application ; aucune preservation de huit
+lignes distantes n'est revendiquee. Les huit lignes citees dans les validations
+anterieures etaient des fixtures temporaires deja nettoyees. L'immutabilite est
+verifiee par les tests dedies et par le rollback transactionnel.
+
+Les neuf flags produit de `.env.staging.local` sont explicitement `false`. Les
+neuf flags juridiques et d'integration sont `false` dans `.env.example` et
+absents de `.env.staging.local`, ce qui reste fail-closed. Aucun flag n'a ete
+active.
+
+STAGING AVANT : 38/39
+STAGING APRES : 39/39
+MIGRATION UNIQUE APPLIQUEE : OUI - 20260723185453
+DRY-RUN FINAL : VIDE
+PREUVES AVANT/APRES : 0/0, EMPREINTE IDENTIQUE
+INSERT DIRECT AUTHENTICATED : REFUSE
+UPDATE ET DELETE DIRECTS : REFUSES
+PILOT AGREEMENT : REFUSE
+DPA HISTORIQUE 2026-07-02 : REFUSE
+ANCIEN TERMS PRO : REFUSE
+HASH ET VERSION : RESOLUS COTE SERVEUR
+TERMS PRO MEMBRE SIMPLE : REFUSE
+TERMS PRO REPRESENTANT : AUTORISE
+CROSS-TENANT : REFUSE
+IDEMPOTENCE : VALIDEE
+ROLLBACK : COMPLET
+RLS/RPC/STORAGE : 101/101
+RLS JURIDIQUE V2 : 25/25
+FIXTURES RESIDUELLES : ZERO
+FLAGS : OFF
+PRODUCTION CONSULTEE OU MODIFIEE : NON
+VERCEL PRODUCTION MODIFIE : NON
+P0 RESTANTS : AUCUN
+P1 RESTANTS : AUCUN TECHNIQUE
+PRET POUR REVUE INDEPENDANTE : OUI
+
 ## Annexe - ecritures juridiques courantes via RPC du 23 juillet 2026
 
 Cette validation est strictement locale. La migration additive
