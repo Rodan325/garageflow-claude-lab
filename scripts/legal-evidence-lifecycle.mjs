@@ -69,7 +69,8 @@ insert into private.legal_document_versions (
 )
 values ('terms_pro', '${version}', 'fr', '${hash}', 'effective', now(), now(), null, true, 'organization', true);
 
-set local role authenticated;
+-- Fixture setup remains privileged and local-only. Ordinary authenticated
+-- writes are tested below and must stay revoked.
 select set_config('request.jwt.claim.sub', '${actorId}', true);
 insert into public.legal_acceptances (
   id, user_id, role, document_type, document_version, displayed_language,
@@ -82,6 +83,7 @@ values (
   'organization', 'legal_gate', 'legal_gate'
 );
 
+set local role authenticated;
 do $$
 declare v_count bigint;
 begin

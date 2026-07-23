@@ -29,14 +29,20 @@ describe('local RLS fixture lifecycle', () => {
     expect(helper).toContain('residual fixtures detected')
   })
 
-  it('gives every reminder and legal acceptance a run-specific marker', () => {
+  it('gives every temporary reminder and legal proof a deterministic cleanup marker', () => {
     const general = read('scripts/rls-antileak.mjs')
     const legal = read('scripts/legal-v2-rls.mjs')
+    const helper = read('scripts/local-rls-fixtures.mjs')
 
     expect(general).toContain('rls_validation:${fixtureRunId}:journey')
     expect(general).toContain('rls_validation:${fixtureRunId}:reminder')
     expect(general).toContain("testTarget === 'staging' ? 10 : 5")
+    // Rejected direct-write payloads retain a run marker for diagnostics.
     expect(legal).toContain('rls-validation:${fixtureRunId}')
-    expect(legal).toContain('rls_validation:${fixtureRunId}:legacy')
+    // Successful RPC proofs derive a fixed application marker server-side and
+    // are isolated by the dedicated legal fixture document version.
+    expect(legal).toContain("application_version === 'legal-current-document-rpc-v1'")
+    expect(legal).toContain("const VERSION = 'rls-validation-20260720'")
+    expect(helper).toContain("application_version = 'legal-current-document-rpc-v1'")
   })
 })

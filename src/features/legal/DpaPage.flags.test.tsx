@@ -4,9 +4,6 @@ import { MemoryRouter } from 'react-router-dom'
 
 const flags = vi.hoisted(() => ({ docs: false, acceptance: false, dpa: false }))
 
-vi.mock('@/lib/features', () => ({
-  legalDocsV2Enabled: () => flags.docs,
-}))
 vi.mock('./DpaAccessGuard', () => ({
   DpaAccessGuard: ({ children }: { children: React.ReactNode | ((access: { canRead: boolean; canAccept: boolean }) => React.ReactNode) }) => (
     <>{typeof children === 'function'
@@ -25,10 +22,6 @@ vi.mock('./HistoricalDocumentNotice', () => ({
 vi.mock('./LegalV2DocumentPage', () => ({
   LegalV2DocumentPage: () => <div data-testid="v2-dpa">V2 DPA</div>,
 }))
-vi.mock('./CommercialLegalPage', () => ({
-  CommercialLegalPage: () => <div data-testid="commercial-dpa">commercial DPA review</div>,
-}))
-
 import { DpaPage } from './DpaPage'
 
 afterEach(() => {
@@ -40,10 +33,10 @@ afterEach(() => {
 
 describe('DPA route feature gates', () => {
   it.each([
-    [false, false, false, 'commercial-dpa'],
-    [false, false, true, 'commercial-dpa'],
-    [false, true, false, 'commercial-dpa'],
-    [false, true, true, 'commercial-dpa'],
+    [false, false, false, 'v2-dpa'],
+    [false, false, true, 'v2-dpa'],
+    [false, true, false, 'v2-dpa'],
+    [false, true, true, 'v2-dpa'],
     [true, false, false, 'v2-dpa'],
     [true, false, true, 'v2-dpa'],
     [true, true, false, 'v2-dpa'],

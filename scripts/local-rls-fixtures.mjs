@@ -68,7 +68,11 @@ where source in ('local_validation', 'staging_journey_validation')
 
 delete from public.legal_acceptances
 where application_version like 'rls-validation:%'
-   or acceptance_context like 'rls_validation:%';
+   or acceptance_context like 'rls_validation:%'
+   or (
+     application_version = 'legal-current-document-rpc-v1'
+     and document_version = 'rls-validation-20260720'
+   );
 
 delete from private.legal_document_versions
 where document_version = 'rls-validation-20260720';
@@ -85,12 +89,17 @@ insert into private.legal_document_versions (
 values
   (
     'terms_client', 'rls-validation-20260720', 'fr',
-    '5b2d8b1500f446459d79ee22976a0f632db2cedf2329116961c99501e97b3640',
+    '75148cb8161fa94a561ce55528d2fd9184ea2ad91f5e3a8619016f38fc6d31a7',
     'effective', now(), now(), null, true, 'user', true
   ),
   (
+    'terms_pro', 'rls-validation-20260720', 'fr',
+    'bfb31cbfcb840155475d8ae6ad236893730de4558d1a3564143b4097dcadf170',
+    'effective', now(), now(), null, true, 'organization', true
+  ),
+  (
     'dpa', 'rls-validation-20260720', 'fr',
-    '5c88474d7df764bf96ce8f90f2f83edc48429e47359aece2a740fce63782766e',
+    '484d5bba3263046198fb04b4326b1b683a66c386d21dc26f1ce937dc17878120',
     'effective', now(), now(), null, true, 'organization', true
   );
 `
@@ -111,6 +120,10 @@ select json_build_object(
     select count(*) from public.legal_acceptances
     where application_version like 'rls-validation:%'
        or acceptance_context like 'rls_validation:%'
+       or (
+         application_version = 'legal-current-document-rpc-v1'
+         and document_version = 'rls-validation-20260720'
+       )
   ),
   'documents', (
     select count(*) from private.legal_document_versions

@@ -91,13 +91,24 @@ describe('commercial legal corpus', () => {
     expect(source).not.toContain('Supabase, Inc.')
   })
 
-  it.each(currentDocuments)('keeps the flags-off %s route neutral and non-acceptable', (_key, Page) => {
+  it.each(currentDocuments)('keeps the flags-off %s route canonical, staged and non-acceptable', (_key, Page) => {
     const { container } = renderPage(Page, 'fr')
     expect(container).toHaveTextContent('RODANBTECH')
-    expect(container).toHaveTextContent('Document commercial en préparation')
+    expect(container).toHaveTextContent('Projet — non encore en vigueur')
     expect(container).not.toHaveTextContent('2026-07-02')
     expect(container).not.toHaveTextContent(/pilote|prototype|beta/i)
-    expect(container.querySelector('[data-legal-status="review"]')).not.toBeNull()
+    expect(container.querySelector('[data-legal-v2="true"]')).not.toBeNull()
+    expect(container.querySelector('[data-legal-status="staged"]')).not.toBeNull()
+  })
+
+  it.each(currentDocuments)('uses the canonical model for the %s review page', (key, Page) => {
+    const canonicalKey = key === 'terms' ? 'terms_client' : key
+    const { container } = renderPage(Page, 'en')
+    expect(container.querySelector('[data-legal-document]')).toHaveAttribute(
+      'data-legal-document',
+      canonicalKey,
+    )
+    expect(container.querySelector('[data-legal-sha256]')).not.toBeNull()
   })
 
   it('keeps the official publisher identity on the flags-off legal notice', () => {

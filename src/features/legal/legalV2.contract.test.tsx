@@ -169,6 +169,10 @@ describe('legal acceptance V2 migration contract', () => {
     resolve(process.cwd(), 'supabase/migrations/20260723110428_refresh_legal_canonical_document_hashes.sql'),
     'utf8',
   )
+  const currentAcceptanceMigration = readFileSync(
+    resolve(process.cwd(), 'supabase/migrations/20260723185453_restrict_legal_acceptance_writes_to_current_document_rpc.sql'),
+    'utf8',
+  )
 
   it('preserves historical rows and adds only nullable evidence columns', () => {
     expect(migration).toContain('add column if not exists document_sha256 text')
@@ -223,6 +227,19 @@ describe('legal acceptance V2 migration contract', () => {
     expect(failClosedMigration).toContain('new.organization_id is not null or new.document_sha256 is not null')
     expect(failClosedMigration).not.toMatch(/update\s+(?:public\.)?legal_acceptances/i)
     expect(failClosedMigration).not.toMatch(/delete\s+from\s+(?:public\.)?legal_acceptances/i)
+  })
+
+  it('removes ordinary Data API writes and resolves current evidence server-side', () => {
+    expect(currentAcceptanceMigration).toContain(
+      'revoke insert, update, delete on table public.legal_acceptances from anon, authenticated',
+    )
+    expect(currentAcceptanceMigration).toContain('get_current_legal_acceptance_status_v2')
+    expect(currentAcceptanceMigration).toContain('accept_current_legal_document_v2')
+    expect(currentAcceptanceMigration).toContain('v_actor_id uuid := auth.uid()')
+    expect(currentAcceptanceMigration).toContain("p_document_key = 'pilot_agreement'")
+    expect(currentAcceptanceMigration).toContain("document.document_version = '2026-07-02'")
+    expect(currentAcceptanceMigration).not.toMatch(/update\s+(?:public\.)?legal_acceptances/i)
+    expect(currentAcceptanceMigration).not.toMatch(/delete\s+from\s+(?:public\.)?legal_acceptances/i)
   })
 
   it('records the authority role that actually authorized an organization acceptance', () => {

@@ -30,11 +30,6 @@ for (const name of [
   delete childEnv[name]
 }
 
-const validationScripts = [resolve('scripts/rls-antileak.mjs')]
-if (process.env.LEGAL_V2_RLS_FIXTURES === 'true') {
-  validationScripts.push(resolve('scripts/legal-v2-rls.mjs'))
-}
-
 function envFileValue(name) {
   const prefix = `${name}=`
   const line = readFileSync(envFile, 'utf8')
@@ -45,6 +40,10 @@ function envFileValue(name) {
 
 const selectedTarget = envFileValue('SUPABASE_TEST_TARGET') || 'local'
 const usesLocalDocker = selectedTarget === 'local'
+const legalV2FixturesEnabled = usesLocalDocker || process.env.LEGAL_V2_RLS_FIXTURES === 'true'
+const validationScripts = [resolve('scripts/rls-antileak.mjs')]
+if (legalV2FixturesEnabled) validationScripts.push(resolve('scripts/legal-v2-rls.mjs'))
+if (legalV2FixturesEnabled) childEnv.LEGAL_V2_RLS_FIXTURES = 'true'
 
 const fixtureRunId = randomUUID()
 childEnv.RLS_FIXTURE_RUN_ID = fixtureRunId

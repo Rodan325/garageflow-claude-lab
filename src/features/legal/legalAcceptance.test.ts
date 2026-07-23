@@ -2,24 +2,30 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LEGAL_V2_DOCUMENTS } from '@/config/legalV2'
+import { hashCanonicalLegalDocumentById } from './legalCanonicalDocument'
 
 const state = vi.hoisted(() => ({
-  existing: [] as Array<{ id: string }>,
   inserted: [] as Array<Record<string, unknown>>,
   listRows: [] as Array<Record<string, unknown>>,
-  getUser: vi.fn(),
+  rpc: vi.fn(),
+  acceptanceEnabled: true,
+  dpaEnabled: true,
 }))
 
 vi.mock('@/lib/demo', () => ({ isDemo: () => false }))
+vi.mock('@/lib/features', () => ({
+  legalAcceptanceV2Enabled: () => state.acceptanceEnabled,
+  dpaSelfServiceEnabled: () => state.dpaEnabled,
+}))
 vi.mock('@/lib/supabase', () => ({
   supabase: {
-    auth: { getUser: state.getUser },
+    rpc: state.rpc,
     from: vi.fn(() => {
       const builder = {
         select: vi.fn(() => builder),
         eq: vi.fn(() => builder),
         in: vi.fn(() => builder),
-        limit: vi.fn(async () => ({ data: state.existing, error: null })),
+        limit: vi.fn(async () => ({ data: [], error: null })),
         order: vi.fn(async () => ({ data: state.listRows, error: null })),
         insert: vi.fn(async (payload: Record<string, unknown>) => {
           state.inserted.push(payload)
@@ -32,6 +38,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 import {
+  getLegalV2AcceptanceStatus,
   isCurrentLegalV2Acceptance,
   listOwnLegalAcceptances,
   recordLegalAcceptance,
@@ -41,52 +48,144 @@ import {
 } from './legalAcceptance'
 
 beforeEach(() => {
-  state.existing = []
   state.inserted = []
   state.listRows = []
-  state.getUser.mockReset()
-  state.getUser.mockResolvedValue({ data: { user: { id: 'user-legal-test' } } })
+  state.rpc.mockReset()
+  state.acceptanceEnabled = true
+  state.dpaEnabled = true
 })
 
 describe('legal acceptance evidence', () => {
   it('cannot record V2 evidence while the acceptance flag and documents are not effective', async () => {
-    await expect(recordLegalV2Acceptance('terms_client', 'client', 'signup', {
+    await expect(recordLegalV2Acceptance('terms_client', {
       displayedLanguage: 'fr',
       organizationId: null,
     })).rejects.toThrow(/disabled|not effective/i)
     expect(state.inserted).toHaveLength(0)
+    expect(state.rpc).not.toHaveBeenCalled()
   })
 
-  it('records legacy evidence without claiming organization authority', async () => {
-    await recordLegalAcceptance('terms', 'terms-2026-01', 'garage', 'legal_gate', {
+  it('does not attempt a direct Data API write for legacy evidence', async () => {
+    await expect(recordLegalAcceptance('terms', 'terms-2026-01', 'garage', 'legal_gate', {
       displayedLanguage: 'ar',
       organizationId: 'garage-legal-test',
-    })
-
-    expect(state.inserted).toHaveLength(1)
-    expect(state.inserted[0]).toMatchObject({
-      user_id: 'user-legal-test',
-      document_type: 'terms',
-      document_version: 'terms-2026-01',
-      document_id: 'terms:terms-2026-01',
-      displayed_language: 'ar',
-      organization_id: null,
-    })
+    })).rejects.toThrow(/read-only/i)
+    expect(state.inserted).toHaveLength(0)
   })
 
-  it('keeps rolling-deployment fields nullable for older callers', async () => {
-    await recordLegalAcceptance('privacy', 'privacy-2026-01', 'client', 'signup')
-
-    expect(state.inserted[0]).toMatchObject({
-      document_id: 'privacy:privacy-2026-01',
-      displayed_language: null,
-      organization_id: null,
+  it('routes current V2 acceptance through the server without client evidence fields', async () => {
+    const document = LEGAL_V2_DOCUMENTS.terms_client
+    const previous = {
+      status: document.status,
+      effectiveAt: document.effectiveAt,
+      hash: document.sha256.fr,
+    }
+    document.status = 'effective'
+    document.effectiveAt = '2026-08-01T00:00:00Z'
+    document.sha256.fr = await hashCanonicalLegalDocumentById('terms_client', 'fr')
+    state.rpc.mockImplementation(async (name: string) => {
+      if (name === 'get_current_legal_acceptance_status_v2') {
+        return {
+          data: [{
+            accepted: false,
+            current: true,
+            can_accept: true,
+            reason: 'acceptance_available',
+            document_key: 'terms_client',
+            document_version: document.version,
+            document_sha256: document.sha256.fr,
+            organization_id: null,
+            acceptance_scope: 'user',
+            accepted_at: null,
+          }],
+          error: null,
+        }
+      }
+      return { data: 'acceptance-id', error: null }
     })
+
+    try {
+      await recordLegalV2Acceptance('terms_client', {
+        displayedLanguage: 'fr',
+        organizationId: null,
+      })
+    } finally {
+      document.status = previous.status
+      document.effectiveAt = previous.effectiveAt
+      document.sha256.fr = previous.hash
+    }
+
+    expect(state.rpc).toHaveBeenNthCalledWith(1, 'get_current_legal_acceptance_status_v2', {
+      p_document_key: 'terms_client',
+      p_language: 'fr',
+      p_organization_id: null,
+    })
+    expect(state.rpc).toHaveBeenNthCalledWith(2, 'accept_current_legal_document_v2', {
+      p_document_key: 'terms_client',
+      p_language: 'fr',
+      p_organization_id: null,
+    })
+    expect(state.rpc.mock.calls[1][1]).not.toHaveProperty('actor_id')
+    expect(state.rpc.mock.calls[1][1]).not.toHaveProperty('accepted_at')
+    expect(state.rpc.mock.calls[1][1]).not.toHaveProperty('document_version')
+    expect(state.rpc.mock.calls[1][1]).not.toHaveProperty('document_sha256')
+    expect(state.inserted).toHaveLength(0)
+  })
+
+  it('fails closed before any RPC when DPA self-service is disabled', async () => {
+    state.dpaEnabled = false
+
+    await expect(recordLegalV2Acceptance('dpa', {
+      displayedLanguage: 'fr',
+      organizationId: 'organization-a',
+    })).rejects.toThrow(/self-service acceptance is disabled/i)
+
+    expect(state.rpc).not.toHaveBeenCalled()
+    expect(state.inserted).toHaveLength(0)
+  })
+
+  it('reports no DPA acceptance action when self-service is disabled', async () => {
+    const document = LEGAL_V2_DOCUMENTS.dpa
+    const previous = {
+      status: document.status,
+      effectiveAt: document.effectiveAt,
+      hash: document.sha256.fr,
+    }
+    document.status = 'effective'
+    document.effectiveAt = '2026-08-01T00:00:00Z'
+    document.sha256.fr = await hashCanonicalLegalDocumentById('dpa', 'fr')
+    state.dpaEnabled = false
+    state.rpc.mockResolvedValue({
+      data: [{
+        accepted: false,
+        current: true,
+        can_accept: true,
+        reason: 'acceptance_available',
+        document_key: 'dpa',
+        document_version: document.version,
+        document_sha256: document.sha256.fr,
+        organization_id: 'organization-a',
+        acceptance_scope: 'organization',
+        accepted_at: null,
+      }],
+      error: null,
+    })
+
+    try {
+      await expect(getLegalV2AcceptanceStatus('dpa', 'fr', 'organization-a')).resolves.toMatchObject({
+        accepted: false,
+        current: true,
+        can_accept: false,
+        reason: 'dpa_self_service_disabled',
+      })
+    } finally {
+      document.status = previous.status
+      document.effectiveAt = previous.effectiveAt
+      document.sha256.fr = previous.hash
+    }
   })
 
   it('never creates a new acceptance for a historical document version', async () => {
-    state.existing = [{ id: 'existing-acceptance' }]
-
     await expect(recordLegalAcceptance('dpa', '2026-07-02', 'garage', 'legal_gate', {
       displayedLanguage: 'fr',
       organizationId: null,
@@ -199,6 +298,10 @@ describe('legal acceptance migration contract', () => {
     join(process.cwd(), 'supabase/migrations/20260719111617_add_legal_acceptance_versioning_contracts.sql'),
     'utf8',
   )
+  const writeRestrictionMigration = readFileSync(
+    join(process.cwd(), 'supabase/migrations/20260723185453_restrict_legal_acceptance_writes_to_current_document_rpc.sql'),
+    'utf8',
+  )
 
   it('is additive and never rewrites historical acceptances', () => {
     expect(migration).toContain('add column if not exists displayed_language text')
@@ -212,5 +315,22 @@ describe('legal acceptance migration contract', () => {
     expect(migration).toContain('member.user_id = (select auth.uid())')
     expect(migration).toContain('member.garage_id = organization_id')
     expect(migration).toContain("member.status = 'active'")
+  })
+
+  it('revokes direct writes and exposes only current-document RPC inputs', () => {
+    expect(writeRestrictionMigration).toContain(
+      'revoke insert, update, delete on table public.legal_acceptances from anon, authenticated',
+    )
+    expect(writeRestrictionMigration).toContain('accept_current_legal_document_v2')
+    expect(writeRestrictionMigration).toContain("set search_path = ''")
+    expect(writeRestrictionMigration).toContain('v_actor_id uuid := auth.uid()')
+    expect(writeRestrictionMigration).not.toMatch(/p_(?:actor_id|accepted_at|document_version|document_sha256)/)
+  })
+
+  it('preserves all existing evidence and refuses historical acceptance keys', () => {
+    expect(writeRestrictionMigration).toContain("p_document_key = 'pilot_agreement'")
+    expect(writeRestrictionMigration).toContain("document.document_version = '2026-07-02'")
+    expect(writeRestrictionMigration).not.toMatch(/update\s+(?:public\.)?legal_acceptances/i)
+    expect(writeRestrictionMigration).not.toMatch(/delete\s+from\s+(?:public\.)?legal_acceptances/i)
   })
 })
