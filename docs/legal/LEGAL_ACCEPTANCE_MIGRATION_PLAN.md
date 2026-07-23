@@ -70,4 +70,16 @@ Le frontend doit ensuite etre active dans cet ordre : documents V2, registre des
 
 ## Validation actuelle
 
-La reconstruction Docker locale et le staging autorise presentent 36/36 migrations. Les suites RLS/RPC/Storage/concurrence obtiennent 101/101 et les scenarios juridiques 18/18 sur les deux environnements. Le dry-run staging final est vide. La production n'a pas ete consultee ou modifiee pendant cette validation.
+Le dernier etat distant verifie est le staging autorise a `39/39` migrations,
+avec un dry-run vide, zero preuve avant/apres et zero fixture juridique finale.
+Les deux rappels laisses par l'ancienne suite generale ont ete nettoyes
+administrativement ; le nouveau runner compare desormais son etat final a un
+baseline et doit echouer sur tout residu.
+
+Le depot contient une migration 40 locale liant strictement la preuve a la
+langue et au hash canonique. Le bootstrap Docker a applique les 40 migrations
+et le seed sans erreur SQL, puis le conteneur Analytics Windows est devenu
+`unhealthy` et la CLI a arrete la stack. Les tests applicatifs obtiennent
+`432/432`, mais la suite RLS de la migration 40 doit encore etre relancee
+localement avant toute application staging. La production n'a pas ete
+consultee ou modifiee pendant cette validation.

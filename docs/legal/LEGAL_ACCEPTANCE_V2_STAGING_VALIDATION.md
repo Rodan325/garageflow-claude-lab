@@ -6,6 +6,29 @@ SHA de depart : `ec2518b397ddd1bae141efda29c3615dacb58cbc`
 Staging autorise : `zazdhzmfrtecxtglhoso`
 Production interdite : `tftmfhwmzkhzlvgwcnje`
 
+## Etat courant avant validation staging de la migration 40
+
+Au dernier controle distant effectivement realise, le staging etait a `39/39`
+migrations et son dry-run etait vide. Il contenait zero preuve juridique avant
+et apres la migration 39, et zero fixture juridique au nettoyage final. Les
+huit lignes mentionnees dans les validations initiales etaient des fixtures
+temporaires deja nettoyees ; leur preservation distante n'est pas revendiquee.
+
+La suite generale avait laisse deux rappels de validation sans les detecter.
+Ils ont ete nettoyes administrativement sur le staging autorise lors de la
+validation precedente. Le runner capture desormais un baseline complet, marque
+chaque run par UUID, execute son nettoyage dans un bloc `finally` et echoue si
+un rappel, une demande, une preuve, une version de document, un objet Storage
+ou un autre compteur suivi differe encore du baseline. Le nettoyage privilegie
+est limite au Docker local ou au ref staging autorise et ne modifie pas les
+droits applicatifs.
+
+La migration locale 40
+`20260723220125_bind_legal_acceptance_evidence_to_exact_locale_hash.sql` n'a
+pas ete appliquee au staging dans cette tache. Aucune mention `40/40` concernant
+le staging ne doit etre deduite de ce rapport avant sa validation distante
+dediee.
+
 ## Perimetre et garanties
 
 La validation initiale puis la revue independante portent sur :
@@ -647,7 +670,7 @@ passe. Leur snapshot anterieur reste la preuve avant/apres disponible, complete
 par le contrat automatique qui interdit `UPDATE`, `DELETE`, `TRUNCATE` ou
 backfill des acceptations dans les migrations juridiques forward.
 
-LOCAL DOCKER - RECONSTRUCTION : OUI - 38/38
+LOCAL DOCKER - RECONSTRUCTION HISTORIQUE DE CETTE PASSE : OUI - 38/38
 LOCAL DOCKER - TEST:RLS : OUI - 120/120
 STAGING - ETAT LORS DE CETTE PASSE LOCALE : MIGRATION NON ENCORE APPLIQUEE
 HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : NON VERIFIABLE A DISTANCE ; HUIT FIXTURES DE TEST DEJA NETTOYEES
@@ -658,3 +681,47 @@ PRODUCTION MODIFIEE : NON
 P0 RESTANTS : AUCUN
 P1 TECHNIQUES RESTANTS : AUCUN
 PRET POUR NOUVELLE REVUE INDEPENDANTE : OUI
+
+## Correction locale du lien langue/hash et du teardown - 23 juillet 2026
+
+### Portee
+
+- Nouvelle migration locale :
+  `20260723220125_bind_legal_acceptance_evidence_to_exact_locale_hash.sql`.
+- Une preuve courante doit correspondre exactement a la cle, la version, la
+  langue, le hash canonique, la portee et au sujet utilisateur ou organisation.
+- Une preuve FR ne satisfait ni AR ni EN. La RPC derive cote serveur la
+  version, le hash, l'acteur, l'organisation, la portee et l'horodatage.
+- `/pro/legal-status` distingue les preuves V2 courantes, les preuves V2
+  historiques et l'historique legacy. Une preuve V2 `terms_pro` utilise
+  `/terms/pro` et ne passe jamais par le resolver legacy.
+
+### Teardown anti-fuite
+
+Le runner `test:rls` capture avant la suite les compteurs et identifiants de
+validation. Le nettoyage administratif est toujours execute, y compris apres
+une erreur intermediaire, et la suite echoue si l'etat final differe du
+baseline. Les roles applicatifs restent incapables de supprimer directement
+les rappels ; le helper privilegie est un outil de test local/staging et
+n'introduit aucune cle serveur dans le frontend.
+
+### Etat des validations
+
+- Staging : inchange dans cette tache, dernier etat valide `39/39`, dry-run
+  precedemment vide, preuves `0/0`.
+- Bootstrap Docker local : les 40 migrations et `supabase/seed.sql` ont ete
+  appliques sans erreur SQL. Le demarrage global a ensuite ete interrompu par
+  l'etat `unhealthy` du conteneur Analytics Windows (`input/output error`) et
+  la stack a ete arretee par la CLI.
+- Tests RLS de cette passe : non executes apres migration 40, car la stack
+  locale n'etait plus joignable. Aucun test distant n'a ete utilise comme
+  contournement.
+- Suite applicative : `432/432`.
+- Typecheck, build et security scan : reussis.
+- Lint : zero erreur, deux avertissements Fast Refresh preexistants.
+- Flags : absents ou `false`, lecture fail-closed par egalite stricte avec
+  `true`.
+
+La validation comportementale RLS/RPC de la migration 40 et du nouveau
+teardown reste a relancer sur Docker local avant toute application staging.
+Cette limite est une reserve de validation, pas un succes simule.
