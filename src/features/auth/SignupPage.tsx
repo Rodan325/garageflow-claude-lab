@@ -11,8 +11,6 @@ import { LegalFooter } from '@/components/common/LegalFooter'
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { useToast } from '@/components/ui/toast'
 import { passwordStrength } from '@/lib/password'
-import { legalVersions } from '@/config/legal'
-import { recordMultipleLegalAcceptances } from '@/features/legal/legalAcceptance'
 import { useLang, useT } from '@/i18n'
 import { createSignupSchema, type SignupForm } from './signupSchema'
 import { mapAuthError } from './authErrors'
@@ -34,31 +32,15 @@ export function SignupPage() {
   const pw = watch('password') ?? ''
   const strength = passwordStrength(pw)
 
-  // After a successful signup, record the legal acceptances (terms + privacy,
-  // versioned + timestamped) BEFORE entering the app. If recording fails, the
-  // LegalAcceptanceGate still blocks the app until acceptance succeeds.
+  // A signup acknowledgement is not durable legal evidence. The authenticated
+  // gate records only an effective, hashed V2 document after login.
   const recorded = useRef(false)
   useEffect(() => {
     if (!(done && ready && session && accountType === 'client')) return
     if (recorded.current) return
     recorded.current = true
-    recordMultipleLegalAcceptances(
-      [
-        { documentType: 'terms', version: legalVersions.terms },
-        { documentType: 'privacy', version: legalVersions.privacy },
-      ],
-      'client',
-      'signup',
-      { displayedLanguage: lang, organizationId: null },
-    )
-      .catch(() => {
-        toast.error(
-          t.signup.acceptanceErrorTitle,
-          t.signup.acceptanceErrorBody,
-        )
-      })
-      .finally(() => navigate(redirect || '/app', { replace: true }))
-  }, [done, ready, session, accountType, redirect, navigate, toast, t, lang])
+    navigate(redirect || '/app', { replace: true })
+  }, [done, ready, session, accountType, redirect, navigate])
 
   // Safety net: when Supabase returns a session we normally land in /app via the
   // effect above. If the session never materialises, don't hang on /signup —
@@ -161,9 +143,9 @@ export function SignupPage() {
             <span>
               {t.signup.legalBeforeTerms}{' '}
               <Link to="/terms" target="_blank" className="font-medium text-primary hover:underline">{t.signup.termsLink}</Link>{' '}
-              ({t.signup.version} {legalVersions.terms}) {t.signup.legalBetween}{' '}
+              {t.signup.legalBetween}{' '}
               <Link to="/privacy" target="_blank" className="font-medium text-primary hover:underline">{t.signup.privacyLink}</Link>{' '}
-              ({t.signup.version} {legalVersions.privacy}).{' '}
+              .{' '}
               {errors.legalConsent && <span className="font-medium text-danger">{errors.legalConsent.message}</span>}
             </span>
           </label>

@@ -23,7 +23,6 @@ import {
   getMissingLegalDocuments,
   getMissingLegalV2Documents,
   recordLegalV2Acceptance,
-  recordMultipleLegalAcceptances,
   type AcceptableLegalV2DocumentId,
 } from './legalAcceptance'
 import { LOCALES, useLang } from '@/i18n'
@@ -106,6 +105,24 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
     )
   }
   if (!missing || missing.length === 0) return <>{children}</>
+  if (!useV2) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-muted/40">
+        <div className="flex justify-end p-4"><LanguageSwitcher /></div>
+        <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center p-4 pt-0">
+          <Card className="p-6 text-center">
+            <ShieldCheck className="mx-auto h-8 w-8 text-primary" />
+            <h1 className="mt-4 text-lg font-bold">{tr('Documents contractuels en cours de validation')}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {tr('Aucune nouvelle acceptation des anciennes conditions pilote n’est enregistrée. Votre accès sera disponible après publication explicite des documents commerciaux validés.')}
+            </p>
+            <Button className="mt-4" variant="outline" onClick={() => signOut()}>{tr('Se déconnecter')}</Button>
+          </Card>
+        </main>
+        <LegalFooter />
+      </div>
+    )
+  }
 
   const hasUnauthorizedDpa = useV2 && missing.includes('dpa') && !canAcceptDpa
   const allChecked = !hasUnauthorizedDpa && missing.every((doc) => checked[doc])
@@ -122,16 +139,6 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
             organizationId: document.acceptanceScope === 'organization' ? organizationId : null,
           })
         }
-      } else {
-        await recordMultipleLegalAcceptances(
-          (missing as LegalDocumentType[]).map((doc) => ({ documentType: doc, version: LEGAL_DOCUMENT_VERSIONS[doc] })),
-          role,
-          'legal_gate',
-          {
-            displayedLanguage: lang,
-            organizationId: null,
-          },
-        )
       }
       await qc.invalidateQueries({ queryKey: ['legal-missing'] })
     } catch {

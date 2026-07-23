@@ -26,9 +26,13 @@ Les contenus FR, EN et AR utilisent les memes identifiants de clauses. Le franca
 
 ## Comportement avec les flags OFF
 
-- `/legal`, `/privacy`, `/terms` et `/dpa` continuent d'afficher le corpus courant historique.
+- `/legal`, `/privacy` et `/terms` affichent un corpus commercial neutre marque
+  en cours de validation, sans date d'effet et sans action d'acceptation.
+- `/dpa` applique toujours son controle d'authentification et d'organisation,
+  puis affiche le meme statut de revue lorsque le corpus V2 est desactive.
 - Les nouvelles routes ne publient pas leur contenu V2.
-- `LegalAcceptanceGate` conserve son comportement historique.
+- Les preuves `2026-07-02` existantes continuent d'ouvrir l'acces, mais aucune
+  nouvelle acceptation du corpus historique n'est creee.
 - Aucune requete n'est envoyee vers les nouvelles structures de preuve V2.
 - `DPA_SELF_SERVICE_ENABLED`, `STRIPE_ENABLED`, `AI_FEATURES_ENABLED`, `DOCUMENT_STORAGE_ENABLED` et `TRANSACTIONAL_EMAIL_ENABLED` restent faux.
 
@@ -52,4 +56,7 @@ publique nettoyee avant toute reintegration.
 - Les informations courtes au point de collecte ne sont pas toutes integrees ; elles restent une decision P1 avant activation commerciale.
 - Le corpus V2 n'a pas de date d'effet et ne doit pas etre presente comme applicable.
 - La validation juridique humaine du texte francais puis des traductions demeure obligatoire.
-- Les identites contractantes precises des fournisseurs doivent etre confirmees par les contrats ou factures du compte RODANBTECH.
+- Squarespace est utilise pour le domaine, le DNS et eventuellement le site
+  vitrine ; Google Workspace est utilise pour la messagerie professionnelle.
+  Ces services administratifs ne sont pas presumes recevoir toutes les donnees
+  Clikarage. Leurs roles contractuels exacts restent a confirmer.

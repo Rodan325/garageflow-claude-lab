@@ -68,7 +68,7 @@ Marketing and maintenance reminders require a documented legal basis configured 
 - Supabase provides database, Auth and Storage; the production database region is configured as `eu-west-3` (Paris). Confirm the current contracting entity, subprocessor list, DPA and transfer safeguards before signature: [Supabase regions](https://supabase.com/docs/guides/platform/regions), [Supabase DPA](https://supabase.com/downloads/docs/Supabase%2BDPA%2B260601.pdf).
 - Vercel hosts the web interface. Confirm the plan-specific contracting entity and terms before signature: [Vercel terms](https://vercel.com/legal/terms).
 - Squarespace is identified for domain administration. Confirm its precise role and current contractual entity: [Squarespace terms](https://www.squarespace.com/terms-of-service).
-- The email provider is still described as `Google Workspace / Squarespace, selon la configuration du domaine`; the actual provider and DPA must be confirmed.
+- Google Workspace is used for professional email. Squarespace is used for the domain, DNS and potentially the showcase site. Neither is presented as receiving every category of Clikarage data; their exact contractual roles and any applicable DPA must still be confirmed.
 - No SMS, DMS or payment provider is represented as connected.
 
 ## Arabic PDF evidence
@@ -83,7 +83,13 @@ The committed PDF and both page captures were regenerated from corpus SHA-256 `2
 
 ## Independent review corrections
 
-The post-validation review corrected nine merge-blocking issues without enabling the corpus: flags-off routes and active versions now remain frozen on `2026-07-02`; the legacy DPA path remains user-scoped; center-scoped legacy admins cannot accept an organization DPA; non-public service-level and AI-policy text is absent from the frontend runtime; Arabic PDF financial labels are localized in the generator; the V2 publisher/VAT identity block no longer leaks French into English or Arabic; the unverified `Supabase, Inc.` entity assertion was replaced with the neutral product name `Supabase`; and the language-switch regression test now covers the fail-closed historical layout as well as the V2 wording. The forward-only migration `20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql` contains no data rewrite.
+The post-validation review keeps the `2026-07-02` snapshots immutable and moves
+them behind explicit historical archive routes. With V2 flags off, active routes
+show neutral review-only content and never create a new acceptance for those
+historical versions. Existing proofs still satisfy the legacy gate. The DPA
+remains private, center-scoped legacy admins cannot accept it for an
+organization, and non-public service-level and AI-policy text stays outside the
+frontend runtime.
 
 ## Blocking before contracting
 
@@ -104,7 +110,8 @@ The post-validation review corrected nine merge-blocking issues without enabling
 
 ## Future improvements
 
-- Store a cryptographic content digest in addition to the stable document identifier if evidentiary requirements justify it.
+- Keep the implemented `document_sha256` contract aligned with every approved
+  canonical revision and archive each effective payload.
 - Add configurable retention enforcement after the legal schedule is approved.
 - Introduce provider-specific notice templates only when each provider is actually connected.
 

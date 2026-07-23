@@ -4,6 +4,8 @@ import { PrivacyPage as HistoricalPrivacyPage } from './HistoricalPrivacy2026070
 import { HistoricalDocumentNotice } from './HistoricalDocumentNotice'
 import { legalDocsV2Enabled } from '@/lib/features'
 import { LegalV2DocumentPage } from './LegalV2DocumentPage'
+import { CommercialLegalPage } from './CommercialLegalPage'
+import { LEGAL_V2_DOCUMENTS } from '@/config/legalV2'
 
 export function PrivacyPage() {
   const [params] = useSearchParams()
@@ -11,5 +13,11 @@ export function PrivacyPage() {
     return <HistoricalDocumentNotice><HistoricalPrivacyPage /></HistoricalDocumentNotice>
   }
   if (legalDocsV2Enabled()) return <LegalV2DocumentPage documentId="privacy" />
-  return <HistoricalPrivacyPage />
+  return (
+    <CommercialLegalPage
+      document="privacy"
+      version={LEGAL_V2_DOCUMENTS.privacy.version}
+      reviewOnly
+    />
+  )
 }

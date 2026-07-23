@@ -4,6 +4,8 @@ import { LegalPage as HistoricalLegalPage } from './HistoricalLegalNotice2026070
 import { HistoricalDocumentNotice } from './HistoricalDocumentNotice'
 import { legalDocsV2Enabled } from '@/lib/features'
 import { LegalV2DocumentPage } from './LegalV2DocumentPage'
+import { CommercialLegalPage } from './CommercialLegalPage'
+import { LEGAL_V2_DOCUMENTS } from '@/config/legalV2'
 
 export function LegalPage() {
   const [params] = useSearchParams()
@@ -11,5 +13,11 @@ export function LegalPage() {
     return <HistoricalDocumentNotice><HistoricalLegalPage /></HistoricalDocumentNotice>
   }
   if (legalDocsV2Enabled()) return <LegalV2DocumentPage documentId="legal" />
-  return <HistoricalLegalPage />
+  return (
+    <CommercialLegalPage
+      document="legal"
+      version={LEGAL_V2_DOCUMENTS.legal.version}
+      reviewOnly
+    />
+  )
 }

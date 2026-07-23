@@ -41,11 +41,11 @@ export const legalConfig = {
 
   employees: 'Unité non employeuse',
 
-  // Squarespace gère le domaine (et l'email selon la config) ; il N'héberge PAS
-  // l'application Clikarage — celle-ci est déployée sur Vercel.
+  // These administrative services are not presumed to receive every category
+  // of Clikarage data. Their exact contractual roles remain to be confirmed.
   domainProviderName: 'Squarespace',
-  domainProviderPurpose: 'Gestion du domaine et, le cas échéant, configuration de l’email professionnel',
-  emailProviderName: 'Google Workspace / Squarespace, selon la configuration du domaine',
+  domainProviderPurpose: 'Gestion du domaine, du DNS et, le cas échéant, du site vitrine',
+  emailProviderName: 'Google Workspace',
 
   frontendHostName: 'Vercel Inc.',
   frontendHostAddress: '440 N Barranca Ave #4133, Covina, CA 91723, États-Unis',

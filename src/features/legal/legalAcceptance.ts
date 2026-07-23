@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase'
 import { isDemo } from '@/lib/demo'
 import {
   LEGAL_DOCUMENT_VERSIONS,
+  HISTORICAL_LEGAL_VERSION,
   REQUIRED_LEGAL_DOCS,
   type LegalDocumentType,
   type LegalRole,
@@ -77,6 +78,9 @@ export async function recordLegalAcceptance(
   evidence?: LegalAcceptanceEvidence,
 ): Promise<void> {
   if (isDemo()) return
+  if (version === HISTORICAL_LEGAL_VERSION || documentType === 'pilot_agreement') {
+    throw new Error('Historical legal documents cannot receive new acceptances')
+  }
   const { data: auth } = await supabase.auth.getUser()
   const uid = auth?.user?.id
   if (!uid) throw new Error('Utilisateur non connecté')

@@ -31,9 +31,9 @@ export interface LegalDocumentDefinition {
 
 const documentHashes: Record<LegalV2DocumentId, Record<Lang, string>> = {
   legal: {
-    fr: '51893d46008ad49fd1ee99806c1f3d1e94be09dceccb03b76d18e41b1e2c1b5c',
-    en: '673b83dde885322d249b8893b1e5c1a8f2d90fbcdeb2190e32bb32d7ec5e779e',
-    ar: '04e6eaf913091b6b32510f7ff79be57974125a4a5181df89439acd9be3a9c3eb',
+    fr: 'b7e27190aa61dc35b44bb5b28964d35c71fce20c719725920c53d06375f5d501',
+    en: '869fd4006e2cc5ab3dab293515571a65cbf37d488f0be711b90242624d142f99',
+    ar: '871778353dfe8840cedd206103efa684903a0e17f943278ea54cdbffc4f49a0b',
   },
   terms_pro: {
     fr: 'bfb31cbfcb840155475d8ae6ad236893730de4558d1a3564143b4097dcadf170',
@@ -46,9 +46,9 @@ const documentHashes: Record<LegalV2DocumentId, Record<Lang, string>> = {
     ar: 'e8550f85fca2c8739096436606a6f136b3618d600988e8551c907b81e85fbcd4',
   },
   privacy: {
-    fr: '57909115a303de9a13b4ea976350ebce81831aefae2a0c21cde269b3ebbbbccd',
-    en: '3aa8a6152608e09ba00b981c22d41814777190e5c8efc86ae85837ae40b681a9',
-    ar: '2f10fdbcc8f582de418f72e2dc05bdd6605521b138efc8f187b479cba41536e9',
+    fr: '46195d8d3529233cb44f8a0baafb7c23d98bedea7164564d310e100860844883',
+    en: '96e2412d94aae83fb3e7abf20ca556ded21a2f8c1f7a67ae24d13ba2c6402145',
+    ar: 'd9027874464a02d608dd879a89a74335bee7fdf88dc17595f1bf50156808dccb',
   },
   cookies: {
     fr: 'f9b08d5a61f7148bed5d71cc5543fd066720e08575a782a4bc92ae5dbe0e7edc',
@@ -56,14 +56,14 @@ const documentHashes: Record<LegalV2DocumentId, Record<Lang, string>> = {
     ar: '399121f003b970e3abe0a40a4644b519530049ad19cdd071e0635a6f9d35a319',
   },
   dpa: {
-    fr: '8a46b6d7a84582f35418e75ff91a55875000ac5a6fc36b9efb9dba8252a3689e',
-    en: 'e9a1dcb0b6794b172e952096d7aafed710b420d329b9233d45c89cc49b5bf2a7',
-    ar: 'e2610cd027090ce7cbf7a9efc694d1f26961916615255e582d876145eabbbc73',
+    fr: '484d5bba3263046198fb04b4326b1b683a66c386d21dc26f1ce937dc17878120',
+    en: 'b2628e3c6ba4e4c82fa79976d09a0903d6f5cfb5ec769bd66d4384ca4f6b50c0',
+    ar: '2b08bb7db0646c91d88a3afe3f2ff73674c0097ad8fee75b03ab6baf19cd3aec',
   },
   subprocessors: {
-    fr: 'c17e3231c5a1701ef5be322c11b4a47a73f91d69db739749789ba489c65d608b',
-    en: 'ef738fa91cab75343403490c5e02634fb3e5208d3a83d34ee4e7907d1e20f63d',
-    ar: 'f9a06ccc43f2aeb045e369e696ce57249afeaaeabeaea3ab921aee0baa955aad',
+    fr: '04cb62ac1c520547e7d57ebb1b935436ddcdd7e93723f8d44985c7bfa916e177',
+    en: '274b845ddff55ce06b64d06779692cdc28506bd875b45797471e7acced931935',
+    ar: '805bf3d3ee2d7d1ea331f44dbff8f81da8f57bf522b28c9815301445c4ab950e',
   },
   security: {
     fr: '010e9cfca7ee955340cd22616947892cee19c907263038a9d52977e8328359d2',

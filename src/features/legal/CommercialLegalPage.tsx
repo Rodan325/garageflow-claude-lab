@@ -21,12 +21,29 @@ const identityLabels: Record<Lang, Record<string, string>> = {
   },
 }
 
+const reviewNotice: Record<Lang, { title: string; body: string }> = {
+  fr: {
+    title: 'Document commercial en préparation',
+    body: 'Ce texte neutre remplace l’ancien corpus pilote dans les routes actives. Il reste sans date d’effet et ne peut pas être accepté tant que la version juridique V2 n’est pas explicitement activée.',
+  },
+  en: {
+    title: 'Commercial document under review',
+    body: 'This neutral text replaces the former pilot corpus on active routes. It has no effective date and cannot be accepted until legal V2 is explicitly enabled.',
+  },
+  ar: {
+    title: 'مستند تجاري قيد المراجعة',
+    body: 'يحل هذا النص المحايد محل مجموعة النصوص التجريبية السابقة في المسارات النشطة. ولا تاريخ نفاذ له ولا يمكن قبوله قبل تفعيل النسخة القانونية V2 صراحة.',
+  },
+}
+
 export function CommercialLegalPage({
   document,
   version,
+  reviewOnly = false,
 }: {
   document: CommercialLegalDocumentKey
   version: string
+  reviewOnly?: boolean
 }) {
   const { lang } = useLang()
   const content = getCommercialLegalDocument(document, lang)
@@ -34,7 +51,17 @@ export function CommercialLegalPage({
 
   return (
     <CommercialLegalLayout title={content.title} version={version}>
-      <article data-legal-document={document} data-legal-version={version}>
+      <article
+        data-legal-document={document}
+        data-legal-version={version}
+        data-legal-status={reviewOnly ? 'review' : 'current'}
+      >
+        {reviewOnly && (
+          <aside role="status" className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-100">
+            <p className="font-bold">{reviewNotice[lang].title}</p>
+            <p className="mt-1 leading-6">{reviewNotice[lang].body}</p>
+          </aside>
+        )}
         {content.introduction && <p className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm font-medium leading-7">{content.introduction}</p>}
 
         {content.sections.map((section) => (

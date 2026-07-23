@@ -26,7 +26,6 @@ export function LegalFooter({ className, brandOverride }: { className?: string; 
     { to: '/legal', label: t.footer.legal },
     { to: '/privacy', label: t.footer.privacy },
     { to: '/terms', label: t.footer.terms },
-    { to: '/dpa', label: t.footer.dpa },
   ]
   return (
     <div
