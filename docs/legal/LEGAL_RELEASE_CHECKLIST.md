@@ -41,8 +41,11 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 - [x] Migration `20260720230821_preserve_legal_acceptance_evidence_lifecycle.sql` appliquee en local et staging.
 - [x] Migration `20260723110428_refresh_legal_canonical_document_hashes.sql`
   appliquee sur Docker local apres reconstruction 38/38.
-- [ ] Migration `20260723110428_refresh_legal_canonical_document_hashes.sql`
-  a valider sur staging dans une operation distante separee.
+- [x] Migration `20260723110428_refresh_legal_canonical_document_hashes.sql`
+  appliquee seule sur staging ; historique 38/38 et dry-run final vide.
+- [x] Snapshot staging avant/apres : zero acceptation et empreinte identique.
+  Les huit preuves historiques simulees n'etaient pas presentes sur staging ;
+  ne pas presenter ce controle comme une comparaison de huit lignes distantes.
 - [x] Huit acceptations historiques preservees et champs ajoutes laisses `NULL` pendant la validation de migration.
 - [x] Test d'isolation multi-tenant des acceptations.
 - [x] Acceptation DPA refusee pour un role non habilite.

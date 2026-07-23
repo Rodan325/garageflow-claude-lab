@@ -307,9 +307,102 @@ P0 RESTANTS : AUCUN
 P1 RESTANTS : AUCUN
 PRET POUR NOUVELLE REVUE INDEPENDANTE : OUI
 
-## Addendum du 23 juillet 2026 - DPA prive et corpus canonique
+## Addendum final du 23 juillet 2026 - validation staging des hashes canoniques
 
-Cette passe corrige les trois P1 de la revue independante sans consulter ni
+### Cible et etat initial
+
+- Branche : `feat/legal-production-readiness`.
+- SHA valide : `56b30739a547802c76d4fc4116690906212e34ac`.
+- Projet unique autorise : staging `zazdhzmfrtecxtglhoso`.
+- Projet production interdit : `tftmfhwmzkhzlvgwcnje`, non consulte.
+- Historique initial : 37 migrations distantes sur 38 locales.
+- Dry-run initial : uniquement
+  `20260723110428_refresh_legal_canonical_document_hashes.sql`.
+- Aucune fixture de demande, rappel, acceptation, registre ou Storage ne
+  subsistait avant l'application.
+
+Le snapshot staging avant migration contenait zero acceptation juridique :
+zero preuve `2026-07-02` et zero preuve V2. Son empreinte SHA-256 etait
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+Il n'existait donc pas huit preuves historiques sur cette cible. Elles avaient
+ete simulees et verifiees lors de la validation locale precedente, puis
+nettoyees. Aucune ligne n'a ete creee pour masquer cette difference de contexte.
+
+Le registre prive contenait 30 lignes, toutes `staged` ou `draft`, sans date
+d'effet. Son empreinte avant migration etait
+`0e5ba162d6cb1acd610fab13a3429622a7ae25caae0523b730c052dbfd2535a0`.
+
+### Application et comparaison
+
+La CLI a applique une seule fois et uniquement au staging la migration
+`20260723110428`. Aucun seed, backfill additionnel, SQL manuel sur les preuves
+ou migration historique n'a ete execute.
+
+Apres migration :
+
+- historique staging : 38/38 ;
+- dry-run : vide, base distante a jour ;
+- preuves : toujours zero ;
+- empreinte des preuves : strictement identique ;
+- registre : toujours 30 lignes ;
+- hashes canoniques concernes : 24/24 correspondances, zero divergence ;
+- lignes `service_levels` et `ai_policy` hors corpus client : 6 lignes
+  volontairement inchangees ;
+- empreinte du registre :
+  `e3f1f448367b98d6866faa7990f19b582d8c949c6fd7db14fd42dc46630b052f`.
+
+La migration ne reference pas `public.legal_acceptances`. Elle ne peut donc
+modifier ni `accepted_at`, ni acteur, ni organisation, ni version, ni ancien
+hash de preuve. Le test RLS prouve en outre qu'une preuve portant un autre hash
+ne satisfait pas le gate courant et qu'une acceptation valide enregistre le
+hash exact de la version affichee. Aucune preuve existante n'a ete reecrite
+pour simuler une reacceptation.
+
+### Tests staging et nettoyage
+
+- RLS/RPC/Storage : 101/101.
+- Juridique V2 : 19/19.
+- Anonyme DPA refuse, membre simple non habilite et proprietaire habilite :
+  reussis.
+- Isolation client, garage, organisation et centre : reussie.
+- Ancien hash traite comme preuve manquante par le gate courant : reussi.
+- Registre prive non expose par la Data API : reussi.
+- Immutabilite sans policy `UPDATE` ou `DELETE` : reussie.
+- Cycle de vie transactionnel staging : preuve conservee apres suppression de
+  l'acteur, de l'organisation et de la version ; rollback integral.
+- Tests applicatifs du guard DPA, de la matrice des flags, du modele canonique
+  et des changements de hash : 135/135.
+- Audit final : zero fixture, zero acceptation et zero objet Storage.
+
+Les neuf flags sont `false` dans `.env.example` et absents de
+`.env.staging.local`; leur absence reste fail-closed. La branche distante et le
+diff de la PR ne contiennent aucun chemin `docs/legal/internal/` ou
+`docs/legal/source/`, aucun marqueur explicite de non-publication ou de
+brouillon de travail, et le security scan ne detecte aucun secret.
+
+STAGING AVANT MIGRATION : 37/37, DRY-RUN = 20260723110428 UNIQUEMENT
+STAGING APRES MIGRATION : 38/38
+MIGRATION APPLIQUEE : OUI, STAGING UNIQUEMENT
+DRY-RUN FINAL : VIDE
+PREUVES AVANT/APRES IDENTIQUES : OUI, ZERO LIGNE ET EMPREINTE IDENTIQUE
+HUIT PREUVES HISTORIQUES INCHANGEES : NON VERIFIABLE SUR STAGING, ZERO PRESENTE AVANT/APRES
+ANCIENS HASHES DE PREUVE CONSERVES : OUI PAR CONTRAT, AUCUNE PREUVE STAGING A COMPARER
+REGISTRE COURANT MIS A JOUR : OUI, 24/24 HASHES
+ANCIENNE PREUVE REFUSEE PAR LE GATE COURANT : OUI, TEST RLS ET CONTRAT APPLICATIF
+NOUVELLE ACCEPTATION REQUISE : OUI
+RLS STAGING : 101/101
+TESTS JURIDIQUES STAGING : 19/19
+FIXTURES RESIDUELLES : ZERO
+FLAGS TOUJOURS OFF : OUI
+PRODUCTION CONSULTEE OU MODIFIEE : NON
+VERCEL PRODUCTION MODIFIE : NON
+P0 RESTANTS : AUCUN
+P1 RESTANTS : AUCUN TECHNIQUE ; ABSENCE DES HUIT LIGNES ATTENDUES DOCUMENTEE
+PRET POUR REVUE INDEPENDANTE : OUI, AVEC CETTE RESERVE FACTUELLE
+
+## Annexe - validation locale prealable du 23 juillet 2026
+
+Cette passe locale anterieure corrige les trois P1 de la revue independante sans consulter ni
 modifier Supabase Production, Supabase Staging ou Vercel. Les constats staging
 precedents restent historiques : la nouvelle migration
 `20260723110428_refresh_legal_canonical_document_hashes.sql` a ete validee
@@ -391,7 +484,7 @@ backfill des acceptations dans les migrations juridiques forward.
 
 LOCAL DOCKER - RECONSTRUCTION : OUI - 38/38
 LOCAL DOCKER - TEST:RLS : OUI - 120/120
-STAGING - NOUVELLE MIGRATION APPLIQUEE : NON, HORS PERIMETRE DE CETTE PASSE
+STAGING - ETAT LORS DE CETTE PASSE LOCALE : MIGRATION NON ENCORE APPLIQUEE
 HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : OUI, CONTRAT SANS REECRITURE ET SNAPSHOT PRECEDENT
 DPA PRIVE ET HABILITATION : OUI
 HASH CANONIQUE COMPLET : OUI
