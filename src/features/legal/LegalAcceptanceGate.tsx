@@ -21,12 +21,12 @@ import { LEGAL_V2_DOCUMENTS } from '@/config/legalV2'
 import { legalAcceptanceV2Enabled } from '@/lib/features'
 import {
   getMissingLegalDocuments,
-  getMissingLegalV2Documents,
+  getLegalV2AcceptanceStatuses,
   recordLegalV2Acceptance,
   type AcceptableLegalV2DocumentId,
+  type LegalV2AcceptanceStatus,
 } from './legalAcceptance'
 import { LOCALES, useLang } from '@/i18n'
-import { isAuthorizedDpaRepresentative } from './dpaAccess'
 
 const GATE_TEXT: Record<'client' | 'garage', string> = {
   client:
@@ -70,19 +70,23 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
 
   const useV2 = legalAcceptanceV2Enabled()
   const organizationId = role === 'garage' ? (membership?.garage_id ?? garage?.id ?? null) : null
-  const canAcceptDpa = isAuthorizedDpaRepresentative({
-    role: membership?.role ?? null,
-    organizationRole: membership?.organization_role ?? null,
-    centerId: membership?.center_id ?? null,
-  })
   const enabled = !demo && isSupabaseConfigured && !!userId
-  const { data: missing, isLoading, isError } = useQuery<GateDocument[]>({
-    queryKey: ['legal-missing', useV2 ? 'v2' : 'legacy', userId, role, organizationId],
-    enabled,
-    queryFn: async () => useV2
-      ? await getMissingLegalV2Documents(userId!, role, organizationId)
-      : await getMissingLegalDocuments(userId!, role),
+  const legacyQuery = useQuery<LegalDocumentType[]>({
+    queryKey: ['legal-missing', 'legacy', userId, role],
+    enabled: enabled && !useV2,
+    queryFn: () => getMissingLegalDocuments(userId!, role),
   })
+  const v2Query = useQuery<LegalV2AcceptanceStatus[]>({
+    queryKey: ['legal-missing', 'v2', userId, role, organizationId, lang],
+    enabled: enabled && useV2,
+    queryFn: () => getLegalV2AcceptanceStatuses(role, organizationId, lang),
+  })
+  const isLoading = useV2 ? v2Query.isLoading : legacyQuery.isLoading
+  const isError = useV2 ? v2Query.isError : legacyQuery.isError
+  const v2Missing = (v2Query.data ?? []).filter((status) => !status.accepted)
+  const missing: GateDocument[] = useV2
+    ? v2Missing.map((status) => status.document_key)
+    : (legacyQuery.data ?? [])
 
   if (!enabled) return <>{children}</>
   if (isLoading) {
@@ -104,7 +108,7 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
       </div>
     )
   }
-  if (!missing || missing.length === 0) return <>{children}</>
+  if (missing.length === 0) return <>{children}</>
   if (!useV2) {
     return (
       <div className="flex min-h-dvh flex-col bg-muted/40">
@@ -124,17 +128,17 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
     )
   }
 
-  const hasUnauthorizedDpa = useV2 && missing.includes('dpa') && !canAcceptDpa
-  const allChecked = !hasUnauthorizedDpa && missing.every((doc) => checked[doc])
+  const statusByDocument = new Map(v2Missing.map((status) => [status.document_key, status]))
+  const allChecked = v2Missing.every((status) => status.can_accept && checked[status.document_key])
 
   async function accept() {
-    if (!allChecked || !missing) return
+    if (!allChecked) return
     setSubmitting(true)
     try {
       if (useV2) {
         for (const documentId of missing as AcceptableLegalV2DocumentId[]) {
           const document = LEGAL_V2_DOCUMENTS[documentId]
-          await recordLegalV2Acceptance(documentId, role, 'legal_gate', {
+          await recordLegalV2Acceptance(documentId, {
             displayedLanguage: lang,
             organizationId: document.acceptanceScope === 'organization' ? organizationId : null,
           })
@@ -168,12 +172,17 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
           <div className="mt-4 space-y-2">
             {(missing as GateDocument[]).map((doc) => {
               const meta = gateDocumentMeta(doc, useV2)
-              if (useV2 && doc === 'dpa' && !canAcceptDpa) {
+              const status = useV2
+                ? statusByDocument.get(doc as AcceptableLegalV2DocumentId)
+                : null
+              if (useV2 && !status?.can_accept) {
                 return (
                   <div key={doc} className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                     <p className="font-medium">{tr(meta.label)}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {tr('Seul un propriétaire ou représentant habilité de l’organisation peut accepter ce document.')}
+                      {status?.reason === 'authorized_representative_required'
+                        ? tr('Seul un propriétaire ou représentant habilité de l’organisation peut accepter ce document.')
+                        : tr('Ce document ne peut pas être accepté dans son état actuel.')}
                     </p>
                     <Link to={meta.route} target="_blank" className="mt-2 inline-block font-medium text-primary hover:underline">
                       {tr('Consulter le document')}

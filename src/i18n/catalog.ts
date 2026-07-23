@@ -390,6 +390,12 @@ const en: Record<string, string> = {
   'Documents contractuels en cours de validation': 'Contractual documents under review',
   'Aucune nouvelle acceptation des versions historiques n’est enregistrée. Votre accès sera disponible après publication explicite des documents commerciaux validés.': 'No new acceptance of historical versions is recorded. Your access will be available after the validated commercial documents are explicitly published.',
   'Seul un propriétaire ou représentant habilité de l’organisation peut accepter ce document.': 'Only an owner or authorised organisation representative can accept this document.',
+  'Ce document ne peut pas être accepté dans son état actuel.': 'This document cannot be accepted in its current state.',
+  'Conditions d’utilisation professionnelles': 'Professional terms of service',
+  'Acceptation requise': 'Acceptance required',
+  'Aucune version applicable publiée': 'No applicable version published',
+  'Version applicable non publiée': 'No applicable version published',
+  'Accepter la version courante': 'Accept the current version',
   'Consulter le document': 'View the document',
 }
 
@@ -781,6 +787,12 @@ const ar: Record<string, string> = {
   'Documents contractuels en cours de validation': 'المستندات التعاقدية قيد المراجعة',
   'Aucune nouvelle acceptation des versions historiques n’est enregistrée. Votre accès sera disponible après publication explicite des documents commerciaux validés.': 'لا تُسجل أي موافقة جديدة على الإصدارات التاريخية. وسيصبح الوصول متاحًا بعد النشر الصريح للمستندات التجارية المعتمدة.',
   'Seul un propriétaire ou représentant habilité de l’organisation peut accepter ce document.': 'لا يقبل هذا المستند إلا مالك المؤسسة أو ممثلها المخول.',
+  'Ce document ne peut pas être accepté dans son état actuel.': 'لا يمكن قبول هذا المستند بحالته الحالية.',
+  'Conditions d’utilisation professionnelles': 'شروط الاستخدام المهنية',
+  'Acceptation requise': 'القبول مطلوب',
+  'Aucune version applicable publiée': 'لا توجد نسخة نافذة منشورة',
+  'Version applicable non publiée': 'لا توجد نسخة نافذة منشورة',
+  'Accepter la version courante': 'قبول النسخة الحالية',
   'Consulter le document': 'عرض المستند',
 }
 
