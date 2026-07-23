@@ -19,7 +19,6 @@ import {
 } from '@/config/legal'
 import type { Lang } from '@/i18n'
 import {
-  LEGAL_EVIDENCE_APP_VERSION,
   LEGAL_V2_DOCUMENTS,
   type LegalDocumentDefinition,
   type LegalV2DocumentId,
@@ -56,6 +55,19 @@ export interface LegalAcceptanceEvidence {
 
 export type AcceptableLegalV2DocumentId = Extract<LegalV2DocumentId, 'terms_pro' | 'terms_client' | 'dpa'>
 
+export interface LegalV2AcceptanceStatus {
+  accepted: boolean
+  current: boolean
+  can_accept: boolean
+  reason: string
+  document_key: AcceptableLegalV2DocumentId
+  document_version: string | null
+  document_sha256: string | null
+  organization_id: string | null
+  acceptance_scope: 'user' | 'organization' | null
+  accepted_at: string | null
+}
+
 export interface LegalV2AcceptanceCandidate {
   user_id: string
   document_type: string
@@ -68,9 +80,7 @@ export interface LegalV2AcceptanceCandidate {
   acceptance_scope: string | null
 }
 
-const userAgent = () => (typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 500) : null)
-
-/** Enregistre UNE acceptation pour l'utilisateur connecté (idempotent par version). */
+/** Legacy evidence is now immutable and cannot be created from the browser. */
 export async function recordLegalAcceptance(
   documentType: LegalDocumentType,
   version: string,
@@ -82,34 +92,10 @@ export async function recordLegalAcceptance(
   if (version === HISTORICAL_LEGAL_VERSION || documentType === 'pilot_agreement') {
     throw new Error('Historical legal documents cannot receive new acceptances')
   }
-  const { data: auth } = await supabase.auth.getUser()
-  const uid = auth?.user?.id
-  if (!uid) throw new Error('Utilisateur non connecté')
-
-  // Idempotence : une seule ligne par (user, document, version) suffit comme preuve.
-  const { data: existing } = await supabase
-    .from('legal_acceptances')
-    .select('id')
-    .eq('user_id', uid)
-    .eq('document_type', documentType)
-    .eq('document_version', version)
-    .limit(1)
-  if ((existing ?? []).length > 0) return
-
-  const { error } = await supabase.from('legal_acceptances').insert({
-    user_id: uid,
-    role,
-    document_type: documentType,
-    document_version: version,
-    document_id: `${documentType}:${version}`,
-    displayed_language: evidence?.displayedLanguage ?? null,
-    // Legacy evidence is always user-scoped. Organization-level authority is
-    // recorded only by recordLegalV2Acceptance and validated by the database.
-    organization_id: null,
-    user_agent: userAgent(),
-    acceptance_context: context,
-  })
-  if (error) throw error
+  void role
+  void context
+  void evidence
+  throw new Error('Legacy legal acceptance is read-only')
 }
 
 /**
@@ -119,11 +105,12 @@ export async function recordLegalAcceptance(
  */
 export async function recordLegalV2Acceptance(
   documentId: AcceptableLegalV2DocumentId,
-  role: LegalRole,
-  context: AcceptanceContext,
   evidence: LegalAcceptanceEvidence,
 ): Promise<void> {
   if (!legalAcceptanceV2Enabled()) throw new Error('Legal acceptance V2 is disabled')
+  if (documentId === 'dpa' && !dpaSelfServiceEnabled()) {
+    throw new Error('DPA self-service acceptance is disabled')
+  }
   if (documentId === 'dpa' && !dpaSelfServiceEnabled()) {
     throw new Error('DPA self-service is disabled')
   }
@@ -140,32 +127,32 @@ export async function recordLegalV2Acceptance(
     throw new Error('User acceptance cannot claim an organization')
   }
 
-  const { data: auth } = await supabase.auth.getUser()
-  const uid = auth?.user?.id
-  if (!uid) throw new Error('Utilisateur non connecté')
   const sha256 = await hashCanonicalLegalDocumentById(documentId, evidence.displayedLanguage)
   if (sha256 !== document.sha256[evidence.displayedLanguage]) {
     throw new Error('Canonical legal document hash mismatch')
   }
 
-  if (await hasCurrentLegalV2Acceptance(documentId, uid, evidence.organizationId ?? null)) return
+  const status = await getLegalV2AcceptanceStatus(
+    documentId,
+    evidence.displayedLanguage,
+    evidence.organizationId ?? null,
+  )
+  if (status.accepted) return
+  if (!status.current || !status.can_accept) {
+    throw new Error(`Legal acceptance is unavailable: ${status.reason}`)
+  }
+  if (
+    status.document_version !== document.version
+    || status.document_sha256 !== sha256
+    || status.acceptance_scope !== document.acceptanceScope
+  ) {
+    throw new Error('Current legal registry does not match the displayed document')
+  }
 
-  const { error } = await supabase.from('legal_acceptances').insert({
-    user_id: uid,
-    role,
-    document_type: documentId,
-    document_version: document.version,
-    document_id: document.documentId,
-    displayed_language: evidence.displayedLanguage,
-    organization_id: evidence.organizationId ?? null,
-    document_sha256: sha256,
-    document_status: document.status,
-    application_version: LEGAL_EVIDENCE_APP_VERSION,
-    acceptance_scope: document.acceptanceScope,
-    authority_role: null,
-    evidence_source: context,
-    user_agent: userAgent(),
-    acceptance_context: context,
+  const { error } = await supabase.rpc('accept_current_legal_document_v2', {
+    p_document_key: documentId,
+    p_language: evidence.displayedLanguage,
+    p_organization_id: evidence.organizationId ?? null,
   })
   if (error) throw error
 }
@@ -177,6 +164,72 @@ export function requiredLegalV2Documents(
 ): AcceptableLegalV2DocumentId[] {
   if (role === 'garage') return includeDpa ? ['terms_pro', 'dpa'] : ['terms_pro']
   return ['terms_client']
+}
+
+export async function getLegalV2AcceptanceStatus(
+  documentId: AcceptableLegalV2DocumentId,
+  language: Lang,
+  organizationId: string | null,
+): Promise<LegalV2AcceptanceStatus> {
+  const document = LEGAL_V2_DOCUMENTS[documentId]
+  const scopedOrganizationId = document.acceptanceScope === 'organization' ? organizationId : null
+  const { data, error } = await supabase.rpc('get_current_legal_acceptance_status_v2', {
+    p_document_key: documentId,
+    p_language: language,
+    p_organization_id: scopedOrganizationId,
+  })
+  if (error) throw error
+
+  const row = data?.[0]
+  if (!row || row.document_key !== documentId) {
+    throw new Error('Current legal acceptance status is unavailable')
+  }
+
+  const canonicalHash = await hashCanonicalLegalDocumentById(documentId, language)
+  const clientMatchesRegistry = (
+    document.status === 'effective'
+    && Boolean(document.effectiveAt)
+    && document.requiresAcceptance
+    && row.current
+    && row.document_version === document.version
+    && row.document_sha256 === canonicalHash
+    && canonicalHash === document.sha256[language]
+    && row.acceptance_scope === document.acceptanceScope
+  )
+  const selfServiceEnabled = documentId !== 'dpa' || dpaSelfServiceEnabled()
+
+  return {
+    ...row,
+    document_key: documentId,
+    accepted: clientMatchesRegistry && row.accepted,
+    current: clientMatchesRegistry,
+    can_accept: clientMatchesRegistry && selfServiceEnabled && row.can_accept,
+    reason: !clientMatchesRegistry
+      ? 'client_registry_mismatch'
+      : selfServiceEnabled
+        ? row.reason
+        : 'dpa_self_service_disabled',
+  } as LegalV2AcceptanceStatus
+}
+
+export async function getLegalV2AcceptanceStatuses(
+  role: LegalRole,
+  organizationId: string | null,
+  language: Lang,
+): Promise<LegalV2AcceptanceStatus[]> {
+  if (isDemo()) return []
+  const required = requiredLegalV2Documents(role)
+  if (
+    required.some((documentId) => LEGAL_V2_DOCUMENTS[documentId].acceptanceScope === 'organization')
+    && !organizationId
+  ) {
+    throw new Error('Organization context is required for legal acceptance V2')
+  }
+  return Promise.all(required.map((documentId) => getLegalV2AcceptanceStatus(
+    documentId,
+    language,
+    organizationId,
+  )))
 }
 
 export function isCurrentLegalV2Acceptance(
@@ -259,18 +312,11 @@ export async function getMissingLegalV2Documents(
   userId: string,
   role: LegalRole,
   organizationId: string | null,
+  language: Lang = 'fr',
 ): Promise<AcceptableLegalV2DocumentId[]> {
-  if (isDemo()) return []
-  const required = requiredLegalV2Documents(role)
-  if (required.some((documentId) => LEGAL_V2_DOCUMENTS[documentId].acceptanceScope === 'organization') && !organizationId) {
-    throw new Error('Organization context is required for legal acceptance V2')
-  }
-
-  const missing: AcceptableLegalV2DocumentId[] = []
-  for (const documentId of required) {
-    if (!await hasCurrentLegalV2Acceptance(documentId, userId, organizationId)) missing.push(documentId)
-  }
-  return missing
+  void userId
+  const statuses = await getLegalV2AcceptanceStatuses(role, organizationId, language)
+  return statuses.filter((status) => !status.accepted).map((status) => status.document_key)
 }
 
 export async function recordMultipleLegalAcceptances(

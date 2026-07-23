@@ -2043,6 +2043,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_current_legal_document_v2: {
+        Args: {
+          p_document_key: string
+          p_language: string
+          p_organization_id?: string | null
+        }
+        Returns: string
+      }
       accept_quote_public: {
         Args: { p_token: string; p_terms_version?: string; p_privacy_version?: string }
         Returns: Json
@@ -2161,6 +2169,25 @@ export type Database = {
       }
       expire_quotes: { Args: never; Returns: number }
       get_quote_public: { Args: { p_token: string }; Returns: Json }
+      get_current_legal_acceptance_status_v2: {
+        Args: {
+          p_document_key: string
+          p_language: string
+          p_organization_id?: string | null
+        }
+        Returns: {
+          accepted: boolean
+          current: boolean
+          can_accept: boolean
+          reason: string
+          document_key: string
+          document_version: string | null
+          document_sha256: string | null
+          organization_id: string | null
+          acceptance_scope: string | null
+          accepted_at: string | null
+        }[]
+      }
       get_workshop_timeline: {
         Args: { p_request_id: string }
         Returns: Database["public"]["Tables"]["service_request_timeline"]["Row"][]
