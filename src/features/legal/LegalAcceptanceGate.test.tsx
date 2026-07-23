@@ -10,9 +10,11 @@ const state = vi.hoisted(() => ({
   legacyMissing: [] as string[],
   v2Missing: [] as string[],
   v2Error: false,
+  memberRole: 'owner',
+  organizationRole: null as string | null,
+  centerId: null as string | null,
   getLegacy: vi.fn(),
   getV2: vi.fn(),
-  recordLegacy: vi.fn(),
   recordV2: vi.fn(),
 }))
 
@@ -22,7 +24,12 @@ vi.mock('@/features/auth/AuthProvider', () => ({
   useAuth: () => ({
     demo: null,
     userId: 'user-owner-a',
-    membership: { garage_id: 'organization-a' },
+    membership: {
+      garage_id: 'organization-a',
+      role: state.memberRole,
+      organization_role: state.organizationRole,
+      center_id: state.centerId,
+    },
     garage: { id: 'organization-a' },
     signOut: vi.fn(),
   }),
@@ -30,7 +37,6 @@ vi.mock('@/features/auth/AuthProvider', () => ({
 vi.mock('./legalAcceptance', () => ({
   getMissingLegalDocuments: state.getLegacy,
   getMissingLegalV2Documents: state.getV2,
-  recordMultipleLegalAcceptances: state.recordLegacy,
   recordLegalV2Acceptance: state.recordV2,
 }))
 vi.mock('@/components/common/LegalFooter', () => ({ LegalFooter: () => null }))
@@ -58,12 +64,14 @@ beforeEach(() => {
   state.legacyMissing = []
   state.v2Missing = []
   state.v2Error = false
+  state.memberRole = 'owner'
+  state.organizationRole = null
+  state.centerId = null
   state.getLegacy.mockReset().mockImplementation(async () => state.legacyMissing)
   state.getV2.mockReset().mockImplementation(async () => {
     if (state.v2Error) throw new Error('V2 evidence unavailable')
     return state.v2Missing
   })
-  state.recordLegacy.mockReset().mockResolvedValue(undefined)
   state.recordV2.mockReset().mockResolvedValue(undefined)
 })
 
@@ -81,6 +89,15 @@ describe('LegalAcceptanceGate V2 switching', () => {
     expect(state.getLegacy).toHaveBeenCalledWith('user-owner-a', 'garage')
     expect(state.getV2).not.toHaveBeenCalled()
     expect(state.recordV2).not.toHaveBeenCalled()
+  })
+
+  it('blocks new legacy acceptance when historical evidence is missing', async () => {
+    state.legacyMissing = ['terms']
+    renderGate()
+
+    expect(await screen.findByText('Documents contractuels en cours de validation')).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'J’accepte et je continue' })).toBeNull()
   })
 
   it('queries and records the organization-scoped V2 documents when enabled', async () => {
@@ -106,7 +123,18 @@ describe('LegalAcceptanceGate V2 switching', () => {
       displayedLanguage: 'fr',
       organizationId: 'organization-a',
     })
-    expect(state.recordLegacy).not.toHaveBeenCalled()
+  })
+
+  it('does not offer organization DPA acceptance to a simple member', async () => {
+    state.v2 = true
+    state.memberRole = 'advisor'
+    state.v2Missing = ['terms_pro', 'dpa']
+    renderGate()
+
+    expect(await screen.findByText('Seul un propriétaire ou représentant habilité de l’organisation peut accepter ce document.')).toBeInTheDocument()
+    expect(screen.getAllByRole('checkbox')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'J’accepte et je continue' })).toBeDisabled()
+    expect(state.recordV2).not.toHaveBeenCalled()
   })
 
   it('unblocks the workspace when current V2 evidence is complete', async () => {

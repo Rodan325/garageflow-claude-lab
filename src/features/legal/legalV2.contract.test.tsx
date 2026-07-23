@@ -12,9 +12,12 @@ import {
 import {
   CLIENT_LEGAL_V2_DOCUMENT_IDS,
   getLegalV2Document,
-  serializeLegalV2Document,
   type ClientLegalV2DocumentId,
 } from './legalV2Content'
+import {
+  getCanonicalLegalDocument,
+  serializeCanonicalLegalDocumentById,
+} from './legalCanonicalDocument'
 import { LegalV2DocumentPage } from './LegalV2DocumentPage'
 import { HistoricalLegalArchivePage } from './HistoricalLegalArchivePage'
 
@@ -65,14 +68,14 @@ describe('legal V2 registry and content', () => {
 
   it('contains no visible pilot, prototype, placeholder or historical product branding', () => {
     const visible = clientDocumentIds.flatMap((documentId) => languages.map((lang) => (
-      serializeLegalV2Document(documentId, lang)
+      serializeCanonicalLegalDocumentById(documentId, lang)
     ))).join('\n')
     expect(visible).not.toMatch(/programme pilote|offre pilote|version pilote|\bpilot\b|\bbeta\b|expérimental|test version|version d'essai|placeholder|GarageFlow/i)
   })
 
   it('does not leak reference French legal headings into English or Arabic', () => {
     for (const lang of ['en', 'ar'] as const) {
-      const visible = clientDocumentIds.map((documentId) => serializeLegalV2Document(documentId, lang)).join('\n')
+      const visible = clientDocumentIds.map((documentId) => serializeCanonicalLegalDocumentById(documentId, lang)).join('\n')
       expect(visible).not.toMatch(/Mentions légales|Politique de confidentialité|Conditions d’accès|Conditions générales de services|Accord de sous-traitance/)
     }
   })
@@ -80,10 +83,21 @@ describe('legal V2 registry and content', () => {
   it('binds every localized document to its configured SHA-256', () => {
     for (const documentId of clientDocumentIds) {
       for (const lang of languages) {
-        const actual = createHash('sha256').update(serializeLegalV2Document(documentId, lang)).digest('hex')
+        const actual = createHash('sha256').update(serializeCanonicalLegalDocumentById(documentId, lang)).digest('hex')
         expect(actual, `${documentId}/${lang}`).toBe(LEGAL_V2_DOCUMENTS[documentId].sha256[lang])
       }
     }
+  })
+
+  it('renders the exact canonical identity and presentation payload', () => {
+    const canonical = getCanonicalLegalDocument('legal', 'fr')
+    const { container } = renderV2('legal', 'fr')
+    for (const entry of canonical.identity.entries) expect(container).toHaveTextContent(entry.value)
+    expect(container).toHaveTextContent(canonical.presentation.reviewNotice!.body)
+    expect(container.querySelector('[data-legal-sha256]')).toHaveAttribute(
+      'data-legal-sha256',
+      LEGAL_V2_DOCUMENTS.legal.sha256.fr,
+    )
   })
 
   it.each(languages)('renders staged identity and direction correctly in %s', (lang) => {
@@ -151,6 +165,10 @@ describe('legal acceptance V2 migration contract', () => {
     resolve(process.cwd(), 'supabase/migrations/20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql'),
     'utf8',
   )
+  const canonicalHashMigration = readFileSync(
+    resolve(process.cwd(), 'supabase/migrations/20260723110428_refresh_legal_canonical_document_hashes.sql'),
+    'utf8',
+  )
 
   it('preserves historical rows and adds only nullable evidence columns', () => {
     expect(migration).toContain('add column if not exists document_sha256 text')
@@ -181,9 +199,23 @@ describe('legal acceptance V2 migration contract', () => {
   })
 
   it('keeps every configured content hash aligned with the database registry', () => {
-    for (const document of Object.values(LEGAL_V2_DOCUMENTS)) {
-      for (const hash of Object.values(document.sha256)) expect(migration).toContain(hash)
+    for (const documentId of clientDocumentIds) {
+      for (const hash of Object.values(LEGAL_V2_DOCUMENTS[documentId].sha256)) {
+        expect(canonicalHashMigration).toContain(hash)
+      }
     }
+    for (const documentId of ['service_levels', 'ai_policy'] as const) {
+      for (const hash of Object.values(LEGAL_V2_DOCUMENTS[documentId].sha256)) {
+        expect(migration).toContain(hash)
+      }
+    }
+  })
+
+  it('updates only non-effective registry metadata and never acceptance evidence', () => {
+    expect(canonicalHashMigration).toContain("document.status in ('staged', 'draft')")
+    expect(canonicalHashMigration).toContain('document.effective_at is null')
+    expect(canonicalHashMigration).not.toMatch(/update\s+(?:public\.)?legal_acceptances/i)
+    expect(canonicalHashMigration).not.toMatch(/delete\s+from\s+(?:public\.)?legal_acceptances/i)
   })
 
   it('preserves only user-scoped legacy DPA evidence while V2 remains disabled', () => {

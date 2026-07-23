@@ -306,3 +306,97 @@ PRODUCTION MODIFIEE : NON
 P0 RESTANTS : AUCUN
 P1 RESTANTS : AUCUN
 PRET POUR NOUVELLE REVUE INDEPENDANTE : OUI
+
+## Addendum du 23 juillet 2026 - DPA prive et corpus canonique
+
+Cette passe corrige les trois P1 de la revue independante sans consulter ni
+modifier Supabase Production, Supabase Staging ou Vercel. Les constats staging
+precedents restent historiques : la nouvelle migration
+`20260723110428_refresh_legal_canonical_document_hashes.sql` a ete validee
+uniquement sur Docker local.
+
+### Acces DPA et flags
+
+- `public: false` est applique par `DpaAccessGuard` independamment des flags.
+- Un visiteur anonyme est redirige vers la connexion et un utilisateur sans
+  organisation ne recoit pas le document.
+- Un membre de l'organisation peut consulter le DPA prive, mais seuls un
+  proprietaire d'organisation, un administrateur reseau ou un role legacy
+  `owner`/`admin` non limite a un centre peuvent l'accepter.
+- L'acceptation exige que les trois flags documents V2, acceptations V2 et DPA
+  self-service soient exactement actifs. Toute valeur absente, vide, `1`,
+  `TRUE`, `false` ou invalide reste desactivee.
+- Le DPA historique direct et son archive passent par le meme guard.
+
+### Document canonique et preuve
+
+Le rendu, le calcul SHA-256 et l'enregistrement de la preuve utilisent le meme
+modele canonique. La serialisation est deterministe, normalisee NFC et encodee
+en UTF-8. Elle couvre la cle, la version, la langue, le titre, les sections,
+tableaux, annexes, mentions de presentation et l'identite complete de
+RODANBTECH, dont l'adresse, le SIREN, le SIRET et la mention TVA.
+
+Avant insertion, le frontend recalcule le hash du document affiche et refuse
+l'acceptation s'il differe du registre compile. La base continue de verifier
+independamment le hash, la version, le statut, la langue, la portee et
+l'habilitation. La migration forward actualise uniquement les versions privees
+`staged`/`draft` sans date d'effet ; elle ne contient aucune modification de
+`public.legal_acceptances`.
+
+### Documentation publique
+
+Les documents marques internes ou mixtes ont ete copies avant retrait dans
+`C:\Users\New User\Downloads\ClikaragePrivateLegal\20260723-114321`.
+La copie contient 12 fichiers, 156525 octets, et un manifeste SHA-256 verifie.
+L'audit n'a trouve aucun secret, credential ou donnee personnelle privee, mais
+des matrices et notes operationnelles qui n'avaient pas vocation a rester dans
+l'arbre public. Leur presence anterieure sur la branche publique n'est pas
+niee. Aucune reecriture d'historique n'a ete effectuee ou jugee indispensable
+en l'absence de secret.
+
+Le contrat automatise refuse tout fichier sous `docs/legal/internal` ou
+`docs/legal/source` et les marquages explicites de document non public. Google
+Workspace est presente uniquement comme messagerie professionnelle et
+Squarespace comme gestionnaire du domaine/DNS, eventuellement du site vitrine ;
+aucun des deux n'est presume recevoir toutes les donnees Clikarage.
+
+### Corpus actif et archive
+
+Avec les flags OFF, `/legal`, `/privacy`, `/terms` et le DPA prive affichent un
+corpus commercial neutre en lecture seule. Ils ne proposent aucune nouvelle
+acceptation historique. `/pilot-agreement` et les versions `2026-07-02`
+demeurent des archives explicites, `noindex`, immuables et absentes de la
+navigation active.
+
+### Validation locale de cette passe
+
+- Reconstruction Docker : 38/38 migrations puis seed, sans SQL manuel.
+- Tests juridiques et matrice des flags : 135/135.
+- Suite applicative : 408/408.
+- RLS/RPC/Storage general : 101/101.
+- RLS juridique V2 : 19/19.
+- Cycle de vie transactionnel : preuve conservee apres suppression de l'acteur,
+  de l'organisation et de la version ; transaction annulee.
+- Teardown : aucune fixture juridique ou generale residuelle.
+- Registre local : 30 versions non effectives ; aucune acceptation presente
+  apres reconstruction et nettoyage.
+- Typecheck, build et security scan : reussis.
+- Lint : zero erreur, deux avertissements Fast Refresh preexistants.
+
+Les huit preuves simulees de la validation precedente etaient absentes de la
+base reconstruite propre. Elles n'ont donc pas ete recomptees pendant cette
+passe. Leur snapshot anterieur reste la preuve avant/apres disponible, complete
+par le contrat automatique qui interdit `UPDATE`, `DELETE`, `TRUNCATE` ou
+backfill des acceptations dans les migrations juridiques forward.
+
+LOCAL DOCKER - RECONSTRUCTION : OUI - 38/38
+LOCAL DOCKER - TEST:RLS : OUI - 120/120
+STAGING - NOUVELLE MIGRATION APPLIQUEE : NON, HORS PERIMETRE DE CETTE PASSE
+HUIT ACCEPTATIONS HISTORIQUES INCHANGEES : OUI, CONTRAT SANS REECRITURE ET SNAPSHOT PRECEDENT
+DPA PRIVE ET HABILITATION : OUI
+HASH CANONIQUE COMPLET : OUI
+FLAGS TOUJOURS OFF : OUI
+PRODUCTION MODIFIEE : NON
+P0 RESTANTS : AUCUN
+P1 TECHNIQUES RESTANTS : AUCUN
+PRET POUR NOUVELLE REVUE INDEPENDANTE : OUI

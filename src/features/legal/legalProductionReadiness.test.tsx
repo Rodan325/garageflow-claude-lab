@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { LanguageProvider, type Lang } from '@/i18n'
 import { LEGAL_DOCUMENT_VERSIONS, REQUIRED_LEGAL_DOCS } from '@/config/legal'
@@ -12,6 +12,20 @@ import { PrivacyPage } from './PrivacyPage'
 import { TermsPage } from './TermsPage'
 import { PilotAgreementPage } from './PilotAgreementPage'
 import { DpaPage } from './DpaPage'
+
+vi.mock('@/features/auth/AuthProvider', () => ({
+  useAuth: () => ({
+    ready: true,
+    authed: true,
+    accountType: 'staff',
+    membership: {
+      garage_id: 'organization-test',
+      role: 'owner',
+      organization_role: 'organization_owner',
+      center_id: null,
+    },
+  }),
+}))
 
 const currentDocuments: Array<[CommercialLegalDocumentKey, () => React.ReactNode]> = [
   ['legal', LegalPage],
@@ -77,11 +91,13 @@ describe('commercial legal corpus', () => {
     expect(source).not.toContain('Supabase, Inc.')
   })
 
-  it.each(currentDocuments)('keeps the flags-off %s route on the frozen corpus', (_key, Page) => {
+  it.each(currentDocuments)('keeps the flags-off %s route neutral and non-acceptable', (_key, Page) => {
     const { container } = renderPage(Page, 'fr')
     expect(container).toHaveTextContent('RODANBTECH')
-    expect(container).toHaveTextContent('2026-07-02')
-    expect(container).not.toHaveTextContent('Document commercial en préparation')
+    expect(container).toHaveTextContent('Document commercial en préparation')
+    expect(container).not.toHaveTextContent('2026-07-02')
+    expect(container).not.toHaveTextContent(/pilote|prototype|beta/i)
+    expect(container.querySelector('[data-legal-status="review"]')).not.toBeNull()
   })
 
   it('keeps the official publisher identity on the flags-off legal notice', () => {

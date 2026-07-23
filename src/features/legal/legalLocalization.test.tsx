@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { LanguageProvider, type Lang } from '@/i18n'
 import { LegalPage } from './LegalPage'
@@ -7,6 +7,20 @@ import { PrivacyPage } from './PrivacyPage'
 import { TermsPage } from './TermsPage'
 import { PilotAgreementPage } from './PilotAgreementPage'
 import { DpaPage } from './DpaPage'
+
+vi.mock('@/features/auth/AuthProvider', () => ({
+  useAuth: () => ({
+    ready: true,
+    authed: true,
+    accountType: 'staff',
+    membership: {
+      garage_id: 'organization-test',
+      role: 'owner',
+      organization_role: 'organization_owner',
+      center_id: null,
+    },
+  }),
+}))
 
 const documents = [
   ['legal', LegalPage, 'Mentions légales'],

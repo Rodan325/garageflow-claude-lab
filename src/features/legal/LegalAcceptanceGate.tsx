@@ -26,7 +26,7 @@ import {
   type AcceptableLegalV2DocumentId,
 } from './legalAcceptance'
 import { LOCALES, useLang } from '@/i18n'
-import { isAuthorizedDpaRepresentative } from './DpaAccessGuard'
+import { isAuthorizedDpaRepresentative } from './dpaAccess'
 
 const GATE_TEXT: Record<'client' | 'garage', string> = {
   client:
@@ -114,7 +114,7 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
             <ShieldCheck className="mx-auto h-8 w-8 text-primary" />
             <h1 className="mt-4 text-lg font-bold">{tr('Documents contractuels en cours de validation')}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {tr('Aucune nouvelle acceptation des anciennes conditions pilote n’est enregistrée. Votre accès sera disponible après publication explicite des documents commerciaux validés.')}
+              {tr('Aucune nouvelle acceptation des versions historiques n’est enregistrée. Votre accès sera disponible après publication explicite des documents commerciaux validés.')}
             </p>
             <Button className="mt-4" variant="outline" onClick={() => signOut()}>{tr('Se déconnecter')}</Button>
           </Card>

@@ -84,14 +84,20 @@ describe('legal acceptance evidence', () => {
     })
   })
 
-  it('remains idempotent for an already accepted document version', async () => {
+  it('never creates a new acceptance for a historical document version', async () => {
     state.existing = [{ id: 'existing-acceptance' }]
 
-    await recordLegalAcceptance('dpa', '2026-07-02', 'garage', 'legal_gate', {
+    await expect(recordLegalAcceptance('dpa', '2026-07-02', 'garage', 'legal_gate', {
       displayedLanguage: 'fr',
       organizationId: null,
-    })
+    })).rejects.toThrow(/historical/i)
 
+    expect(state.inserted).toHaveLength(0)
+  })
+
+  it('never creates a new pilot agreement acceptance', async () => {
+    await expect(recordLegalAcceptance('pilot_agreement', 'future-version', 'garage', 'legal_gate'))
+      .rejects.toThrow(/historical/i)
     expect(state.inserted).toHaveLength(0)
   })
 

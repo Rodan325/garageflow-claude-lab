@@ -228,3 +228,12 @@ export function serializeCanonicalLegalDocumentById(
 ): string {
   return serializeCanonicalLegalDocument(getCanonicalLegalDocument(documentId, language))
 }
+
+export async function hashCanonicalLegalDocumentById(
+  documentId: ClientLegalV2DocumentId,
+  language: Lang,
+): Promise<string> {
+  const bytes = new TextEncoder().encode(serializeCanonicalLegalDocumentById(documentId, language))
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}

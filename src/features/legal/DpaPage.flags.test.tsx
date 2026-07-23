@@ -6,7 +6,13 @@ const flags = vi.hoisted(() => ({ docs: false, acceptance: false, dpa: false }))
 
 vi.mock('@/lib/features', () => ({
   legalDocsV2Enabled: () => flags.docs,
-  dpaSelfServiceEnabled: () => flags.docs && flags.acceptance && flags.dpa,
+}))
+vi.mock('./DpaAccessGuard', () => ({
+  DpaAccessGuard: ({ children }: { children: React.ReactNode | ((access: { canRead: boolean; canAccept: boolean }) => React.ReactNode) }) => (
+    <>{typeof children === 'function'
+      ? children({ canRead: true, canAccept: flags.docs && flags.acceptance && flags.dpa })
+      : children}</>
+  ),
 }))
 vi.mock('./HistoricalDpa20260702Page', () => ({
   DpaPage: () => <div data-testid="historical-dpa">historical DPA</div>,
@@ -19,8 +25,8 @@ vi.mock('./HistoricalDocumentNotice', () => ({
 vi.mock('./LegalV2DocumentPage', () => ({
   LegalV2DocumentPage: () => <div data-testid="v2-dpa">V2 DPA</div>,
 }))
-vi.mock('@/features/marketing/NotFoundPage', () => ({
-  NotFoundPage: () => <div data-testid="not-found">not found</div>,
+vi.mock('./CommercialLegalPage', () => ({
+  CommercialLegalPage: () => <div data-testid="commercial-dpa">commercial DPA review</div>,
 }))
 
 import { DpaPage } from './DpaPage'
@@ -34,13 +40,13 @@ afterEach(() => {
 
 describe('DPA route feature gates', () => {
   it.each([
-    [false, false, false, 'historical-dpa'],
-    [false, false, true, 'historical-dpa'],
-    [false, true, false, 'historical-dpa'],
-    [false, true, true, 'historical-dpa'],
-    [true, false, false, 'not-found'],
-    [true, false, true, 'not-found'],
-    [true, true, false, 'not-found'],
+    [false, false, false, 'commercial-dpa'],
+    [false, false, true, 'commercial-dpa'],
+    [false, true, false, 'commercial-dpa'],
+    [false, true, true, 'commercial-dpa'],
+    [true, false, false, 'v2-dpa'],
+    [true, false, true, 'v2-dpa'],
+    [true, true, false, 'v2-dpa'],
     [true, true, true, 'v2-dpa'],
   ] as const)(
     'routes docs=%s acceptance=%s dpa=%s to %s',

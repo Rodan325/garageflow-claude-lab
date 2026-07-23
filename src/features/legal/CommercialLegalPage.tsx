@@ -24,15 +24,15 @@ const identityLabels: Record<Lang, Record<string, string>> = {
 const reviewNotice: Record<Lang, { title: string; body: string }> = {
   fr: {
     title: 'Document commercial en préparation',
-    body: 'Ce texte neutre remplace l’ancien corpus pilote dans les routes actives. Il reste sans date d’effet et ne peut pas être accepté tant que la version juridique V2 n’est pas explicitement activée.',
+    body: 'Ce texte neutre est présenté uniquement pour revue. Il reste sans date d’effet et ne peut pas être accepté tant que la version juridique V2 n’est pas explicitement activée.',
   },
   en: {
     title: 'Commercial document under review',
-    body: 'This neutral text replaces the former pilot corpus on active routes. It has no effective date and cannot be accepted until legal V2 is explicitly enabled.',
+    body: 'This neutral text is presented for review only. It has no effective date and cannot be accepted until legal V2 is explicitly enabled.',
   },
   ar: {
     title: 'مستند تجاري قيد المراجعة',
-    body: 'يحل هذا النص المحايد محل مجموعة النصوص التجريبية السابقة في المسارات النشطة. ولا تاريخ نفاذ له ولا يمكن قبوله قبل تفعيل النسخة القانونية V2 صراحة.',
+    body: 'يُعرض هذا النص المحايد للمراجعة فقط. ولا تاريخ نفاذ له ولا يمكن قبوله قبل تفعيل النسخة القانونية V2 صراحة.',
   },
 }
 

@@ -387,6 +387,10 @@ const en: Record<string, string> = {
   'Acceptée le {date}': 'Accepted on {date}', 'Ancienne version acceptée ({version}) — nouvelle acceptation requise': 'Older version accepted ({version}) — new acceptance required',
   'Aucune acceptation enregistrée': 'No acceptance recorded', 'Manquante': 'Missing',
   'Documents contractuels': 'Contractual documents', 'Contact : {email} · Les acceptations sont conservées dans un journal horodaté (version du document, date, contexte).': 'Contact: {email} · Acceptances are stored in a timestamped log (document version, date and context).',
+  'Documents contractuels en cours de validation': 'Contractual documents under review',
+  'Aucune nouvelle acceptation des versions historiques n’est enregistrée. Votre accès sera disponible après publication explicite des documents commerciaux validés.': 'No new acceptance of historical versions is recorded. Your access will be available after the validated commercial documents are explicitly published.',
+  'Seul un propriétaire ou représentant habilité de l’organisation peut accepter ce document.': 'Only an owner or authorised organisation representative can accept this document.',
+  'Consulter le document': 'View the document',
 }
 
 const ar: Record<string, string> = {
@@ -774,6 +778,10 @@ const ar: Record<string, string> = {
   'Acceptée le {date}': 'قُبل في {date}', 'Ancienne version acceptée ({version}) — nouvelle acceptation requise': 'تم قبول إصدار أقدم ({version}) — يلزم قبول جديد',
   'Aucune acceptation enregistrée': 'لا توجد موافقة مسجلة', 'Manquante': 'ناقصة',
   'Documents contractuels': 'المستندات التعاقدية', 'Contact : {email} · Les acceptations sont conservées dans un journal horodaté (version du document, date, contexte).': 'الاتصال: {email} · تُحفظ الموافقات في سجل مؤرخ يتضمن الإصدار والتاريخ والسياق.',
+  'Documents contractuels en cours de validation': 'المستندات التعاقدية قيد المراجعة',
+  'Aucune nouvelle acceptation des versions historiques n’est enregistrée. Votre accès sera disponible après publication explicite des documents commerciaux validés.': 'لا تُسجل أي موافقة جديدة على الإصدارات التاريخية. وسيصبح الوصول متاحًا بعد النشر الصريح للمستندات التجارية المعتمدة.',
+  'Seul un propriétaire ou représentant habilité de l’organisation peut accepter ce document.': 'لا يقبل هذا المستند إلا مالك المؤسسة أو ممثلها المخول.',
+  'Consulter le document': 'عرض المستند',
 }
 
 Object.assign(en, {

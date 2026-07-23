@@ -25,6 +25,7 @@ import {
   type LegalV2DocumentId,
 } from '@/config/legalV2'
 import { dpaSelfServiceEnabled, legalAcceptanceV2Enabled } from '@/lib/features'
+import { hashCanonicalLegalDocumentById } from './legalCanonicalDocument'
 
 export type AcceptanceContext = 'signup' | 'legal_gate' | 'garage_onboarding' | 'quote_acceptance'
 
@@ -142,7 +143,10 @@ export async function recordLegalV2Acceptance(
   const { data: auth } = await supabase.auth.getUser()
   const uid = auth?.user?.id
   if (!uid) throw new Error('Utilisateur non connecté')
-  const sha256 = document.sha256[evidence.displayedLanguage]
+  const sha256 = await hashCanonicalLegalDocumentById(documentId, evidence.displayedLanguage)
+  if (sha256 !== document.sha256[evidence.displayedLanguage]) {
+    throw new Error('Canonical legal document hash mismatch')
+  }
 
   if (await hasCurrentLegalV2Acceptance(documentId, uid, evidence.organizationId ?? null)) return
 

@@ -415,10 +415,6 @@ export function getLegalV2Document(documentId: ClientLegalV2DocumentId, lang: La
   }
 }
 
-export function serializeLegalV2Document(documentId: ClientLegalV2DocumentId, lang: Lang) {
-  return JSON.stringify(getLegalV2Document(documentId, lang))
-}
-
 export const LEGAL_V2_SOURCE_DOCUMENTS = {
   legal,
   termsClient,

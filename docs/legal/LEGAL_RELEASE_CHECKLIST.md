@@ -10,6 +10,11 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 - [x] `/pilot-agreement` est figee, hors navigation principale et `noindex`.
 - [x] Les huit acceptations historiques ne sont ni modifiees ni completees par les migrations.
 - [x] Les hashes du registre, du contenu et de la migration sont identiques.
+- [x] Le rendu, le hash et l'acceptation utilisent le meme modele canonique
+  couvrant aussi l'identite de l'editeur et la mention TVA.
+- [x] Le DPA `public: false` est inaccessible aux anonymes et son acceptation
+  exige l'habilitation organisationnelle et la chaine complete de flags.
+- [x] Aucun fichier interne ou mixte ne reste sous `docs/legal/`.
 - [x] `npm.cmd run typecheck`, `lint`, `test`, `build` et `security:scan` reussissent.
 - [x] Aucun secret, `service_role`, token ou identite personnelle dans le diff.
 - [x] Aucune migration production et aucun changement Vercel ; la migration de preuve a ete appliquee uniquement en local et sur staging.
@@ -34,12 +39,17 @@ Cette checklist doit etre executee pour une future release approuvee. Elle n'aut
 - [x] Migration `20260719235753_harden_legal_acceptance_v2.sql` appliquee.
 - [x] Migration `20260720151800_preserve_legacy_legal_acceptance_fail_closed.sql` appliquee.
 - [x] Migration `20260720230821_preserve_legal_acceptance_evidence_lifecycle.sql` appliquee en local et staging.
+- [x] Migration `20260723110428_refresh_legal_canonical_document_hashes.sql`
+  appliquee sur Docker local apres reconstruction 38/38.
+- [ ] Migration `20260723110428_refresh_legal_canonical_document_hashes.sql`
+  a valider sur staging dans une operation distante separee.
 - [x] Huit acceptations historiques preservees et champs ajoutes laisses `NULL` pendant la validation de migration.
 - [x] Test d'isolation multi-tenant des acceptations.
 - [x] Acceptation DPA refusee pour un role non habilite.
 - [x] Hash, langue, version, statut, application et source controles par la base.
 - [x] Archive de la version acceptee recuperable.
-- [x] Trois executions RLS locales consecutives reussies a 120/120 sans reconstruction.
+- [x] Trois executions RLS locales consecutives anterieures reussies a 120/120
+  sans reconstruction ; la presente passe confirme 120/120 apres reconstruction.
 - [x] Cycle de vie local et staging : la preuve survit a la suppression de l'acteur, de l'organisation et de la version documentaire.
 - [x] Zero fixture juridique, organisation, utilisateur, demande, rappel ou document apres le teardown final.
 - [x] Advisors Supabase examines et aucun P0 ouvert.
