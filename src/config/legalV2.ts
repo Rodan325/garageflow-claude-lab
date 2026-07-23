@@ -132,6 +132,14 @@ export const LEGAL_V2_DOCUMENTS: Record<LegalV2DocumentId, LegalDocumentDefiniti
   }),
 }
 
+export function isLegalV2DocumentId(value: string | null | undefined): value is LegalV2DocumentId {
+  return Boolean(value && Object.prototype.hasOwnProperty.call(LEGAL_V2_DOCUMENTS, value))
+}
+
+export function legalV2DocumentRoute(value: string | null | undefined): string | null {
+  return isLegalV2DocumentId(value) ? LEGAL_V2_DOCUMENTS[value].route : null
+}
+
 export const LEGAL_V2_FLAG_NAMES = [
   'LEGAL_DOCS_V2_ENABLED',
   'LEGAL_ACCEPTANCE_V2_ENABLED',

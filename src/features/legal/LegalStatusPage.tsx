@@ -16,7 +16,11 @@ import {
   legalConfig,
   legalDocumentRoute,
 } from '@/config/legal'
-import { LEGAL_V2_DOCUMENTS } from '@/config/legalV2'
+import {
+  LEGAL_V2_DOCUMENTS,
+  isLegalV2DocumentId,
+  legalV2DocumentRoute,
+} from '@/config/legalV2'
 import { legalAcceptanceV2Enabled } from '@/lib/features'
 import {
   getLegalV2AcceptanceStatuses,
@@ -62,16 +66,22 @@ export function LegalStatusPage() {
 
   const required = REQUIRED_LEGAL_DOCS.garage
   const historicalAcceptances = (acceptances ?? []).filter((acceptance) => {
-    if (useV2 && ['terms_pro', 'terms_client', 'dpa'].includes(acceptance.document_type)) {
+    const v2DocumentId = acceptance.document_id ?? acceptance.document_type
+    if (useV2 && isLegalV2DocumentId(v2DocumentId)) {
       const current = (statusQuery.data ?? []).find(
-        (status) => status.document_key === acceptance.document_type,
+        (status) => status.document_key === v2DocumentId,
       )
       return !current
         || acceptance.document_version !== current.document_version
         || acceptance.document_sha256 !== current.document_sha256
+        || acceptance.displayed_language !== lang
     }
     const type = acceptance.document_type as keyof typeof LEGAL_DOCUMENT_VERSIONS
-    return type === 'pilot_agreement' || LEGAL_DOCUMENT_VERSIONS[type] !== acceptance.document_version
+    return (
+      type === 'pilot_agreement'
+      || !(type in LEGAL_DOCUMENT_VERSIONS)
+      || LEGAL_DOCUMENT_VERSIONS[type] !== acceptance.document_version
+    )
   })
 
   async function acceptCurrentDocument(documentId: AcceptableLegalV2DocumentId) {
@@ -180,25 +190,9 @@ export function LegalStatusPage() {
             <p className="text-muted-foreground">
               {tr('Ces documents sont conservés comme preuve des versions antérieurement acceptées. Ils ne sont plus proposés aux nouveaux utilisateurs.')}
             </p>
-            {historicalAcceptances.map((acceptance) => {
-              const type = acceptance.document_type as keyof typeof LEGAL_DOCUMENT_META
-              const v2Type = acceptance.document_type as AcceptableLegalV2DocumentId
-              const meta = v2Type in V2_STATUS_LABELS
-                ? { label: V2_STATUS_LABELS[v2Type], route: LEGAL_V2_DOCUMENTS[v2Type].route }
-                : LEGAL_DOCUMENT_META[type]
-              if (!meta) return null
-              return (
-                <Link
-                  key={acceptance.id}
-                  to={legalDocumentRoute(type, acceptance.document_version)}
-                  target="_blank"
-                  className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-primary hover:bg-muted/40 hover:underline"
-                >
-                  <span>{tr(meta.label)}</span>
-                  <bdi dir="ltr" className="text-xs text-muted-foreground">{acceptance.document_version}</bdi>
-                </Link>
-              )
-            })}
+            {historicalAcceptances.map((acceptance) => (
+              <HistoricalAcceptanceRow key={acceptance.id} acceptance={acceptance} tr={tr} />
+            ))}
           </CardContent>
         </Card>
       )}
@@ -207,6 +201,56 @@ export function LegalStatusPage() {
         {tr('Contact : {email} · Les acceptations sont conservées dans un journal horodaté (version du document, date, contexte).', { email: legalConfig.contactEmail })}
       </p>
     </div>
+  )
+}
+
+function HistoricalAcceptanceRow({
+  acceptance,
+  tr,
+}: {
+  acceptance: Awaited<ReturnType<typeof listOwnLegalAcceptances>>[number]
+  tr: (source: string, variables?: Record<string, string | number>) => string
+}) {
+  const candidate = acceptance.document_id ?? acceptance.document_type
+  const knownV2 = isLegalV2DocumentId(candidate)
+  const v2Evidence = knownV2 || Boolean(acceptance.document_id && acceptance.document_sha256)
+  const legacyType = acceptance.document_type as keyof typeof LEGAL_DOCUMENT_META
+  const legacyMeta = !v2Evidence && legacyType in LEGAL_DOCUMENT_META
+    ? LEGAL_DOCUMENT_META[legacyType]
+    : null
+  const route = knownV2
+    ? legalV2DocumentRoute(candidate)
+    : legacyMeta
+      ? legalDocumentRoute(legacyType, acceptance.document_version)
+      : null
+  const label = knownV2 && candidate in V2_STATUS_LABELS
+    ? V2_STATUS_LABELS[candidate as AcceptableLegalV2DocumentId]
+    : legacyMeta?.label ?? candidate
+
+  const details = (
+    <>
+      <span className="font-medium text-foreground">{tr(label)}</span>
+      <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <bdi dir="ltr">{tr('Version du document : {version}', { version: acceptance.document_version })}</bdi>
+        {acceptance.displayed_language && (
+          <bdi dir="ltr">{tr('Langue : {language}', { language: acceptance.displayed_language.toUpperCase() })}</bdi>
+        )}
+      </span>
+      {acceptance.document_sha256 && (
+        <bdi dir="ltr" className="mt-1 block break-all font-mono text-[11px] text-muted-foreground">
+          SHA-256 {acceptance.document_sha256}
+        </bdi>
+      )}
+    </>
+  )
+
+  const className = 'block min-h-10 rounded-lg border border-border px-3 py-2'
+  if (!route) return <div className={className}>{details}</div>
+
+  return (
+    <Link to={route} target="_blank" className={`${className} text-primary hover:bg-muted/40 hover:underline`}>
+      {details}
+    </Link>
   )
 }
 
