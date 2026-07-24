@@ -1,101 +1,13 @@
-import { Link } from 'react-router-dom'
-import { legalConfig as c, legalVersions } from '@/config/legal'
-import { LegalLayout, H2, P, UL, MailLink, ExtLink } from './LegalLayout'
-import { LocalizedLegalPage } from './LocalizedLegalPage'
-import { useLang } from '@/i18n'
+import { useSearchParams } from 'react-router-dom'
+import { HISTORICAL_LEGAL_VERSION } from '@/config/legal'
+import { LegalPage as HistoricalLegalPage } from './HistoricalLegalNotice20260702Page'
+import { HistoricalDocumentNotice } from './HistoricalDocumentNotice'
+import { LegalV2DocumentPage } from './LegalV2DocumentPage'
 
 export function LegalPage() {
-  const { lang } = useLang()
-  if (lang !== 'fr') return <LocalizedLegalPage document="legal" version={legalVersions.legalNotice} />
-  return (
-    <LegalLayout title="Mentions légales" version={legalVersions.legalNotice}>
-      <H2>Éditeur du site</H2>
-      <P>{c.serviceStatement}</P>
-      <UL
-        items={[
-          <>Nom / dénomination : <strong>{c.legalBusinessName}</strong></>,
-          <>Forme juridique : {c.editorLegalStatus}</>,
-          <>Responsable de publication : {c.publicationDirector}</>,
-          <>Adresse du siège : {c.editorAddress}</>,
-          <>Email : <MailLink /></>,
-          <>Téléphone : {c.contactPhone}</>,
-          <>SIREN : {c.siren}</>,
-          <>SIRET : {c.siret}</>,
-          <>Immatriculation : {c.rneStatus}</>,
-          <>Inscription Insee : {c.inseeStatus}</>,
-          <>Code NAF/APE : {c.nafApeCode} — {c.nafApeLabel}</>,
-          <>Activité NAF 2025 : {c.naf2025Code} — {c.naf2025Label}</>,
-          <>TVA intracommunautaire : {c.vatNumber}</>,
-          <>EORI : {c.eoriNumber}</>,
-          <>Effectif : {c.employees}</>,
-        ]}
-      />
-
-      <H2>Domaine et email</H2>
-      <UL
-        items={[
-          <>Gestion du domaine : {c.domainProviderName}</>,
-          <>Email professionnel : {c.emailProviderName}</>,
-        ]}
-      />
-
-      <H2>Hébergement de l’application</H2>
-      <UL
-        items={[
-          <>Application {c.appName} : {c.frontendHostName}</>,
-          <>Adresse : {c.frontendHostAddress}</>,
-          <>Site : <ExtLink href={c.frontendHostWebsite} /></>,
-          <>Contact légal : {c.frontendHostContact}</>,
-        ]}
-      />
-
-      <H2>Infrastructure technique</H2>
-      <UL
-        items={[
-          c.backendProviderName,
-          <ExtLink href={c.backendProviderWebsite} />,
-          <>Usage : {c.backendPurpose}.</>,
-          <>Région : {c.backendDataRegion}</>,
-        ]}
-      />
-
-      <H2>Contact</H2>
-      <P>Pour toute question concernant {c.appName} : <MailLink /></P>
-
-      <H2>Version pilote</H2>
-      <P>
-        Le service est actuellement en phase de test : son périmètre est volontairement limité et ses fonctionnalités
-        peuvent évoluer, être suspendues ou complétées avant une commercialisation plus large.
-      </P>
-
-      <H2>Propriété intellectuelle</H2>
-      <P>
-        Les textes, interfaces, logos, éléments graphiques, fonctionnalités, bases documentaires et contenus de{' '}
-        {c.appName} sont protégés. Toute reproduction, extraction, adaptation ou réutilisation non autorisée est
-        interdite, sauf accord écrit préalable de {c.tradingName}.
-      </P>
-
-      <H2>Responsabilité</H2>
-      <P>
-        {c.appName} est un outil d’aide à la gestion des demandes de rendez-vous, véhicules et devis pour garages.{' '}
-        {c.appName} ne fournit pas de conseil juridique, fiscal, comptable, technique automobile ou réglementaire.
-        Chaque garage reste responsable des informations qu’il saisit, des devis qu’il émet, des prix qu’il applique,
-        des prestations qu’il réalise et de sa relation commerciale avec ses clients.
-      </P>
-
-      <H2>Données personnelles</H2>
-      <P>
-        Les informations relatives au traitement des données personnelles sont détaillées dans la{' '}
-        <Link to="/privacy" className="font-medium text-primary hover:underline">Politique de confidentialité</Link>.
-      </P>
-
-      <H2>Documents contractuels</H2>
-      <P>
-        Les <Link to="/terms" className="font-medium text-primary hover:underline">conditions d’utilisation</Link>, les{' '}
-        <Link to="/pilot-agreement" className="font-medium text-primary hover:underline">conditions du pilote garage</Link>{' '}
-        et l’<Link to="/dpa" className="font-medium text-primary hover:underline">accord de sous-traitance RGPD</Link>{' '}
-        sont accessibles depuis le footer légal.
-      </P>
-    </LegalLayout>
-  )
+  const [params] = useSearchParams()
+  if (params.get('version') === HISTORICAL_LEGAL_VERSION) {
+    return <HistoricalDocumentNotice><HistoricalLegalPage /></HistoricalDocumentNotice>
+  }
+  return <LegalV2DocumentPage documentId="legal" />
 }

@@ -11,6 +11,10 @@ function clean(value?: string): string {
   return (value ?? '').trim().replace(/^['"]|['"]$/g, '')
 }
 
+export function isExplicitlyEnabled(value?: string): boolean {
+  return clean(value) === 'true'
+}
+
 const url = clean(import.meta.env.VITE_SUPABASE_URL)
 const anonKey = clean(import.meta.env.VITE_SUPABASE_ANON_KEY)
 
@@ -35,15 +39,24 @@ export const env = {
    * applied, so the app never queries garage_centers or sends center_id to a
    * schema without them.
    */
-  enableCenters: clean(import.meta.env.VITE_ENABLE_CENTERS) === 'true',
-  enableWorkshopTimeline: clean(import.meta.env.VITE_ENABLE_WORKSHOP_TIMELINE) === 'true',
-  enableRecommendations: clean(import.meta.env.VITE_ENABLE_RECOMMENDATIONS) === 'true',
-  enableAttachments: clean(import.meta.env.VITE_ENABLE_ATTACHMENTS) === 'true',
-  enableNotifications: clean(import.meta.env.VITE_ENABLE_NOTIFICATIONS) === 'true',
-  enableDeliveryReports: clean(import.meta.env.VITE_ENABLE_DELIVERY_REPORTS) === 'true',
-  enableMaintenanceReminders: clean(import.meta.env.VITE_ENABLE_MAINTENANCE_REMINDERS) === 'true',
-  enableNetworkDashboard: clean(import.meta.env.VITE_ENABLE_NETWORK_DASHBOARD) === 'true',
-  enableIntegrations: clean(import.meta.env.VITE_ENABLE_INTEGRATIONS) === 'true',
+  enableCenters: isExplicitlyEnabled(import.meta.env.VITE_ENABLE_CENTERS),
+  enableWorkshopTimeline: isExplicitlyEnabled(import.meta.env.VITE_ENABLE_WORKSHOP_TIMELINE),
+  enableRecommendations: isExplicitlyEnabled(import.meta.env.VITE_ENABLE_RECOMMENDATIONS),
+  enableAttachments: isExplicitlyEnabled(import.meta.env.VITE_ENABLE_ATTACHMENTS),
+  enableNotifications: isExplicitlyEnabled(import.meta.env.VITE_ENABLE_NOTIFICATIONS),
+  enableDeliveryReports: isExplicitlyEnabled(import.meta.env.VITE_ENABLE_DELIVERY_REPORTS),
+  enableMaintenanceReminders: isExplicitlyEnabled(import.meta.env.VITE_ENABLE_MAINTENANCE_REMINDERS),
+  enableNetworkDashboard: isExplicitlyEnabled(import.meta.env.VITE_ENABLE_NETWORK_DASHBOARD),
+  enableIntegrations: isExplicitlyEnabled(import.meta.env.VITE_ENABLE_INTEGRATIONS),
+  enableLegalDocsV2: isExplicitlyEnabled(import.meta.env.VITE_LEGAL_DOCS_V2_ENABLED),
+  enableLegalAcceptanceV2: isExplicitlyEnabled(import.meta.env.VITE_LEGAL_ACCEPTANCE_V2_ENABLED),
+  enableDpaSelfService: isExplicitlyEnabled(import.meta.env.VITE_DPA_SELF_SERVICE_ENABLED),
+  enableSubprocessorRegistry: isExplicitlyEnabled(import.meta.env.VITE_SUBPROCESSOR_REGISTRY_ENABLED),
+  enableVercelAnalytics: isExplicitlyEnabled(import.meta.env.VITE_VERCEL_ANALYTICS_ENABLED),
+  enableStripe: isExplicitlyEnabled(import.meta.env.VITE_STRIPE_ENABLED),
+  enableAiFeatures: isExplicitlyEnabled(import.meta.env.VITE_AI_FEATURES_ENABLED),
+  enableDocumentStorage: isExplicitlyEnabled(import.meta.env.VITE_DOCUMENT_STORAGE_ENABLED),
+  enableTransactionalEmail: isExplicitlyEnabled(import.meta.env.VITE_TRANSACTIONAL_EMAIL_ENABLED),
   /** Optional white-label brand for a dedicated build/preview (e.g. 'speedy'). Empty = default. */
   brand: clean(import.meta.env.VITE_BRAND),
 }

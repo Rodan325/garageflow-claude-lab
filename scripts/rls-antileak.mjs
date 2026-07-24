@@ -11,6 +11,12 @@ import { assertPublishableKey, assertSupabaseTestTarget } from './rls-target-gua
 const url = process.env.VITE_SUPABASE_URL
 const publishableKey = process.env.VITE_SUPABASE_ANON_KEY
 const testTarget = process.env.SUPABASE_TEST_TARGET || 'local'
+const fixtureRunId = process.env.RLS_FIXTURE_RUN_ID
+
+if (!fixtureRunId || !/^[0-9a-f-]{36}$/.test(fixtureRunId)) {
+  console.error('RLS SAFETY GUARD: RLS_FIXTURE_RUN_ID must be a generated UUID')
+  process.exit(2)
+}
 
 let target
 try {
@@ -58,6 +64,7 @@ const ACCOUNTS = {
 let passed = 0
 let failed = 0
 const cleanup = { requests: [], storagePaths: [], quotes: [] }
+const cleanupOwners = new Map()
 
 function detail(value) {
   if (!value) return ''
@@ -110,7 +117,7 @@ async function createRequest(supabase, { garageId, centerId, clientId, label }) 
       garage_id: garageId,
       center_id: centerId,
       client_id: clientId,
-      service_name: `Local validation ${label}`,
+      service_name: `Local validation ${fixtureRunId} ${label}`,
       vehicle_label: `Fictitious vehicle ${label}`,
       requested_date: tomorrow,
       requested_time: '09:00',
@@ -152,10 +159,36 @@ async function proposeRecommendation(staff, recommendationId) {
   return result.data
 }
 
+async function cleanupRunArtifacts() {
+  console.log('\nCleanup')
+  const cleanupErrors = []
+  for (const item of cleanup.storagePaths) {
+    if (item.paths.length) {
+      const { error } = await item.client.storage.from(item.bucket).remove(item.paths)
+      if (error) cleanupErrors.push(`storage: ${error.message}`)
+    }
+  }
+  for (const item of cleanup.quotes) {
+    const { error } = await item.client.from('quotes').delete().eq('id', item.id)
+    if (error) cleanupErrors.push(`quote: ${error.message}`)
+  }
+  for (const item of cleanup.requests.reverse()) {
+    const remover = cleanupOwners.get(item.garageId)
+    if (!remover) {
+      cleanupErrors.push(`request: no authorized cleanup owner for garage ${item.garageId}`)
+      continue
+    }
+    const { error } = await remover.from('service_requests').delete().eq('id', item.id)
+    if (error) cleanupErrors.push(`request: ${error.message}`)
+  }
+  check('Request, quote, and Storage validation artifacts are removed cleanly', cleanupErrors.length === 0, cleanupErrors)
+}
+
 async function run() {
   console.log(`\nClikarage ${testTarget} security validation: ${target.origin}`)
   console.log('Safety: approved target, publishable key, fictitious accounts only.\n')
 
+  try {
   const health = await fetch(`${target.origin}/auth/v1/health`, {
     headers: { apikey: publishableKey },
   })
@@ -193,6 +226,8 @@ async function run() {
     clientB1,
     clientB2,
   ] = sessions
+  cleanupOwners.set(IDS.garageA, ownerA)
+  cleanupOwners.set(IDS.garageB, ownerB)
   const anonymous = client()
 
   console.log('RLS isolation')
@@ -389,7 +424,7 @@ async function run() {
     p_due_date: new Date(Date.now() + 180 * 86_400_000).toISOString().slice(0, 10),
     p_due_mileage: null,
     p_scheduled_at: new Date().toISOString(),
-    p_source: 'staging_journey_validation',
+    p_source: `rls_validation:${fixtureRunId}:journey`,
     p_language: 'en',
   })
   check('Closed journey creates one maintenance reminder', !journeyReminder.error && journeyReminder.data?.status === 'scheduled', journeyReminder.error)
@@ -772,7 +807,7 @@ async function run() {
     p_due_date: new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10),
     p_due_mileage: null,
     p_scheduled_at: new Date().toISOString(),
-    p_source: 'local_validation',
+    p_source: `rls_validation:${fixtureRunId}:reminder`,
     p_language: 'en',
   }
   const simultaneousReminders = await Promise.all([
@@ -782,6 +817,21 @@ async function run() {
   check('Duplicate reminder creation is idempotent or rejected', countSuccess(simultaneousReminders) === 1, simultaneousReminders.map((result) => result.error?.message))
   const reminder = simultaneousReminders.find((result) => !result.error)?.data
   if (reminder) {
+    const applicationDelete = await ownerA
+      .from('maintenance_reminders')
+      .delete()
+      .eq('id', reminder.id)
+    const reminderAfterDelete = await ownerA
+      .from('maintenance_reminders')
+      .select('id')
+      .eq('id', reminder.id)
+    check(
+      'Application roles cannot delete reminder fixtures directly',
+      Boolean(applicationDelete.error)
+        && !reminderAfterDelete.error
+        && reminderAfterDelete.data.length === 1,
+      applicationDelete.error ?? reminderAfterDelete.error,
+    )
     const simultaneousConversions = await Promise.all([
       ownerA.rpc('mark_maintenance_reminder_converted', { p_reminder_id: reminder.id, p_request_id: reportRequest.id }),
       clientA2.rpc('mark_maintenance_reminder_converted', { p_reminder_id: reminder.id, p_request_id: reportRequest.id }),
@@ -850,7 +900,7 @@ async function run() {
   const anonList = await anonymous.storage.from(bucket).list('', { limit: 100 })
   check('Anonymous global Storage listing exposes no objects', Boolean(anonList.error) || anonList.data.length === 0, anonList.data)
 
-  const signedUrlTtlSeconds = testTarget === 'staging' ? 10 : 1
+  const signedUrlTtlSeconds = testTarget === 'staging' ? 10 : 5
   const signedUrl = await clientB1.storage.from(bucket).createSignedUrl(visiblePath, signedUrlTtlSeconds)
   check('Authorized customer can create a signed URL', !signedUrl.error && Boolean(signedUrl.data?.signedUrl), signedUrl.error)
   if (signedUrl.data?.signedUrl) {
@@ -960,27 +1010,10 @@ async function run() {
   check('Organization owner can delete their own logo', !deleteOwnLogo.error, deleteOwnLogo.error)
   cleanup.storagePaths.at(-2).paths = []
 
-  console.log('\nCleanup')
-  const cleanupErrors = []
-  for (const item of cleanup.storagePaths) {
-    if (item.paths.length) {
-      const { error } = await item.client.storage.from(item.bucket).remove(item.paths)
-      if (error) cleanupErrors.push(`storage: ${error.message}`)
-    }
+  } finally {
+    await cleanupRunArtifacts()
   }
-  for (const item of cleanup.quotes) {
-    const { error } = await item.client.from('quotes').delete().eq('id', item.id)
-    if (error) cleanupErrors.push(`quote: ${error.message}`)
-  }
-  for (const item of cleanup.requests.reverse()) {
-    const remover = item.garageId === IDS.garageA ? ownerA : ownerB
-    const { error } = await remover.from('service_requests').delete().eq('id', item.id)
-    if (error) cleanupErrors.push(`request: ${error.message}`)
-  }
-  check('Request, quote, and Storage validation artifacts are removed cleanly', cleanupErrors.length === 0, cleanupErrors)
-  if (testTarget === 'staging') {
-    console.log('  [INFO] Reminder fixtures are source-tagged for privileged staging cleanup.')
-  }
+
   console.log(`\nResult: ${passed} passed, ${failed} failed.`)
   if (failed > 0) process.exitCode = 1
 }

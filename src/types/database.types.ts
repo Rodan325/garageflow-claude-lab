@@ -744,7 +744,17 @@ export type Database = {
           created_at: string
           document_type: string
           document_version: string
+          displayed_language: string | null
+            document_id: string | null
+            document_sha256: string | null
+            document_status: string | null
+            application_version: string | null
+            acceptance_scope: string | null
+            authority_role: string | null
+            evidence_source: string | null
           id: string
+          organization_id: string | null
+          organization_name_snapshot: string | null
           role: string
           user_agent: string | null
           user_id: string
@@ -755,7 +765,17 @@ export type Database = {
           created_at?: string
           document_type: string
           document_version: string
+          displayed_language?: string | null
+            document_id?: string | null
+            document_sha256?: string | null
+            document_status?: string | null
+            application_version?: string | null
+            acceptance_scope?: string | null
+            authority_role?: string | null
+            evidence_source?: string | null
           id?: string
+          organization_id?: string | null
+          organization_name_snapshot?: string | null
           role: string
           user_agent?: string | null
           user_id: string
@@ -766,7 +786,17 @@ export type Database = {
           created_at?: string
           document_type?: string
           document_version?: string
+          displayed_language?: string | null
+            document_id?: string | null
+            document_sha256?: string | null
+            document_status?: string | null
+            application_version?: string | null
+            acceptance_scope?: string | null
+            authority_role?: string | null
+            evidence_source?: string | null
           id?: string
+          organization_id?: string | null
+          organization_name_snapshot?: string | null
           role?: string
           user_agent?: string | null
           user_id?: string
@@ -2013,6 +2043,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_current_legal_document_v2: {
+        Args: {
+          p_document_key: string
+          p_language: string
+          p_organization_id?: string | null
+        }
+        Returns: string
+      }
       accept_quote_public: {
         Args: { p_token: string; p_terms_version?: string; p_privacy_version?: string }
         Returns: Json
@@ -2131,12 +2169,48 @@ export type Database = {
       }
       expire_quotes: { Args: never; Returns: number }
       get_quote_public: { Args: { p_token: string }; Returns: Json }
+      get_current_legal_acceptance_status_v2: {
+        Args: {
+          p_document_key: string
+          p_language: string
+          p_organization_id?: string | null
+        }
+        Returns: {
+          accepted: boolean
+          current: boolean
+          can_accept: boolean
+          reason: string
+          document_key: string
+          document_version: string | null
+          document_sha256: string | null
+          organization_id: string | null
+          acceptance_scope: string | null
+          accepted_at: string | null
+        }[]
+      }
       get_workshop_timeline: {
         Args: { p_request_id: string }
         Returns: Database["public"]["Tables"]["service_request_timeline"]["Row"][]
       }
       has_garage_role: {
         Args: { p_garage_id: string; p_roles: string[] }
+        Returns: boolean
+      }
+      has_organization_legal_acceptance: {
+        Args: {
+          p_organization_id: string
+          p_document_id: string
+          p_document_version: string
+        }
+        Returns: boolean
+      }
+      has_organization_legal_acceptance_v2: {
+        Args: {
+          p_organization_id: string
+          p_document_id: string
+          p_document_version: string
+          p_document_hashes: string[]
+        }
         Returns: boolean
       }
       is_garage_member: { Args: { p_garage_id: string }; Returns: boolean }

@@ -33,6 +33,7 @@ npm-debug.log*
 
 # test
 coverage
+/tmp/pdfs/
 
 # supabase local
 supabase/.temp

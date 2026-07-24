@@ -58,6 +58,65 @@ export function maintenanceRemindersEnabled(): boolean {
   return isDemo() || env.enableMaintenanceReminders
 }
 
+export interface LegalFeatureFlagState {
+  docsV2: boolean
+  acceptanceV2: boolean
+  dpaSelfService: boolean
+  subprocessorRegistry: boolean
+}
+
+export interface LegalFeatureAccess {
+  docsV2: boolean
+  acceptanceV2: boolean
+  dpaSelfService: boolean
+  subprocessorRegistry: boolean
+}
+
+/**
+ * Legal capabilities are chained so a narrower flag can never bypass its
+ * prerequisites. The env layer already maps every value except exact `true`
+ * to false; this resolver keeps the dependency contract independently testable.
+ */
+export function resolveLegalFeatureAccess(flags: LegalFeatureFlagState): LegalFeatureAccess {
+  const docsV2 = flags.docsV2 === true
+  const acceptanceV2 = docsV2 && flags.acceptanceV2 === true
+  return {
+    docsV2,
+    acceptanceV2,
+    dpaSelfService: acceptanceV2 && flags.dpaSelfService === true,
+    subprocessorRegistry: docsV2 && flags.subprocessorRegistry === true,
+  }
+}
+
+function legalFeatureAccess(): LegalFeatureAccess {
+  return resolveLegalFeatureAccess({
+    docsV2: env.enableLegalDocsV2,
+    acceptanceV2: env.enableLegalAcceptanceV2,
+    dpaSelfService: env.enableDpaSelfService,
+    subprocessorRegistry: env.enableSubprocessorRegistry,
+  })
+}
+
+export function legalDocsV2Enabled(): boolean {
+  return legalFeatureAccess().docsV2
+}
+
+export function legalAcceptanceV2Enabled(): boolean {
+  return legalFeatureAccess().acceptanceV2
+}
+
+export function dpaSelfServiceEnabled(): boolean {
+  return legalFeatureAccess().dpaSelfService
+}
+
+export function subprocessorRegistryEnabled(): boolean {
+  return legalFeatureAccess().subprocessorRegistry
+}
+
+export function aiFeaturesEnabled(): boolean {
+  return env.enableAiFeatures
+}
+
 /**
  * True when a PostgREST/Postgres error means the queried table or column does
  * not exist yet (migration not applied). Used to fail soft instead of throwing.
