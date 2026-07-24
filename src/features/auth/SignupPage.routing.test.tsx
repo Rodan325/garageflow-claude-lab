@@ -23,11 +23,6 @@ vi.mock('./AuthProvider', () => ({
 vi.mock('@/components/ui/toast', () => ({
   useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
 }))
-// Legal acceptance hits Supabase in production; stub it so the /app path resolves.
-vi.mock('@/features/legal/legalAcceptance', () => ({
-  recordMultipleLegalAcceptances: vi.fn(() => Promise.resolve()),
-}))
-
 function LocationProbe() {
   const loc = useLocation()
   return <div data-testid="loc">{loc.pathname + loc.search}</div>

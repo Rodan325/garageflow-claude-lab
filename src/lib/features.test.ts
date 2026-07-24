@@ -1,5 +1,11 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { centersEnabled, integrationsEnabled, isMissingSchemaError, networkDashboardEnabled } from './features'
+import {
+  centersEnabled,
+  integrationsEnabled,
+  isMissingSchemaError,
+  networkDashboardEnabled,
+  resolveLegalFeatureAccess,
+} from './features'
 import { setDemoAccount, setDemoKind, clearDemo, setDemoOrganizationKind } from './demo'
 
 afterEach(() => {
@@ -63,4 +69,32 @@ describe('integrationsEnabled', () => {
     setDemoKind('garage')
     expect(integrationsEnabled()).toBe(true)
   })
+})
+
+describe('legal feature flags', () => {
+  it.each([
+    [false, false, false, false, false],
+    [false, false, true, false, false],
+    [false, true, false, false, false],
+    [false, true, true, false, false],
+    [true, false, false, false, false],
+    [true, false, true, false, false],
+    [true, true, false, true, false],
+    [true, true, true, true, true],
+  ] as const)(
+    'resolves docs=%s acceptance=%s dpa=%s without bypassing prerequisites',
+    (docsV2, acceptanceV2, dpaSelfService, expectedAcceptance, expectedDpa) => {
+      expect(resolveLegalFeatureAccess({
+        docsV2,
+        acceptanceV2,
+        dpaSelfService,
+        subprocessorRegistry: true,
+      })).toEqual({
+        docsV2,
+        acceptanceV2: expectedAcceptance,
+        dpaSelfService: expectedDpa,
+        subprocessorRegistry: docsV2,
+      })
+    },
+  )
 })

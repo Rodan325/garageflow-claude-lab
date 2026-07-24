@@ -3,13 +3,13 @@ import { Logo } from '@/components/common/Logo'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { LegalFooter } from '@/components/common/LegalFooter'
-import { legalConfig } from '@/config/legal'
+import { historicalLegalConfig20260702 as legalConfig } from './historicalLegal20260702'
 import { useLang } from '@/i18n'
 
 /**
  * Shared shell for the public legal pages (/legal, /privacy, /terms,
  * /pilot-agreement, /dpa). Accessible without login, mobile-first,
- * document-style. All identity values come from legalConfig.
+ * document-style. All identity values come from the immutable 2026-07-02 snapshot.
  */
 export function LegalLayout({ title, version, children }: { title: string; version?: string; children: React.ReactNode }) {
   const { lang, setLang, tr } = useLang()

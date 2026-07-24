@@ -17,14 +17,40 @@ import {
   type LegalDocumentType,
   type LegalRole,
 } from '@/config/legal'
-import { getMissingLegalDocuments, recordMultipleLegalAcceptances } from './legalAcceptance'
+import { LEGAL_V2_DOCUMENTS } from '@/config/legalV2'
+import { legalAcceptanceV2Enabled } from '@/lib/features'
+import {
+  getMissingLegalDocuments,
+  getLegalV2AcceptanceStatuses,
+  recordLegalV2Acceptance,
+  type AcceptableLegalV2DocumentId,
+  type LegalV2AcceptanceStatus,
+} from './legalAcceptance'
 import { LOCALES, useLang } from '@/i18n'
 
 const GATE_TEXT: Record<'client' | 'garage', string> = {
   client:
     'Pour continuer, vous devez accepter les Conditions d’utilisation et reconnaître avoir pris connaissance de la Politique de confidentialité.',
   garage:
-    'Pour continuer en tant que garage pilote, vous devez accepter les Conditions d’utilisation, reconnaître avoir pris connaissance de la Politique de confidentialité, accepter les Conditions du pilote garage et l’Accord de sous-traitance RGPD.',
+    'Pour continuer, vous devez accepter les Conditions d’utilisation, reconnaître avoir pris connaissance de la Politique de confidentialité et accepter l’Accord de sous-traitance des données.',
+}
+
+type GateDocument = LegalDocumentType | AcceptableLegalV2DocumentId
+
+const V2_LABELS: Record<AcceptableLegalV2DocumentId, string> = {
+  terms_pro: 'Conditions d’utilisation',
+  terms_client: 'Conditions d’utilisation',
+  dpa: 'Accord de sous-traitance RGPD',
+}
+
+function gateDocumentMeta(documentId: GateDocument, useV2: boolean) {
+  if (useV2) {
+    const id = documentId as AcceptableLegalV2DocumentId
+    const document = LEGAL_V2_DOCUMENTS[id]
+    return { label: V2_LABELS[id], route: document.route, version: document.version }
+  }
+  const id = documentId as LegalDocumentType
+  return { ...LEGAL_DOCUMENT_META[id], version: LEGAL_DOCUMENT_VERSIONS[id] }
 }
 
 /**
@@ -36,18 +62,31 @@ const GATE_TEXT: Record<'client' | 'garage', string> = {
  */
 export function LegalAcceptanceGate({ role, children }: { role: LegalRole; children: React.ReactNode }) {
   const { lang, tr } = useLang()
-  const { demo, userId, signOut } = useAuth()
+  const { demo, userId, membership, garage, signOut } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
 
+  const useV2 = legalAcceptanceV2Enabled()
+  const organizationId = role === 'garage' ? (membership?.garage_id ?? garage?.id ?? null) : null
   const enabled = !demo && isSupabaseConfigured && !!userId
-  const { data: missing, isLoading } = useQuery({
-    queryKey: ['legal-missing', userId, role],
-    enabled,
+  const legacyQuery = useQuery<LegalDocumentType[]>({
+    queryKey: ['legal-missing', 'legacy', userId, role],
+    enabled: enabled && !useV2,
     queryFn: () => getMissingLegalDocuments(userId!, role),
   })
+  const v2Query = useQuery<LegalV2AcceptanceStatus[]>({
+    queryKey: ['legal-missing', 'v2', userId, role, organizationId, lang],
+    enabled: enabled && useV2,
+    queryFn: () => getLegalV2AcceptanceStatuses(role, organizationId, lang),
+  })
+  const isLoading = useV2 ? v2Query.isLoading : legacyQuery.isLoading
+  const isError = useV2 ? v2Query.isError : legacyQuery.isError
+  const v2Missing = (v2Query.data ?? []).filter((status) => !status.accepted)
+  const missing: GateDocument[] = useV2
+    ? v2Missing.map((status) => status.document_key)
+    : (legacyQuery.data ?? [])
 
   if (!enabled) return <>{children}</>
   if (isLoading) {
@@ -57,20 +96,55 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
       </div>
     )
   }
-  if (!missing || missing.length === 0) return <>{children}</>
+  if (isError) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md p-6 text-center">
+          <h1 className="font-semibold">{tr('Une erreur est survenue')}</h1>
+          <Button className="mt-4" onClick={() => qc.invalidateQueries({ queryKey: ['legal-missing'] })}>
+            {tr('Réessayer')}
+          </Button>
+        </Card>
+      </div>
+    )
+  }
+  if (missing.length === 0) return <>{children}</>
+  if (!useV2) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-muted/40">
+        <div className="flex justify-end p-4"><LanguageSwitcher /></div>
+        <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center p-4 pt-0">
+          <Card className="p-6 text-center">
+            <ShieldCheck className="mx-auto h-8 w-8 text-primary" />
+            <h1 className="mt-4 text-lg font-bold">{tr('Documents contractuels en cours de validation')}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {tr('Aucune nouvelle acceptation des versions historiques n’est enregistrée. Votre accès sera disponible après publication explicite des documents commerciaux validés.')}
+            </p>
+            <Button className="mt-4" variant="outline" onClick={() => signOut()}>{tr('Se déconnecter')}</Button>
+          </Card>
+        </main>
+        <LegalFooter />
+      </div>
+    )
+  }
 
-  const allChecked = missing.every((doc) => checked[doc])
+  const statusByDocument = new Map(v2Missing.map((status) => [status.document_key, status]))
+  const allChecked = v2Missing.every((status) => status.can_accept && checked[status.document_key])
 
   async function accept() {
-    if (!allChecked || !missing) return
+    if (!allChecked) return
     setSubmitting(true)
     try {
-      await recordMultipleLegalAcceptances(
-        missing.map((doc) => ({ documentType: doc, version: LEGAL_DOCUMENT_VERSIONS[doc] })),
-        role,
-        'legal_gate',
-      )
-      await qc.invalidateQueries({ queryKey: ['legal-missing', userId, role] })
+      if (useV2) {
+        for (const documentId of missing as AcceptableLegalV2DocumentId[]) {
+          const document = LEGAL_V2_DOCUMENTS[documentId]
+          await recordLegalV2Acceptance(documentId, {
+            displayedLanguage: lang,
+            organizationId: document.acceptanceScope === 'organization' ? organizationId : null,
+          })
+        }
+      }
+      await qc.invalidateQueries({ queryKey: ['legal-missing'] })
     } catch {
       toast.error(tr('Enregistrement impossible'), tr('L’enregistrement n’a pas pu être terminé.'))
     } finally {
@@ -89,15 +163,33 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
             </div>
             <div>
               <h1 className="text-lg font-bold">{tr('Documents à accepter')}</h1>
-              <p className="text-xs text-muted-foreground">{legalConfig.appName} · {legalConfig.pilotVersion}</p>
+              <p className="text-xs text-muted-foreground">{legalConfig.appName} · {tr('Service professionnel')}</p>
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground">{tr(GATE_TEXT[role === 'garage' ? 'garage' : 'client'])}</p>
+          {!useV2 && <p className="text-sm text-muted-foreground">{tr(GATE_TEXT[role === 'garage' ? 'garage' : 'client'])}</p>}
 
           <div className="mt-4 space-y-2">
-            {missing.map((doc: LegalDocumentType) => {
-              const meta = LEGAL_DOCUMENT_META[doc]
+            {(missing as GateDocument[]).map((doc) => {
+              const meta = gateDocumentMeta(doc, useV2)
+              const status = useV2
+                ? statusByDocument.get(doc as AcceptableLegalV2DocumentId)
+                : null
+              if (useV2 && !status?.can_accept) {
+                return (
+                  <div key={doc} className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                    <p className="font-medium">{tr(meta.label)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {status?.reason === 'authorized_representative_required'
+                        ? tr('Seul un propriétaire ou représentant habilité de l’organisation peut accepter ce document.')
+                        : tr('Ce document ne peut pas être accepté dans son état actuel.')}
+                    </p>
+                    <Link to={meta.route} target="_blank" className="mt-2 inline-block font-medium text-primary hover:underline">
+                      {tr('Consulter le document')}
+                    </Link>
+                  </div>
+                )
+              }
               return (
                 <label
                   key={doc}
@@ -116,7 +208,7 @@ export function LegalAcceptanceGate({ role, children }: { role: LegalRole; child
                     </Link>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
                       <FileText className="mr-1 inline h-3 w-3" />
-                      {tr('Version du document : {version}', { version: LEGAL_DOCUMENT_VERSIONS[doc] })}
+                      {tr('Version du document : {version}', { version: meta.version })}
                     </span>
                   </span>
                 </label>

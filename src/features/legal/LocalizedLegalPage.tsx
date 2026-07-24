@@ -1,4 +1,4 @@
-import { legalConfig as c } from '@/config/legal'
+import { historicalLegalConfig20260702 as c } from './historicalLegal20260702'
 import { useLang } from '@/i18n'
 import { LegalLayout, H2, P } from './LegalLayout'
 import { legalContent, type LegalDocumentKey } from './legalContent'
