@@ -67,6 +67,7 @@ snapshot as (
   select json_build_object(
     'counts', json_build_object(
       'service_requests', (select count(*) from public.service_requests),
+      'service_request_messages', (select count(*) from public.service_request_messages),
       'maintenance_reminders', (select count(*) from public.maintenance_reminders),
       'legal_acceptances', (select count(*) from public.legal_acceptances),
       'legal_document_versions', (select count(*) from private.legal_document_versions),
@@ -85,6 +86,11 @@ snapshot as (
       'requests', coalesce((
         select json_agg(id::text order by id)
         from validation_requests
+      ), '[]'::json),
+      'messages', coalesce((
+        select json_agg(message.id::text order by message.id)
+        from public.service_request_messages message
+        where message.request_id in (select id from validation_requests)
       ), '[]'::json),
       'reminders', coalesce((
         select json_agg(id::text order by id)

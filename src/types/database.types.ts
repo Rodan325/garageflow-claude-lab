@@ -1558,6 +1558,13 @@ export type Database = {
             referencedRelation: "service_requests"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "service_request_messages_request_garage_fk"
+            columns: ["request_id", "garage_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id", "garage_id"]
+          },
         ]
       }
       service_request_transfer_events: {
@@ -2227,6 +2234,10 @@ export type Database = {
         Returns: Database["public"]["Tables"]["maintenance_reminders"]["Row"]
       }
       next_quote_number: { Args: { p_garage_id: string }; Returns: string }
+      post_service_request_message: {
+        Args: { p_request_id: string; p_body: string }
+        Returns: Database["public"]["Tables"]["service_request_messages"]["Row"]
+      }
       propose_center_transfer: {
         Args: { p_request_id: string; p_to_center_id: string; p_reason?: string | null }
         Returns: Database["public"]["Tables"]["service_request_transfers"]["Row"]

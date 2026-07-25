@@ -1253,12 +1253,13 @@ export const demo = {
     save()
     return { reminder: clone(reminder), request: clone(request) }
   },
-  addRequestMessage: (input: Partial<ServiceRequestMessage>): ServiceRequestMessage => {
+  addRequestMessage: (input: { requestId: string; body: string }): ServiceRequestMessage => {
     const s = load()
+    const sender = getDemoKind() === 'client' ? 'client' : 'garage'
     const row: ServiceRequestMessage = {
-      id: uid(), request_id: input.request_id!, garage_id: DEMO_GARAGE_ID,
-      sender: input.sender ?? 'garage', author_id: input.author_id ?? null,
-      body: input.body ?? '', created_at: new Date().toISOString(),
+      id: uid(), request_id: input.requestId, garage_id: DEMO_GARAGE_ID,
+      sender, author_id: sender === 'client' ? DEMO_CLIENT_ID : DEMO_STAFF_ID,
+      body: input.body.trim(), created_at: new Date().toISOString(),
     }
     s.messages.push(row)
     save()
