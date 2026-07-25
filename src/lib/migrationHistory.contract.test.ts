@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { canonicalMigrationSha256 } from '../test/canonicalMigrationHash'
 
 const migrationsDirectory = join(process.cwd(), 'supabase', 'migrations')
 
@@ -44,8 +44,7 @@ const productVersions = [
 ] as const
 
 function normalizedHash(fileName: string) {
-  const sql = readFileSync(join(migrationsDirectory, fileName), 'utf8').replace(/\r\n/g, '\n')
-  return createHash('sha256').update(sql).digest('hex')
+  return canonicalMigrationSha256(readFileSync(join(migrationsDirectory, fileName), 'utf8'))
 }
 
 describe('production migration history reconciliation', () => {
