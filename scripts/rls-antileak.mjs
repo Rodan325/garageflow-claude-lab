@@ -68,7 +68,6 @@ const cleanup = {
   requests: [],
   storagePaths: [],
   quotes: [],
-  membershipRestores: [],
 }
 const cleanupOwners = new Map()
 
@@ -168,14 +167,6 @@ async function proposeRecommendation(staff, recommendationId) {
 async function cleanupRunArtifacts() {
   console.log('\nCleanup')
   const cleanupErrors = []
-  for (const item of cleanup.membershipRestores.reverse()) {
-    const { error } = await item.client
-      .from('garage_members')
-      .update(item.values)
-      .eq('garage_id', item.garageId)
-      .eq('user_id', item.userId)
-    if (error) cleanupErrors.push(`membership: ${error.message}`)
-  }
   for (const item of cleanup.storagePaths) {
     if (item.paths.length) {
       const { error } = await item.client.storage.from(item.bucket).remove(item.paths)
@@ -196,7 +187,7 @@ async function cleanupRunArtifacts() {
     if (error) cleanupErrors.push(`request: ${error.message}`)
   }
   check(
-    'Membership, request, quote, and Storage validation artifacts are removed cleanly',
+    'Request, quote, and Storage validation artifacts are removed cleanly',
     cleanupErrors.length === 0,
     cleanupErrors,
   )
@@ -568,97 +559,43 @@ async function run() {
     { cancelled: cancelledMessage.error, closed: closedMessage.error },
   )
 
-  const legacyAccessRequest = await createRequest(clientA1, {
+  const scopedAccessRequest = await createRequest(clientA1, {
     garageId: IDS.garageA,
     centerId: IDS.centerA,
     clientId: IDS.clientA1,
-    label: 'message-legacy-member',
+    label: 'message-scoped-member',
   })
-  const membershipSnapshot = await ownerA
+  const directMembershipMutation = await ownerA
     .from('garage_members')
-    .select('status,center_id,organization_role,center_role')
+    .update({ center_id: null })
     .eq('garage_id', IDS.garageA)
     .eq('user_id', IDS.frontDeskA)
-    .single()
-  if (membershipSnapshot.error) {
-    throw new Error(`Unable to snapshot legacy membership fixture: ${membershipSnapshot.error.message}`)
-  }
-  cleanup.membershipRestores.push({
-    client: ownerA,
-    garageId: IDS.garageA,
-    userId: IDS.frontDeskA,
-    values: membershipSnapshot.data,
-  })
-  const legacyMembership = await ownerA
-    .from('garage_members')
-    .update({
-      status: 'active',
-      center_id: null,
-      organization_role: null,
-      center_role: null,
-    })
-    .eq('garage_id', IDS.garageA)
-    .eq('user_id', IDS.frontDeskA)
-  if (legacyMembership.error) {
-    throw new Error(`Unable to create legacy membership fixture: ${legacyMembership.error.message}`)
-  }
-  const legacyMessage = await frontDeskA.rpc('post_service_request_message', {
-    p_request_id: legacyAccessRequest.id,
-    p_body: `Legacy organization-wide compatibility ${fixtureRunId}`,
-  })
   check(
-    'Active legacy member without center retains organization-wide access',
-    !legacyMessage.error,
-    legacyMessage.error ?? legacyMessage.data,
-  )
-  const legacyRead = legacyMessage.data?.id
-    ? await frontDeskA
-        .from('service_request_messages')
-        .select('id')
-        .eq('id', legacyMessage.data.id)
-    : { data: [], error: new Error('Legacy RPC did not return a message id') }
-  check(
-    'Active legacy member without center can read organization messages',
-    !legacyRead.error && legacyRead.data.length === 1,
-    legacyRead.error ?? legacyRead.data,
+    'Direct membership mutation is denied even to the organization owner',
+    directMembershipMutation.error?.code === '42501',
+    directMembershipMutation.error,
   )
 
-  const disabledMembership = await ownerA
-    .from('garage_members')
-    .update({ status: 'disabled' })
-    .eq('garage_id', IDS.garageA)
-    .eq('user_id', IDS.frontDeskA)
-  if (disabledMembership.error) {
-    throw new Error(`Unable to disable membership fixture: ${disabledMembership.error.message}`)
-  }
-  const disabledMessage = await frontDeskA.rpc('post_service_request_message', {
-    p_request_id: legacyAccessRequest.id,
-    p_body: `Disabled member probe ${fixtureRunId}`,
+  const scopedMessage = await frontDeskA.rpc('post_service_request_message', {
+    p_request_id: scopedAccessRequest.id,
+    p_body: `Scoped center access ${fixtureRunId}`,
   })
   check(
-    'Disabled employee cannot append a message',
-    disabledMessage.error?.code === '42501',
-    disabledMessage.data,
+    'Active center-scoped member retains authorized message access',
+    !scopedMessage.error,
+    scopedMessage.error ?? scopedMessage.data,
   )
-  const disabledRead = legacyMessage.data?.id
+  const scopedRead = scopedMessage.data?.id
     ? await frontDeskA
         .from('service_request_messages')
         .select('id')
-        .eq('id', legacyMessage.data.id)
-    : { data: [], error: new Error('Legacy RPC did not return a message id') }
+        .eq('id', scopedMessage.data.id)
+    : { data: [], error: new Error('Scoped RPC did not return a message id') }
   check(
-    'Disabled employee cannot read organization messages',
-    !disabledRead.error && disabledRead.data.length === 0,
-    disabledRead.error ?? disabledRead.data,
+    'Active center-scoped member reads the message they just posted',
+    !scopedRead.error && scopedRead.data.length === 1,
+    scopedRead.error ?? scopedRead.data,
   )
-  const restoreMembership = await ownerA
-    .from('garage_members')
-    .update(membershipSnapshot.data)
-    .eq('garage_id', IDS.garageA)
-    .eq('user_id', IDS.frontDeskA)
-  if (restoreMembership.error) {
-    throw new Error(`Unable to restore membership fixture: ${restoreMembership.error.message}`)
-  }
 
   console.log('\nNetwork authorization')
   const independentNetwork = await ownerA.rpc('can_view_network_dashboard', { p_garage_id: IDS.garageA })
