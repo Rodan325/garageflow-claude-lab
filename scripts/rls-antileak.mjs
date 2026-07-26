@@ -40,6 +40,7 @@ const IDS = {
   centerB3: '22222222-2222-4222-8222-22222222c003',
   clientA1: 'c0000000-0000-4000-8000-000000000001',
   clientA2: 'c0000000-0000-4000-8000-000000000002',
+  frontDeskA: 'a0000000-0000-4000-8000-000000000003',
   clientB1: 'c2000000-0000-4000-8000-000000000001',
   clientB2: 'c2000000-0000-4000-8000-000000000002',
   requestBApproval: 'f2222222-0000-4000-8000-000000000001',
@@ -63,7 +64,12 @@ const ACCOUNTS = {
 
 let passed = 0
 let failed = 0
-const cleanup = { requests: [], storagePaths: [], quotes: [] }
+const cleanup = {
+  requests: [],
+  storagePaths: [],
+  quotes: [],
+  membershipRestores: [],
+}
 const cleanupOwners = new Map()
 
 function detail(value) {
@@ -162,6 +168,14 @@ async function proposeRecommendation(staff, recommendationId) {
 async function cleanupRunArtifacts() {
   console.log('\nCleanup')
   const cleanupErrors = []
+  for (const item of cleanup.membershipRestores.reverse()) {
+    const { error } = await item.client
+      .from('garage_members')
+      .update(item.values)
+      .eq('garage_id', item.garageId)
+      .eq('user_id', item.userId)
+    if (error) cleanupErrors.push(`membership: ${error.message}`)
+  }
   for (const item of cleanup.storagePaths) {
     if (item.paths.length) {
       const { error } = await item.client.storage.from(item.bucket).remove(item.paths)
@@ -181,7 +195,11 @@ async function cleanupRunArtifacts() {
     const { error } = await remover.from('service_requests').delete().eq('id', item.id)
     if (error) cleanupErrors.push(`request: ${error.message}`)
   }
-  check('Request, quote, and Storage validation artifacts are removed cleanly', cleanupErrors.length === 0, cleanupErrors)
+  check(
+    'Membership, request, quote, and Storage validation artifacts are removed cleanly',
+    cleanupErrors.length === 0,
+    cleanupErrors,
+  )
 }
 
 async function run() {
@@ -253,6 +271,394 @@ async function run() {
   check('Anonymous catalog excludes private organization centers', !anonymousCenters.error && anonymousCenters.data.length > 0 && anonymousCenters.data.every((row) => row.garage_id === IDS.garageA), anonymousCenters.error ?? anonymousCenters.data)
   const anonymousWrite = await anonymous.from('client_profiles').insert({ id: randomUUID() })
   check('Anonymous table writes fail with insufficient privilege', anonymousWrite.error?.code === '42501', anonymousWrite.error)
+
+  const messageIsolationRequest = await createRequest(clientA1, {
+    garageId: IDS.garageA,
+    centerId: IDS.centerA,
+    clientId: IDS.clientA1,
+    label: 'message-tenant-isolation',
+  })
+  const ownerBUser = await ownerB.auth.getUser()
+  if (ownerBUser.error || !ownerBUser.data.user) {
+    throw new Error(`Unable to resolve network owner identity: ${ownerBUser.error?.message ?? 'missing user'}`)
+  }
+  const forgedCrossTenantMessage = await ownerB
+    .from('service_request_messages')
+    .insert({
+      request_id: messageIsolationRequest.id,
+      garage_id: IDS.garageB,
+      sender: 'garage',
+      author_id: ownerBUser.data.user.id,
+      body: `Cross-tenant message probe ${fixtureRunId}`,
+    })
+  check(
+    'A garage cannot attach a message to another organization request',
+    Boolean(forgedCrossTenantMessage.error),
+    forgedCrossTenantMessage.data,
+  )
+
+  console.log('\nMessage tenant isolation')
+  const centerMessageRequest = await createRequest(clientB1, {
+    garageId: IDS.garageB,
+    centerId: IDS.centerB1,
+    clientId: IDS.clientB1,
+    label: 'message-center-isolation',
+  })
+  const directCoherentMessage = await ownerB
+    .from('service_request_messages')
+    .insert({
+      request_id: centerMessageRequest.id,
+      garage_id: IDS.garageB,
+      sender: 'garage',
+      author_id: ownerBUser.data.user.id,
+      body: `Direct message probe ${fixtureRunId}`,
+    })
+  check(
+    'Authenticated users cannot INSERT a coherent message directly',
+    directCoherentMessage.error?.code === '42501',
+    directCoherentMessage.error,
+  )
+  const anonymousMessage = await anonymous
+    .from('service_request_messages')
+    .insert({
+      request_id: centerMessageRequest.id,
+      garage_id: IDS.garageB,
+      sender: 'garage',
+      body: `Anonymous message probe ${fixtureRunId}`,
+    })
+  check(
+    'Anonymous users cannot INSERT messages directly',
+    Boolean(anonymousMessage.error),
+    anonymousMessage.data,
+  )
+
+  const ownerMessage = await ownerB.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: `Network owner message ${fixtureRunId}`,
+  })
+  check(
+    'Organization owner can append a message in any organization center',
+    !ownerMessage.error
+      && ownerMessage.data?.garage_id === IDS.garageB
+      && ownerMessage.data?.request_id === centerMessageRequest.id
+      && ownerMessage.data?.sender === 'garage'
+      && ownerMessage.data?.author_id === ownerBUser.data.user.id
+      && Boolean(ownerMessage.data?.id)
+      && Number.isFinite(Date.parse(ownerMessage.data?.created_at)),
+    ownerMessage.error ?? ownerMessage.data,
+  )
+  const messageId = ownerMessage.data?.id
+  if (!messageId) throw new Error('Secured message RPC did not return a message id')
+
+  const networkAdminMessage = await networkManager.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: `Network administrator message ${fixtureRunId}`,
+  })
+  check(
+    'Network administrator can append a message in any organization center',
+    !networkAdminMessage.error,
+    networkAdminMessage.error,
+  )
+  const centerNorthMessage = await centerNorth.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: `Center A message ${fixtureRunId}`,
+  })
+  check(
+    'Center A employee can append a message to a center A request',
+    !centerNorthMessage.error,
+    centerNorthMessage.error,
+  )
+  const centerCenterMessage = await centerCenter.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: `Center B cross-center probe ${fixtureRunId}`,
+  })
+  check(
+    'Center B employee cannot append a message to a center A request',
+    centerCenterMessage.error?.code === '42501',
+    centerCenterMessage.data,
+  )
+  const otherOrganizationMessage = await ownerA.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: `Cross-organization RPC probe ${fixtureRunId}`,
+  })
+  check(
+    'Employee from another organization cannot append a message',
+    otherOrganizationMessage.error?.code === '42501',
+    otherOrganizationMessage.data,
+  )
+
+  const clientOwnerMessage = await clientB1.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: `Owning client message ${fixtureRunId}`,
+  })
+  check(
+    'Owning client can append a message to their active request',
+    !clientOwnerMessage.error
+      && clientOwnerMessage.data?.garage_id === IDS.garageB
+      && clientOwnerMessage.data?.sender === 'client'
+      && clientOwnerMessage.data?.author_id === IDS.clientB1,
+    clientOwnerMessage.error ?? clientOwnerMessage.data,
+  )
+  const otherClientMessage = await clientB2.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: `Same-garage client probe ${fixtureRunId}`,
+  })
+  check(
+    'Another client of the same garage cannot append a message',
+    otherClientMessage.error?.code === '42501',
+    otherClientMessage.data,
+  )
+  const otherGarageClientMessage = await clientA1.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: `Other-garage client probe ${fixtureRunId}`,
+  })
+  check(
+    'Client from another garage cannot append with a forged request id',
+    otherGarageClientMessage.error?.code === '42501',
+    otherGarageClientMessage.data,
+  )
+
+  const ownerRead = await ownerB
+    .from('service_request_messages')
+    .select('id')
+    .eq('id', messageId)
+  const ownCenterRead = await centerNorth
+    .from('service_request_messages')
+    .select('id')
+    .eq('id', messageId)
+  const otherCenterRead = await centerCenter
+    .from('service_request_messages')
+    .select('id')
+    .eq('id', messageId)
+  const ownerClientRead = await clientB1
+    .from('service_request_messages')
+    .select('id')
+    .eq('id', messageId)
+  const otherClientRead = await clientB2
+    .from('service_request_messages')
+    .select('id')
+    .eq('id', messageId)
+  const otherOrganizationRead = await ownerA
+    .from('service_request_messages')
+    .select('id')
+    .eq('id', messageId)
+  const anonymousRead = await anonymous
+    .from('service_request_messages')
+    .select('id')
+    .eq('id', messageId)
+  check(
+    'Message reads follow organization, center, and owning-client scope',
+    !ownerRead.error && ownerRead.data.length === 1
+      && !ownCenterRead.error && ownCenterRead.data.length === 1
+      && !ownerClientRead.error && ownerClientRead.data.length === 1
+      && !otherCenterRead.error && otherCenterRead.data.length === 0
+      && !otherClientRead.error && otherClientRead.data.length === 0
+      && !otherOrganizationRead.error && otherOrganizationRead.data.length === 0
+      && (Boolean(anonymousRead.error) || anonymousRead.data.length === 0),
+    {
+      ownerRead: ownerRead.error,
+      ownCenterRead: ownCenterRead.error,
+      otherCenterRead: otherCenterRead.data,
+      ownerClientRead: ownerClientRead.error,
+      otherClientRead: otherClientRead.data,
+      otherOrganizationRead: otherOrganizationRead.data,
+      anonymousRead: anonymousRead.data,
+    },
+  )
+
+  const forgedMetadataCall = await ownerB.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: `Forged metadata probe ${fixtureRunId}`,
+    p_garage_id: IDS.garageA,
+    p_author_id: IDS.clientA1,
+    p_sender: 'client',
+    p_id: randomUUID(),
+    p_created_at: '2000-01-01T00:00:00.000Z',
+    p_organization_id: IDS.garageA,
+    p_center_id: IDS.centerB2,
+  })
+  check(
+    'The RPC signature rejects client-supplied security metadata',
+    Boolean(forgedMetadataCall.error),
+    forgedMetadataCall.data,
+  )
+  const blankMessage = await ownerB.rpc('post_service_request_message', {
+    p_request_id: centerMessageRequest.id,
+    p_body: '   ',
+  })
+  check('Whitespace-only messages are rejected', blankMessage.error?.code === '22023', blankMessage.data)
+
+  const messageUpdate = await ownerB
+    .from('service_request_messages')
+    .update({ body: 'Forbidden mutation' })
+    .eq('id', messageId)
+  const messageDelete = await ownerB
+    .from('service_request_messages')
+    .delete()
+    .eq('id', messageId)
+  check(
+    'Messages are append-only for authenticated users',
+    messageUpdate.error?.code === '42501' && messageDelete.error?.code === '42501',
+    { update: messageUpdate.error, delete: messageDelete.error },
+  )
+
+  const acceptedStatus = await ownerA
+    .from('service_requests')
+    .update({ status: 'accepted' })
+    .eq('id', messageIsolationRequest.id)
+  if (acceptedStatus.error) {
+    throw new Error(`Unable to accept completed-message fixture: ${acceptedStatus.error.message}`)
+  }
+  const completedStatus = await ownerA
+    .from('service_requests')
+    .update({ status: 'completed' })
+    .eq('id', messageIsolationRequest.id)
+  if (completedStatus.error) {
+    throw new Error(`Unable to complete message fixture: ${completedStatus.error.message}`)
+  }
+  const completedMessage = await clientA1.rpc('post_service_request_message', {
+    p_request_id: messageIsolationRequest.id,
+    p_body: `Completed after-service message ${fixtureRunId}`,
+  })
+  check('Completed requests remain writable for the owning client', !completedMessage.error, completedMessage.error)
+
+  const declinedAccessRequest = await createRequest(clientA1, {
+    garageId: IDS.garageA,
+    centerId: IDS.centerA,
+    clientId: IDS.clientA1,
+    label: 'message-declined',
+  })
+  const declinedStatus = await ownerA
+    .from('service_requests')
+    .update({ status: 'declined' })
+    .eq('id', declinedAccessRequest.id)
+  if (declinedStatus.error) {
+    throw new Error(`Unable to set declined message fixture: ${declinedStatus.error.message}`)
+  }
+  const declinedMessage = await clientA1.rpc('post_service_request_message', {
+    p_request_id: declinedAccessRequest.id,
+    p_body: `Declined read-only probe ${fixtureRunId}`,
+  })
+  check('Declined requests are read-only', declinedMessage.error?.code === '55000', declinedMessage.data)
+
+  const cancelledAccessRequest = await createRequest(clientA1, {
+    garageId: IDS.garageA,
+    centerId: IDS.centerA,
+    clientId: IDS.clientA1,
+    label: 'message-cancelled',
+  })
+  const cancelledStatus = await ownerA
+    .from('service_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', cancelledAccessRequest.id)
+  if (cancelledStatus.error) {
+    throw new Error(`Unable to set cancelled message fixture: ${cancelledStatus.error.message}`)
+  }
+  const cancelledMessage = await clientA1.rpc('post_service_request_message', {
+    p_request_id: cancelledAccessRequest.id,
+    p_body: `Cancelled read-only probe ${fixtureRunId}`,
+  })
+  const closedMessage = await ownerB.rpc('post_service_request_message', {
+    p_request_id: IDS.requestBClosed,
+    p_body: `Closed read-only probe ${fixtureRunId}`,
+  })
+  check(
+    'Cancelled requests and the existing closed workshop stage are read-only',
+    cancelledMessage.error?.code === '55000' && closedMessage.error?.code === '55000',
+    { cancelled: cancelledMessage.error, closed: closedMessage.error },
+  )
+
+  const legacyAccessRequest = await createRequest(clientA1, {
+    garageId: IDS.garageA,
+    centerId: IDS.centerA,
+    clientId: IDS.clientA1,
+    label: 'message-legacy-member',
+  })
+  const membershipSnapshot = await ownerA
+    .from('garage_members')
+    .select('status,center_id,organization_role,center_role')
+    .eq('garage_id', IDS.garageA)
+    .eq('user_id', IDS.frontDeskA)
+    .single()
+  if (membershipSnapshot.error) {
+    throw new Error(`Unable to snapshot legacy membership fixture: ${membershipSnapshot.error.message}`)
+  }
+  cleanup.membershipRestores.push({
+    client: ownerA,
+    garageId: IDS.garageA,
+    userId: IDS.frontDeskA,
+    values: membershipSnapshot.data,
+  })
+  const legacyMembership = await ownerA
+    .from('garage_members')
+    .update({
+      status: 'active',
+      center_id: null,
+      organization_role: null,
+      center_role: null,
+    })
+    .eq('garage_id', IDS.garageA)
+    .eq('user_id', IDS.frontDeskA)
+  if (legacyMembership.error) {
+    throw new Error(`Unable to create legacy membership fixture: ${legacyMembership.error.message}`)
+  }
+  const legacyMessage = await frontDeskA.rpc('post_service_request_message', {
+    p_request_id: legacyAccessRequest.id,
+    p_body: `Legacy organization-wide compatibility ${fixtureRunId}`,
+  })
+  check(
+    'Active legacy member without center retains organization-wide access',
+    !legacyMessage.error,
+    legacyMessage.error ?? legacyMessage.data,
+  )
+  const legacyRead = legacyMessage.data?.id
+    ? await frontDeskA
+        .from('service_request_messages')
+        .select('id')
+        .eq('id', legacyMessage.data.id)
+    : { data: [], error: new Error('Legacy RPC did not return a message id') }
+  check(
+    'Active legacy member without center can read organization messages',
+    !legacyRead.error && legacyRead.data.length === 1,
+    legacyRead.error ?? legacyRead.data,
+  )
+
+  const disabledMembership = await ownerA
+    .from('garage_members')
+    .update({ status: 'disabled' })
+    .eq('garage_id', IDS.garageA)
+    .eq('user_id', IDS.frontDeskA)
+  if (disabledMembership.error) {
+    throw new Error(`Unable to disable membership fixture: ${disabledMembership.error.message}`)
+  }
+  const disabledMessage = await frontDeskA.rpc('post_service_request_message', {
+    p_request_id: legacyAccessRequest.id,
+    p_body: `Disabled member probe ${fixtureRunId}`,
+  })
+  check(
+    'Disabled employee cannot append a message',
+    disabledMessage.error?.code === '42501',
+    disabledMessage.data,
+  )
+  const disabledRead = legacyMessage.data?.id
+    ? await frontDeskA
+        .from('service_request_messages')
+        .select('id')
+        .eq('id', legacyMessage.data.id)
+    : { data: [], error: new Error('Legacy RPC did not return a message id') }
+  check(
+    'Disabled employee cannot read organization messages',
+    !disabledRead.error && disabledRead.data.length === 0,
+    disabledRead.error ?? disabledRead.data,
+  )
+  const restoreMembership = await ownerA
+    .from('garage_members')
+    .update(membershipSnapshot.data)
+    .eq('garage_id', IDS.garageA)
+    .eq('user_id', IDS.frontDeskA)
+  if (restoreMembership.error) {
+    throw new Error(`Unable to restore membership fixture: ${restoreMembership.error.message}`)
+  }
 
   console.log('\nNetwork authorization')
   const independentNetwork = await ownerA.rpc('can_view_network_dashboard', { p_garage_id: IDS.garageA })

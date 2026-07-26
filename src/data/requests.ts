@@ -108,13 +108,13 @@ export function useUpdateRequestStatus() {
 export function useAddRequestMessage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: TablesInsert<'service_request_messages'>) => {
-      if (isDemo()) return demo.addRequestMessage(input as Partial<ServiceRequestMessage>)
+    mutationFn: async (input: { requestId: string; body: string }) => {
+      if (isDemo()) return demo.addRequestMessage(input)
       const { data, error } = await supabase
-        .from('service_request_messages')
-        .insert(input)
-        .select('*')
-        .single()
+        .rpc('post_service_request_message', {
+          p_request_id: input.requestId,
+          p_body: input.body,
+        })
       if (error) throw error
       return data
     },

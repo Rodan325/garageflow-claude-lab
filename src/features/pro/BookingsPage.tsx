@@ -26,6 +26,7 @@ import { useLang } from '@/i18n'
 import { localizeDemoText } from '@/i18n/demoContent'
 import { shortDate, shortTime, fromNow } from '@/lib/format'
 import { listItem, listStagger } from '@/lib/motion'
+import { isRequestConversationWritable } from '@/features/messages/model'
 
 const TABS = [
   { value: 'pending', label: 'En attente' },
@@ -46,7 +47,7 @@ function matchTab(status: RequestStatus, tab: string) {
 
 export function BookingsPage() {
   const { lang, tr } = useLang()
-  const { garage, userId } = useAuth()
+  const { garage } = useAuth()
   const gid = garage?.id
   const toast = useToast()
   const navigate = useNavigate()
@@ -226,8 +227,8 @@ export function BookingsPage() {
         />
       )}
 
-      {detailFor && userId && (
-        <RequestDetailModal request={detailFor} userId={userId} onClose={() => setDetailFor(null)} />
+      {detailFor && (
+        <RequestDetailModal request={detailFor} onClose={() => setDetailFor(null)} />
       )}
     </div>
   )
@@ -295,28 +296,26 @@ function ProposeSlotModal({
 
 function RequestDetailModal({
   request,
-  userId,
   onClose,
 }: {
   request: ServiceRequest
-  userId: string
   onClose: () => void
 }) {
   const { lang, tr } = useLang()
+  const toast = useToast()
   const { data: messages, isLoading } = useRequestMessages(request.id)
   const addMessage = useAddRequestMessage()
   const [body, setBody] = useState('')
+  const conversationWritable = isRequestConversationWritable(request)
 
   async function send() {
-    if (!body.trim()) return
-    await addMessage.mutateAsync({
-      request_id: request.id,
-      garage_id: request.garage_id,
-      sender: 'garage',
-      author_id: userId,
-      body: body.trim(),
-    })
-    setBody('')
+    if (!body.trim() || !conversationWritable) return
+    try {
+      await addMessage.mutateAsync({ requestId: request.id, body: body.trim() })
+      setBody('')
+    } catch {
+      toast.error(tr('Message non envoyé'), tr('Le message n’a pas pu être envoyé. Vérifiez que le dossier est toujours ouvert.'))
+    }
   }
 
   return (
@@ -349,15 +348,19 @@ function RequestDetailModal({
             ))}
           </ul>
         )}
-        <div className="mt-3 flex gap-2">
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder={tr('Écrire au client…')}
-            className="min-h-[44px]"
-          />
-          <Button onClick={send} loading={addMessage.isPending}>{tr('Envoyer')}</Button>
-        </div>
+        {conversationWritable ? (
+          <div className="mt-3 flex gap-2">
+            <Textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={tr('Écrire au client…')}
+              className="min-h-[44px]"
+            />
+            <Button onClick={send} loading={addMessage.isPending} disabled={!body.trim()}>{tr('Envoyer')}</Button>
+          </div>
+        ) : (
+          <p className="mt-3 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">{tr('Cette conversation est en lecture seule.')}</p>
+        )}
       </div>
     </Modal>
   )
