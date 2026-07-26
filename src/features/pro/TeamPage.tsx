@@ -9,6 +9,7 @@ import { useTeam } from '@/data/proData'
 import type { GarageRole } from '@/types/domain'
 import { roleLabel } from '@/i18n/domainLabels'
 import { useLang } from '@/i18n'
+import { canManageOrganizationMembership } from '@/features/team/membershipPermissions'
 
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
   active: 'success',
@@ -18,8 +19,9 @@ const STATUS_TONE: Record<string, 'success' | 'warning' | 'neutral'> = {
 
 export function TeamPage() {
   const { lang, tr } = useLang()
-  const { garage, role } = useAuth()
+  const { garage, membership } = useAuth()
   const { data: team, isLoading } = useTeam(garage?.id)
+  const canManageTeam = canManageOrganizationMembership(membership)
 
   return (
     <div>
@@ -45,8 +47,8 @@ export function TeamPage() {
       <Card className="mt-4 flex items-start gap-3 bg-muted/40 p-4 text-sm text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
-          {role === 'owner' || role === 'admin'
-            ? tr('L’invitation de nouveaux membres par email sera activée via une Edge Function d’invitation (rôle admin requis). Les rôles sont déjà appliqués côté base par les policies RLS.')
+          {canManageTeam
+            ? tr('La gestion de l’équipe est réservée au propriétaire et à l’administrateur réseau. L’invitation par email reste indisponible tant que son workflow sécurisé n’est pas activé.')
             : tr('Seuls le gérant et les administrateurs peuvent gérer l’équipe.')}
         </p>
       </Card>

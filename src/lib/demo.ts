@@ -862,8 +862,8 @@ export const demo = {
   quote: (id: string) => clone(load().quotes.find((q) => q.id === id) ?? null),
   quoteLines: (quoteId: string) => clone(load().quoteLines.filter((l) => l.quote_id === quoteId).sort((a, b) => a.sort_order - b.sort_order)),
   team: (): TeamMember[] => [
-    { id: 't1', garage_id: DEMO_GARAGE_ID, center_id: null, user_id: DEMO_STAFF_ID, role: 'owner', status: 'active', invited_at: null, created_at: today().toISOString(), profile: demoProfile('garage') as never },
-    { id: 't2', garage_id: DEMO_GARAGE_ID, center_id: null, user_id: 'demo-mecano', role: 'mechanic', status: 'active', invited_at: null, created_at: today().toISOString(), profile: { ...demoProfile('garage'), id: 'demo-mecano', full_name: 'Karim Benali' } as never },
+    { id: 't1', garage_id: DEMO_GARAGE_ID, center_id: null, center_role: null, organization_role: 'organization_owner', user_id: DEMO_STAFF_ID, role: 'owner', status: 'active', invited_at: null, created_at: today().toISOString(), profile: demoProfile('garage') as never },
+    { id: 't2', garage_id: DEMO_GARAGE_ID, center_id: load().centers[0]?.id ?? null, center_role: 'technician', organization_role: null, user_id: 'demo-mecano', role: 'mechanic', status: 'active', invited_at: null, created_at: today().toISOString(), profile: { ...demoProfile('garage'), id: 'demo-mecano', full_name: 'Karim Benali' } as never },
   ],
   dashboardStats: (): DashboardStats => {
     const s = load()
