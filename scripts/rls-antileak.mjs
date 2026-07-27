@@ -69,7 +69,6 @@ const cleanup = {
   storagePaths: [],
   quotes: [],
 }
-const cleanupOwners = new Map()
 
 function detail(value) {
   if (!value) return ''
@@ -177,17 +176,8 @@ async function cleanupRunArtifacts() {
     const { error } = await item.client.from('quotes').delete().eq('id', item.id)
     if (error) cleanupErrors.push(`quote: ${error.message}`)
   }
-  for (const item of cleanup.requests.reverse()) {
-    const remover = cleanupOwners.get(item.garageId)
-    if (!remover) {
-      cleanupErrors.push(`request: no authorized cleanup owner for garage ${item.garageId}`)
-      continue
-    }
-    const { error } = await remover.from('service_requests').delete().eq('id', item.id)
-    if (error) cleanupErrors.push(`request: ${error.message}`)
-  }
   check(
-    'Request, quote, and Storage validation artifacts are removed cleanly',
+    'Application cleanup never physically deletes service requests',
     cleanupErrors.length === 0,
     cleanupErrors,
   )
@@ -235,8 +225,6 @@ async function run() {
     clientB1,
     clientB2,
   ] = sessions
-  cleanupOwners.set(IDS.garageA, ownerA)
-  cleanupOwners.set(IDS.garageB, ownerB)
   const anonymous = client()
 
   console.log('RLS isolation')

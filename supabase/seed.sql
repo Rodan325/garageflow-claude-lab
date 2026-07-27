@@ -192,7 +192,7 @@ insert into public.garage_members (
   garage_id, user_id, role, status, center_id, organization_role, center_role
 )
 values
-  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000001', 'owner', 'active', '11111111-1111-4111-8111-11111111c001', 'organization_owner', 'center_manager'),
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000001', 'owner', 'active', null, 'organization_owner', null),
   ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000002', 'mechanic', 'active', '11111111-1111-4111-8111-11111111c001', null, 'technician'),
   ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000003', 'front_desk', 'active', '11111111-1111-4111-8111-11111111c001', null, 'front_desk')
 on conflict (garage_id, user_id) do update set

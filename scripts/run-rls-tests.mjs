@@ -46,6 +46,7 @@ const legalV2FixturesEnabled = usesLocalDocker || process.env.LEGAL_V2_RLS_FIXTU
 const validationScripts = []
 if (usesLocalDocker) {
   validationScripts.push(resolve('scripts/membership-privilege-rls.mjs'))
+  validationScripts.push(resolve('scripts/core-data-api-capabilities-rls.mjs'))
 }
 validationScripts.push(resolve('scripts/rls-antileak.mjs'))
 if (legalV2FixturesEnabled) validationScripts.push(resolve('scripts/legal-v2-rls.mjs'))
