@@ -517,30 +517,36 @@ export type Database = {
       garage_members: {
         Row: {
           center_id: string | null
+          center_role: "center_manager" | "service_advisor" | "front_desk" | "technician" | "viewer" | null
           created_at: string
           garage_id: string
           id: string
           invited_at: string | null
+          organization_role: "organization_owner" | "network_admin" | "regional_manager" | "viewer" | null
           role: string
           status: string
           user_id: string
         }
         Insert: {
           center_id?: string | null
+          center_role?: "center_manager" | "service_advisor" | "front_desk" | "technician" | "viewer" | null
           created_at?: string
           garage_id: string
           id?: string
           invited_at?: string | null
+          organization_role?: "organization_owner" | "network_admin" | "regional_manager" | "viewer" | null
           role: string
           status?: string
           user_id: string
         }
         Update: {
           center_id?: string | null
+          center_role?: "center_manager" | "service_advisor" | "front_desk" | "technician" | "viewer" | null
           created_at?: string
           garage_id?: string
           id?: string
           invited_at?: string | null
+          organization_role?: "organization_owner" | "network_admin" | "regional_manager" | "viewer" | null
           role?: string
           status?: string
           user_id?: string
@@ -2050,6 +2056,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_member_to_center: {
+        Args: {
+          p_center_id: string
+          p_center_role: string
+          p_target_member_id: string
+        }
+        Returns: Database["public"]["Tables"]["garage_members"]["Row"]
+      }
       accept_current_legal_document_v2: {
         Args: {
           p_document_key: string
@@ -2057,6 +2071,10 @@ export type Database = {
           p_organization_id?: string | null
         }
         Returns: string
+      }
+      deactivate_organization_member: {
+        Args: { p_target_member_id: string }
+        Returns: Database["public"]["Tables"]["garage_members"]["Row"]
       }
       accept_quote_public: {
         Args: { p_token: string; p_terms_version?: string; p_privacy_version?: string }
@@ -2176,6 +2194,10 @@ export type Database = {
       }
       expire_quotes: { Args: never; Returns: number }
       get_quote_public: { Args: { p_token: string }; Returns: Json }
+      promote_member_to_network_admin: {
+        Args: { p_target_member_id: string }
+        Returns: Database["public"]["Tables"]["garage_members"]["Row"]
+      }
       get_current_legal_acceptance_status_v2: {
         Args: {
           p_document_key: string
