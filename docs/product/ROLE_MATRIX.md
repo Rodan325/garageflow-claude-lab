@@ -30,7 +30,7 @@ pendant une migration, mais une seule autorité serveur doit décider des droits
 
 | Rôle | Périmètre | Règle |
 |---|---|---|
-| `center_manager` | Un ou plusieurs centres explicites | Gestion opérationnelle locale ; aucune gestion des membres dans la première V1 |
+| `center_manager` | Un ou plusieurs centres explicites | Gestion opérationnelle locale, hors gestion d'équipe dans la première V1 |
 | `workshop_manager` | Atelier des centres explicites | Planifie, affecte, valide et finalise les opérations techniques |
 | `receptionist` | Relation client des centres explicites | CRM, demandes, devis client, paiements et restitution ; aucun coût brut |
 | `technician` | Affectations explicites | Travaux et données techniques strictement nécessaires |
@@ -43,6 +43,15 @@ pendant une migration, mais une seule autorité serveur doit décider des droits
 | Rôle | Périmètre | Règle |
 |---|---|---|
 | `client` | Ses propres données | Actions limitées par le workflow, sans accès à un autre client ou garage |
+
+## Modèle de rôle et compatibilité legacy
+
+Le champ `role` legacy ne constitue jamais à lui seul une autorité durable.
+`organization_role` porte les capacités organisationnelles, tandis que le
+couple `center_id` et `center_role` porte les capacités locales. Toute
+appartenance doit être cohérente, active et non ambiguë avant de donner accès
+à une action métier. Il n'existe aucun héritage implicite d'un rôle legacy vers
+un périmètre organisation-wide ou vers un autre centre.
 
 ## Légende des capacités
 

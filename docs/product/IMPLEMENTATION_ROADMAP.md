@@ -59,20 +59,36 @@ La facilité technique ne détermine jamais seule la priorité.
 | FPV1-19 | Pilotage et agrégats réseau | P1 | Moyen | 3 à 5 |
 | FPV1-20 | Qualité, E2E, performance et exploitation | P2 | Moyen | 5 à 7 |
 
-**Estimation globale : 76 à 106 PR ciblées.** Cette estimation exprime le
-volume de découpage sécurisé d'un produit complet, pas un calendrier.
+## Estimation de découpage
+
+Les fourchettes décrivent des PR cohérentes, pas une PR par micro-changement.
+Une même PR peut regrouper une migration additive, une RPC, son interface et
+ses tests lorsqu'ils portent une seule capacité déployable.
+
+| Estimation | Lots concernés | Fourchette | Hypothèse |
+|---|---|---:|---|
+| Chemin commercial critique | FPV1-01 à FPV1-19, plus le socle E2E/mobile/runbook de FPV1-20 | **72 à 102 PR** | Produit complet, démontrable et exploitable ; les finitions P2 non bloquantes restent différées. |
+| Roadmap V1 intégrale | Les 20 lots | **76 à 106 PR** | Inclut le durcissement complet, les scénarios E2E, les budgets qualité, l'exploitation et les finitions du lot FPV1-20. |
+
+Pour le chemin commercial critique, la fourchette regroupe environ 18 à 25 PR
+de sécurité/migrations, 32 à 45 PR de capacités métier et frontend, 16 à 24 PR
+de tests/E2E et 6 à 8 PR de documentation et runbooks. Pour la roadmap
+intégrale, le différentiel couvre quatre PR de finition supplémentaires de
+FPV1-20. Il est faible volontairement : une V1 commercialisable exige déjà un socle réel de
+qualité, de mobile, de sauvegarde et d'E2E.
 
 ## Chemin critique
 
 ```mermaid
 flowchart LR
   P01["FPV1-01 Permissions"] --> P02["FPV1-02 Centres"]
-  P01 --> P03["FPV1-03 Conversion"]
   P01 --> P04["FPV1-04 Audit"]
   P04 --> P05["FPV1-05 Archivage"]
+  P02 --> P08["FPV1-08 CRM"]
   P02 --> P06["FPV1-06 Onboarding"]
-  P05 --> P08["FPV1-08 CRM"]
+  P05 --> P08
   P08 --> P09["FPV1-09 VehicleOS"]
+  P09 --> P03["FPV1-03 Conversion"]
   P03 --> P10["FPV1-10 Planning"]
   P09 --> P11["FPV1-11 Atelier"]
   P10 --> P11
@@ -87,7 +103,14 @@ flowchart LR
   P15 --> P20["FPV1-20 Qualité V1"]
   P17 --> P20
   P19 --> P20
+  P06 --> P20
 ```
+
+Le chemin commercial prioritaire est donc : permissions et isolation, données
+canoniques client/véhicule, conversion transactionnelle et planning, atelier,
+finance opérationnelle, commerce, pilotage, puis qualité E2E et lancement.
+L'audit append-only et l'archivage restent des rails de sécurité parallèles qui
+doivent être terminés avant la mise en service commerciale.
 
 Les lots indépendants peuvent avancer en parallèle uniquement lorsque leurs
 contrats partagés sont figés et que chaque lot conserve sa propre PR.
@@ -102,7 +125,8 @@ contrats partagés sont figés et que chaque lot conserve sa propre PR.
   documents, paiements, exports et administration.
 - **Déjà présent :** RLS générale, helpers d'appartenance, Phase 3 et Phase 4A.
 - **Manquant :** capacités par action ; rôles atelier, commercial, comptabilité
-  et viewer ; refus Data API des CRUD legacy trop larges.
+  et viewer ; permissions devis/finance ; support plateforme limité aux
+  métadonnées traçables ; refus Data API des CRUD legacy trop larges.
 - **Dépendances :** décisions de rôles déjà figées ; Phase 4A en Production.
 - **Risque / modèle :** critique — **GPT-5 Codex — Élevé**.
 - **Migrations probables :** policies additives/remplacées, helpers de
@@ -141,7 +165,8 @@ contrats partagés sont figés et que chaque lot conserve sa propre PR.
   d'idempotence.
 - **Déjà présent :** Edge Function séquentielle et tables concernées.
 - **Manquant :** transaction PostgreSQL, verrou, unicité et retry stable.
-- **Dépendances :** FPV1-01 ; contrat VehicleOS anticipé avec FPV1-09.
+- **Dépendances :** FPV1-01, FPV1-02, FPV1-08 et FPV1-09 ; le contrat
+  VehicleOS n'est plus seulement anticipé, il est la référence canonique.
 - **Risque / modèle :** critique — **GPT-5 Codex — Élevé**.
 - **Migrations probables :** contrainte unique et RPC transactionnelle.
 - **Tests nécessaires :** succès, erreur intermédiaire, double clic, retry,

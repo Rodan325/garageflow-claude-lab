@@ -26,6 +26,8 @@ d'ambiguïté, la règle la plus restrictive s'applique.
    accès opérationnel.
 8. Un transfert inter-centres est explicite, atomique, historisé et vérifié des
    deux côtés.
+9. Un rôle legacy, un libellé UI ou un identifiant fourni par le navigateur ne
+   crée aucun héritage implicite de tenant, de centre ou de capacité.
 
 Toute relation enfant qui répète le tenant de son parent utilise une contrainte
 composite ou une autre garantie structurelle équivalente.
@@ -258,13 +260,18 @@ Sans autorisation humaine nominative et limitée, il est interdit de :
 - activer un feature flag ;
 - modifier une variable Vercel ;
 - déployer manuellement ;
-- restaurer un backup ;
+- restaurer automatiquement un backup ou une base ;
 - réaccorder un DML précédemment révoqué ;
 - restaurer une policy vulnérable ;
 - contourner un contrôle de santé ou un test RLS.
 
 Les migrations sont additives et forward-only. Une migration déjà appliquée
 n'est jamais réécrite.
+
+Une exception à `migration repair` ou une restauration Production exige une
+décision humaine distincte, nominative et documentée avec un runbook, une
+fenêtre et un plan de comparaison. Elle ne constitue jamais un rollback
+automatique après un NO-GO.
 
 Les flags juridiques et fournisseurs restent absents ou `false` tant qu'une
 autorisation séparée n'a pas été donnée.

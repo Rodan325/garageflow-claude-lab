@@ -313,6 +313,20 @@ présents :
 Une page, un bouton, une table, une RPC ou un test isolé ne suffit jamais à
 déclarer une fonctionnalité terminée.
 
+## Niveaux de sortie
+
+- **Pilote contrôlé** : un sous-ensemble de parcours peut être validé avec des
+  données synthétiques ou un périmètre client explicitement limité. Il ne vaut
+  pas promesse de Full Product V1 et ne dispense jamais des invariants de
+  sécurité, d'isolation ou de sauvegarde applicables.
+- **Full Product Commercial V1** : les dix domaines et leurs critères
+  d'acceptation sont satisfaits, la définition globale de terminé est prouvée
+  et les parcours atelier, vente, client et onboarding sont démontrables sans
+  contournement manuel non documenté.
+- **V2 ou Enterprise** : les exclusions ci-dessus restent hors de la promesse
+  commerciale V1. Elles peuvent faire l'objet d'un lot séparé seulement après
+  décision de périmètre, sans devenir une dépendance rétroactive du V1.
+
 ## Gel strict du périmètre
 
 Le périmètre ci-dessus est gelé. Toute modification doit :
@@ -329,6 +343,11 @@ Le périmètre ci-dessus est gelé. Toute modification doit :
 Par défaut, toute nouvelle idée est classée V2. La facilité technique, une
 opportunité ponctuelle ou la demande d'un seul grand compte ne suffisent pas à
 modifier le V1.
+
+Une exception de périmètre nécessite une décision humaine explicite, un impact
+écrit sur les critères de sortie, la sécurité et l'estimation, puis une mise à
+jour cohérente des cinq documents. Elle ne peut ni être masquée dans une PR
+technique, ni être déclenchée par un feature flag.
 
 Les flags juridiques et fournisseurs restent absents ou `false`. Leur activation
 relève d'une autorisation et d'un runbook séparés ; elle n'est pas autorisée par

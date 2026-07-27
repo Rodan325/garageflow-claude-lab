@@ -40,6 +40,14 @@ spécification courte
 → merge autorisé
 ```
 
+### Documentation pure
+
+Pour une PR limitée à des documents Markdown, la validation est proportionnée
+au diff : périmètre des fichiers, liens internes, lisibilité, cohérence,
+secrets, données personnelles et fins de ligne. Ne pas lancer Docker, une
+stack Supabase ou une suite applicative complète lorsqu'aucun code, test,
+migration ou configuration n'a changé.
+
 ### Changement critique
 
 Sont critiques :
@@ -123,6 +131,16 @@ Elle comprend, selon le dépôt :
 Il est interdit de répéter une suite coûteuse uniquement pour produire un
 nouveau rapport si le SHA, les fichiers et l'environnement validé sont
 strictement inchangés. Les checks CI du HEAD servent alors de preuve.
+
+## Blocage fonctionnel et blocage environnemental
+
+Un blocage fonctionnel est une régression, un test pertinent en échec, un
+contrat non démontré ou un contrôle de sécurité insuffisant : il constitue un
+NO-GO. Un blocage environnemental est une indisponibilité locale ou de CI sans
+indice de défaut fonctionnel : il est documenté, recoupé avec les preuves
+disponibles et ne justifie ni un contournement improvisé, ni une validation
+fictive. Un NO-GO ne se contourne jamais ; il est levé par une correction ou
+une autorisation explicitement limitée.
 
 ## Validation locale
 
