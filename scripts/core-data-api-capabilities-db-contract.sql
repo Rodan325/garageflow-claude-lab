@@ -209,6 +209,176 @@ select pg_temp.assert_true(
   )
 );
 
+-- Public catalog visibility must never expose inactive services.
+select pg_temp.assert_true(
+  'legacy garage service visibility policy is absent',
+  not exists (
+    select 1
+    from pg_catalog.pg_policies policy
+    where policy.schemaname = 'public'
+      and policy.tablename = 'garage_services'
+      and (
+        policy.policyname = 'garage_services_visible_garage_scope'
+        or (
+          policy.cmd = 'SELECT'
+          and policy.qual ilike '%exists%from garages%'
+          and policy.qual not ilike '%is_active%'
+          and policy.qual not ilike '%has_core_capability%'
+        )
+      )
+  )
+);
+select pg_temp.assert_true(
+  'PUBLIC and anon have no garage service DML',
+  not exists (
+    select 1
+    from information_schema.role_table_grants grant_row
+    where grant_row.grantee = 'PUBLIC'
+      and grant_row.table_schema = 'public'
+      and grant_row.table_name = 'garage_services'
+      and grant_row.privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+  )
+  and not has_table_privilege('anon', 'public.garage_services', 'INSERT')
+  and not has_table_privilege('anon', 'public.garage_services', 'UPDATE')
+  and not has_table_privilege('anon', 'public.garage_services', 'DELETE')
+);
+
+savepoint garage_service_visibility;
+insert into public.garage_services (
+  id,
+  garage_id,
+  name,
+  is_active
+)
+values
+  (
+    'cc000000-0000-4000-8000-000000000008',
+    '22222222-2222-4222-8222-222222222222',
+    'Synthetic active public service',
+    true
+  ),
+  (
+    'cc000000-0000-4000-8000-000000000009',
+    '22222222-2222-4222-8222-222222222222',
+    'Synthetic inactive private service',
+    false
+  );
+
+set local role anon;
+select pg_temp.assert_true(
+  'anonymous users can select an active service',
+  exists (
+    select 1
+    from public.garage_services service
+    where service.id = 'cc000000-0000-4000-8000-000000000008'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous users cannot select an inactive service',
+  not exists (
+    select 1
+    from public.garage_services service
+    where service.id = 'cc000000-0000-4000-8000-000000000009'
+  )
+);
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  'cc000000-0000-4000-8000-000000000010',
+  true
+);
+select pg_temp.assert_true(
+  'authenticated users without membership cannot select an inactive service',
+  not exists (
+    select 1
+    from public.garage_services service
+    where service.id = 'cc000000-0000-4000-8000-000000000009'
+  )
+);
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  'a0000000-0000-4000-8000-000000000001',
+  true
+);
+select pg_temp.assert_true(
+  'members of another garage cannot select an inactive service',
+  not exists (
+    select 1
+    from public.garage_services service
+    where service.id = 'cc000000-0000-4000-8000-000000000009'
+  )
+);
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  'b0000000-0000-4000-8000-000000000001',
+  true
+);
+select pg_temp.assert_true(
+  'organization owner with catalog capability can select an inactive service',
+  exists (
+    select 1
+    from public.garage_services service
+    where service.id = 'cc000000-0000-4000-8000-000000000009'
+  )
+);
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  'b0000000-0000-4000-8000-000000000007',
+  true
+);
+select pg_temp.assert_true(
+  'technician membership does not expose an inactive service',
+  not exists (
+    select 1
+    from public.garage_services service
+    where service.id = 'cc000000-0000-4000-8000-000000000009'
+  )
+);
+reset role;
+
+update public.garage_members
+set center_role = 'viewer'
+where user_id = 'b0000000-0000-4000-8000-000000000007'
+  and garage_id = '22222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  'b0000000-0000-4000-8000-000000000007',
+  true
+);
+select pg_temp.assert_true(
+  'viewer membership does not expose an inactive service',
+  not exists (
+    select 1
+    from public.garage_services service
+    where service.id = 'cc000000-0000-4000-8000-000000000009'
+  )
+);
+reset role;
+rollback to savepoint garage_service_visibility;
+select pg_temp.assert_true(
+  'garage service visibility fixtures are fully rolled back',
+  not exists (
+    select 1
+    from public.garage_services service
+    where service.id in (
+      'cc000000-0000-4000-8000-000000000008',
+      'cc000000-0000-4000-8000-000000000009'
+    )
+  )
+);
+
 -- Canonical roles and per-garage resolution.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
