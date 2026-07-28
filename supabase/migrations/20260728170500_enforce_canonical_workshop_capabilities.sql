@@ -424,6 +424,9 @@ create trigger trg_guard_workshop_managed_request_fields
 before update on public.service_requests
 for each row execute function private.guard_workshop_managed_request_fields();
 
+-- repairs.assigned_to is the only technician authorization source in PR2.
+-- tasks has no canonical center/request/repair binding yet: its assigned_to
+-- field is protected from direct Data API changes but grants no capability.
 create or replace function private.guard_workshop_assignment()
 returns trigger
 language plpgsql
@@ -459,6 +462,9 @@ drop trigger if exists trg_guard_tasks_workshop_assignment
 create trigger trg_guard_tasks_workshop_assignment
 before insert or update on public.tasks
 for each row execute function private.guard_workshop_assignment();
+
+comment on trigger trg_guard_tasks_workshop_assignment on public.tasks is
+  'Fail-closed protection only. tasks.assigned_to grants no workshop capability and has no assignment RPC in PR2.';
 
 create or replace function public.guard_request_transition()
 returns trigger

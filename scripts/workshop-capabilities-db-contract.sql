@@ -48,6 +48,43 @@ begin
 end;
 $$;
 
+create or replace function pg_temp.expect_refused_mutation(
+  p_name text,
+  p_sql text
+)
+returns void
+language plpgsql
+as $$
+declare
+  affected_rows bigint;
+begin
+  begin
+    execute p_sql;
+    get diagnostics affected_rows = row_count;
+
+    if affected_rows = 0 then
+      raise notice '[PASS] %', p_name;
+      return;
+    end if;
+  exception
+    when sqlstate '42501' then
+      raise notice '[PASS] %', p_name;
+      return;
+    when others then
+      raise exception
+        'Workshop capability assertion failed: % returned SQLSTATE %: %',
+        p_name,
+        sqlstate,
+        sqlerrm;
+  end;
+
+  raise exception
+    'Workshop capability assertion failed: % changed % row(s)',
+    p_name,
+    affected_rows;
+end;
+$$;
+
 create or replace function pg_temp.expect_allowed_transition(
   p_name text,
   p_actor_id uuid,
@@ -127,6 +164,18 @@ select pg_temp.assert_true(
 );
 
 select pg_temp.assert_true(
+  'no application task assignment RPC is exposed',
+  to_regprocedure('public.assign_workshop_task(uuid,uuid)') is null
+);
+
+select pg_temp.assert_true(
+  'tasks.assigned_to is not a workshop authorization source',
+  pg_get_functiondef(
+    'private.workshop_technician_assigned(uuid,uuid)'::regprocedure
+  ) not ilike '%public.tasks%'
+);
+
+select pg_temp.assert_true(
   'workshop RPCs use SECURITY DEFINER and an empty search_path',
   not exists (
     select 1
@@ -196,6 +245,21 @@ update public.garage_members
 set center_role = 'receptionist'
 where user_id = 'b0000000-0000-4000-8000-000000000006'
   and garage_id = '22222222-2222-4222-8222-222222222222';
+
+insert into public.tasks (
+  id,
+  garage_id,
+  title,
+  priority,
+  status
+)
+values (
+  'cc000000-0000-4000-8000-000000000003',
+  '22222222-2222-4222-8222-222222222222',
+  'Task assignment fail-closed fixture',
+  'normal',
+  'todo'
+);
 
 insert into public.appointments (
   id,
@@ -974,16 +1038,52 @@ select pg_temp.expect_error(
   $sql$,
   '42501'
 );
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
-select pg_temp.expect_error(
-  'direct task assignment is refused',
+select pg_temp.expect_refused_mutation(
+  'organization owner cannot assign a task through the Data API',
   $sql$
     update public.tasks
-    set assigned_to = 'a0000000-0000-4000-8000-000000000002'
-    where id = '34111111-0000-4000-8000-000000000001'
-  $sql$,
-  '42501'
+    set assigned_to = 'b0000000-0000-4000-8000-000000000007'
+    where id = 'cc000000-0000-4000-8000-000000000003'
+  $sql$
 );
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000003', true);
+select pg_temp.expect_refused_mutation(
+  'center manager cannot assign a task through the Data API',
+  $sql$
+    update public.tasks
+    set assigned_to = 'b0000000-0000-4000-8000-000000000007'
+    where id = 'cc000000-0000-4000-8000-000000000003'
+  $sql$
+);
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000007', true);
+select pg_temp.expect_refused_mutation(
+  'technician cannot assign a task through the Data API',
+  $sql$
+    update public.tasks
+    set assigned_to = 'b0000000-0000-4000-8000-000000000007'
+    where id = 'cc000000-0000-4000-8000-000000000003'
+  $sql$
+);
+reset role;
+
+savepoint task_assignment_non_authority;
+update public.tasks
+set assigned_to = 'b0000000-0000-4000-8000-000000000007'
+where id = 'cc000000-0000-4000-8000-000000000003';
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000007', true);
+select pg_temp.assert_true(
+  'an assigned task grants no workshop capability',
+  not public.has_workshop_capability(
+    'f2222222-0000-4000-8000-000000000005',
+    'transition.technician'
+  )
+);
+reset role;
+rollback to savepoint task_assignment_non_authority;
+
+set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
 select pg_temp.expect_error(
   'direct workshop stage mutation is refused',

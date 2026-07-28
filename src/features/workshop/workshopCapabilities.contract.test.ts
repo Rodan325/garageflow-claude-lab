@@ -36,6 +36,9 @@ describe('canonical workshop capability contract', () => {
     expect(technicianAssignment).toMatch(/linked_appointment_count = 1/)
     expect(technicianAssignment).toMatch(/linked_repair_count = 1/)
     expect(technicianAssignment).not.toContain('appointment.assigned_to')
+    expect(technicianAssignment).not.toContain('public.tasks')
+    expect(sql).not.toMatch(/create or replace function public\.assign_workshop_task/)
+    expect(sql).toMatch(/tasks\.assigned_to grants no workshop capability/)
   })
 
   it('keeps special stages behind dedicated workflows', () => {
@@ -67,11 +70,16 @@ describe('canonical workshop capability contract', () => {
   })
 
   it('uses empty search paths and minimal public RPC grants', () => {
-    const securityDefinerCount = (sql.match(/security definer/g) ?? []).length
-    const emptySearchPathCount = (sql.match(/set search_path = ''/g) ?? []).length
+    const touchedFunctionCount = (sql.match(/^create or replace function /gm) ?? []).length
+    const securityDefinerCount = (sql.match(/^security definer$/gm) ?? []).length
+    const emptySearchPathCount = (sql.match(/^set search_path = ''$/gm) ?? []).length
 
-    expect(securityDefinerCount).toBeGreaterThan(0)
-    expect(emptySearchPathCount).toBeGreaterThanOrEqual(securityDefinerCount)
+    expect(touchedFunctionCount).toBe(18)
+    expect(securityDefinerCount).toBe(15)
+    expect(emptySearchPathCount).toBe(18)
+    expect(sql).toMatch(/create or replace function private\.guard_workshop_managed_request_fields\(\)[\s\S]*language plpgsql[\s\S]*set search_path = ''/)
+    expect(sql).toMatch(/create or replace function private\.guard_workshop_assignment\(\)[\s\S]*language plpgsql[\s\S]*set search_path = ''/)
+    expect(sql).toMatch(/create or replace function public\.guard_request_transition\(\)[\s\S]*security invoker[\s\S]*set search_path = ''/)
     expect(sql).toMatch(/revoke all on function private\.resolve_workshop_actor[\s\S]*from public, anon, authenticated, service_role/)
     expect(sql).toMatch(/grant execute on function public\.has_workshop_capability\(uuid, text\)[\s\S]*to authenticated, service_role/)
   })
