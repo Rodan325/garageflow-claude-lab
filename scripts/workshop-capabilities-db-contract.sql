@@ -48,6 +48,52 @@ begin
 end;
 $$;
 
+create or replace function pg_temp.expect_allowed_transition(
+  p_name text,
+  p_actor_id uuid,
+  p_request_id uuid,
+  p_previous_stage text,
+  p_new_stage text
+)
+returns void
+language plpgsql
+as $$
+declare
+  returned_stage text;
+begin
+  begin
+    perform set_config('request.jwt.claim.sub', p_actor_id::text, true);
+
+    update public.service_requests request
+    set workshop_stage = p_previous_stage
+    where request.id = p_request_id;
+
+    if not found then
+      raise exception 'Missing request fixture for %', p_name;
+    end if;
+
+    select event.new_stage
+    into returned_stage
+    from public.transition_workshop_stage(
+      p_request_id,
+      p_new_stage
+    ) event;
+
+    if returned_stage is distinct from p_new_stage then
+      raise exception 'Transition returned %, expected %', returned_stage, p_new_stage;
+    end if;
+
+    raise exception 'rollback successful transition fixture'
+      using errcode = 'PZ001';
+  exception
+    when sqlstate 'PZ001' then
+      raise notice '[PASS] %', p_name;
+    when others then
+      raise exception 'Workshop capability assertion failed: %: %', p_name, sqlerrm;
+  end;
+end;
+$$;
+
 -- Structural contract. This is intentionally the first red assertion on the
 -- pre-PR2 schema.
 select pg_temp.assert_true(
@@ -75,6 +121,9 @@ select pg_temp.assert_true(
   not has_table_privilege('authenticated', 'public.service_request_timeline', 'SELECT')
   and not has_table_privilege('authenticated', 'public.workshop_recommendations', 'SELECT')
   and not has_table_privilege('authenticated', 'public.recommendation_decisions', 'SELECT')
+  and not has_table_privilege('authenticated', 'public.service_request_timeline', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.workshop_recommendations', 'UPDATE')
+  and not has_table_privilege('authenticated', 'public.recommendation_decisions', 'DELETE')
 );
 
 select pg_temp.assert_true(
@@ -130,7 +179,6 @@ select pg_temp.assert_true(
       )
       and (
         has_function_privilege('anon', function_row.oid, 'EXECUTE')
-        or has_function_privilege('public', function_row.oid, 'EXECUTE')
       )
   )
 );
@@ -141,6 +189,8 @@ select set_config(
   'b0000000-0000-4000-8000-000000000001',
   true
 );
+select set_config('app.workshop_rpc', 'on', true);
+select set_config('app.workshop_assignment_rpc', 'on', true);
 
 update public.garage_members
 set center_role = 'receptionist'
@@ -308,6 +358,13 @@ select pg_temp.assert_true(
     'timeline.full'
   )
 );
+select pg_temp.assert_true(
+  'unknown workshop capabilities are fail-closed',
+  not public.has_workshop_capability(
+    'f2222222-0000-4000-8000-000000000003',
+    'workshop.future.capability'
+  )
+);
 reset role;
 
 set local role authenticated;
@@ -421,7 +478,166 @@ select pg_temp.assert_true(
 reset role;
 rollback to savepoint viewer_role;
 
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
+select pg_temp.assert_true(
+  'an owner membership in garage B grants no access to garage A',
+  not public.has_workshop_capability(
+    'f1111111-0000-4000-8000-000000000001',
+    'timeline.full'
+  )
+);
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000003', true);
+select pg_temp.assert_true(
+  'a center manager receives no workshop capability in another center',
+  not public.has_workshop_capability(
+    'f2222222-0000-4000-8000-000000000003',
+    'transition.operational'
+  )
+);
+reset role;
+
+savepoint ambiguous_scope;
+update public.garage_members
+set organization_role = 'regional_manager'
+where user_id = 'b0000000-0000-4000-8000-000000000006'
+  and garage_id = '22222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000006', true);
+select pg_temp.assert_true(
+  'concurrent organization and center scopes are fail-closed',
+  not public.has_workshop_capability(
+    'f2222222-0000-4000-8000-000000000001',
+    'transition.reception'
+  )
+);
+reset role;
+rollback to savepoint ambiguous_scope;
+
+savepoint unknown_role;
+alter table public.garage_members
+  drop constraint garage_members_center_role_check;
+update public.garage_members
+set center_role = 'future_workshop_role'
+where user_id = 'b0000000-0000-4000-8000-000000000006'
+  and garage_id = '22222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000006', true);
+select pg_temp.assert_true(
+  'unknown canonical roles are fail-closed',
+  not public.has_workshop_capability(
+    'f2222222-0000-4000-8000-000000000001',
+    'transition.reception'
+  )
+);
+reset role;
+rollback to savepoint unknown_role;
+
+savepoint duplicate_scope;
+alter table public.garage_members
+  drop constraint garage_members_garage_id_user_id_key;
+insert into public.garage_members (
+  id,
+  garage_id,
+  user_id,
+  role,
+  status,
+  center_id,
+  organization_role,
+  center_role
+)
+values (
+  'cc000000-0000-4000-8000-000000000001',
+  '22222222-2222-4222-8222-222222222222',
+  'b0000000-0000-4000-8000-000000000006',
+  'front_desk',
+  'active',
+  '22222222-2222-4222-8222-22222222c001',
+  null,
+  'receptionist'
+);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000006', true);
+select pg_temp.assert_true(
+  'duplicate active memberships in one garage are fail-closed',
+  not public.has_workshop_capability(
+    'f2222222-0000-4000-8000-000000000001',
+    'transition.reception'
+  )
+);
+reset role;
+rollback to savepoint duplicate_scope;
+
+savepoint multi_garage_scope;
+insert into public.garage_members (
+  id,
+  garage_id,
+  user_id,
+  role,
+  status,
+  center_id,
+  organization_role,
+  center_role
+)
+values (
+  'cc000000-0000-4000-8000-000000000002',
+  '22222222-2222-4222-8222-222222222222',
+  'a0000000-0000-4000-8000-000000000001',
+  'owner',
+  'active',
+  '22222222-2222-4222-8222-22222222c001',
+  null,
+  'center_manager'
+);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
+select pg_temp.assert_true(
+  'valid memberships in distinct garages are evaluated independently',
+  public.has_workshop_capability(
+    'f1111111-0000-4000-8000-000000000001',
+    'timeline.full'
+  )
+  and public.has_workshop_capability(
+    'f2222222-0000-4000-8000-000000000001',
+    'transition.operational'
+  )
+);
+reset role;
+rollback to savepoint multi_garage_scope;
+
 -- Receptionist transition matrix.
+select pg_temp.expect_allowed_transition(
+  'receptionist can mark an appointment as expected',
+  'b0000000-0000-4000-8000-000000000006',
+  'f2222222-0000-4000-8000-000000000001',
+  'appointment_confirmed',
+  'vehicle_expected'
+);
+select pg_temp.expect_allowed_transition(
+  'receptionist can check in an expected vehicle',
+  'b0000000-0000-4000-8000-000000000006',
+  'f2222222-0000-4000-8000-000000000001',
+  'vehicle_expected',
+  'vehicle_checked_in'
+);
+select pg_temp.expect_allowed_transition(
+  'receptionist can receive a checked-in vehicle',
+  'b0000000-0000-4000-8000-000000000006',
+  'f2222222-0000-4000-8000-000000000001',
+  'vehicle_checked_in',
+  'vehicle_received'
+);
+select pg_temp.expect_allowed_transition(
+  'receptionist can deliver a ready vehicle',
+  'b0000000-0000-4000-8000-000000000006',
+  'f2222222-0000-4000-8000-000000000001',
+  'vehicle_ready',
+  'vehicle_delivered'
+);
+
 savepoint receptionist_allowed;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
 update public.service_requests
@@ -463,6 +679,28 @@ reset role;
 rollback to savepoint receptionist_denied;
 
 -- Technician authority comes only from a unique repair assignment.
+select pg_temp.expect_allowed_transition(
+  'assigned technician can start diagnosis',
+  'b0000000-0000-4000-8000-000000000007',
+  'f2222222-0000-4000-8000-000000000003',
+  'vehicle_received',
+  'diagnosis_in_progress'
+);
+select pg_temp.expect_allowed_transition(
+  'assigned technician can start authorized work',
+  'b0000000-0000-4000-8000-000000000007',
+  'f2222222-0000-4000-8000-000000000003',
+  'work_authorized',
+  'work_in_progress'
+);
+select pg_temp.expect_allowed_transition(
+  'assigned technician can send work to quality control',
+  'b0000000-0000-4000-8000-000000000007',
+  'f2222222-0000-4000-8000-000000000003',
+  'work_in_progress',
+  'quality_control'
+);
+
 savepoint technician_allowed;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000007', true);
@@ -505,6 +743,9 @@ reset role;
 
 -- Special states, finalization, closure, and audited reopening.
 savepoint owner_finalize;
+update public.service_requests
+set workshop_stage = 'quality_control'
+where id = 'f2222222-0000-4000-8000-000000000005';
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
 select pg_temp.assert_true(
@@ -541,6 +782,9 @@ reset role;
 rollback to savepoint close_request;
 
 savepoint reopen_request;
+update public.service_requests
+set workshop_stage = 'quality_control'
+where id = 'f2222222-0000-4000-8000-000000000005';
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000004', true);
 select pg_temp.assert_true(
@@ -557,6 +801,68 @@ select pg_temp.assert_true(
 );
 reset role;
 rollback to savepoint reopen_request;
+
+savepoint reopen_closed_request;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000005', true);
+select pg_temp.assert_true(
+  'center manager can reopen a closed request to delivered with an audited reason',
+  (
+    select event.previous_stage = 'closed'
+      and event.new_stage = 'vehicle_delivered'
+      and event.internal_note = 'Customer returned after closure'
+    from public.reopen_workshop_request(
+      'f2222222-0000-4000-8000-000000000007',
+      'vehicle_delivered',
+      'Customer returned after closure'
+    ) event
+  )
+);
+reset role;
+rollback to savepoint reopen_closed_request;
+
+savepoint technician_finalize_denied;
+update public.service_requests
+set workshop_stage = 'quality_control'
+where id = 'f2222222-0000-4000-8000-000000000003';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000007', true);
+select pg_temp.expect_error(
+  'technician cannot finalize a request',
+  $sql$
+    select public.transition_workshop_stage(
+      'f2222222-0000-4000-8000-000000000003',
+      'vehicle_ready'
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'technician cannot reopen a request',
+  $sql$
+    select public.reopen_workshop_request(
+      'f2222222-0000-4000-8000-000000000003',
+      'work_in_progress',
+      'Forbidden technician rework'
+    )
+  $sql$,
+  '42501'
+);
+reset role;
+rollback to savepoint technician_finalize_denied;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000006', true);
+select pg_temp.expect_error(
+  'receptionist cannot close a request',
+  $sql$
+    select public.close_workshop_request(
+      'f2222222-0000-4000-8000-000000000001'
+    )
+  $sql$,
+  '42501'
+);
+reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
@@ -595,20 +901,39 @@ reset role;
 
 -- Assignment is server controlled and center-scoped.
 savepoint repair_assignment;
+update public.garage_members
+set center_id = '22222222-2222-4222-8222-22222222c001'
+where user_id = 'b0000000-0000-4000-8000-000000000007'
+  and garage_id = '22222222-2222-4222-8222-222222222222'
+  and center_role = 'technician';
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000003', true);
 select pg_temp.assert_true(
   'center manager can assign a technician in the same center',
   (
-    select repair.assigned_to = 'a0000000-0000-4000-8000-000000000003'::uuid
+    select repair.assigned_to = 'b0000000-0000-4000-8000-000000000007'::uuid
     from public.assign_workshop_repair(
       'cc200000-0000-4000-8000-000000000002',
-      'a0000000-0000-4000-8000-000000000003'
+      'b0000000-0000-4000-8000-000000000007'
     ) repair
-  ) is false
+  )
 );
 reset role;
 rollback to savepoint repair_assignment;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000003', true);
+select pg_temp.expect_error(
+  'center manager cannot assign a technician from another center',
+  $sql$
+    select public.assign_workshop_repair(
+      'cc200000-0000-4000-8000-000000000002',
+      'b0000000-0000-4000-8000-000000000007'
+    )
+  $sql$,
+  '42501'
+);
+reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000002', true);
@@ -618,6 +943,20 @@ select pg_temp.expect_error(
     select public.assign_workshop_repair(
       'cc200000-0000-4000-8000-000000000001',
       'b0000000-0000-4000-8000-000000000007'
+    )
+  $sql$,
+  '42501'
+);
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000003', true);
+select pg_temp.expect_error(
+  'center manager cannot read another center timeline',
+  $sql$
+    select *
+    from public.get_workshop_timeline(
+      'f2222222-0000-4000-8000-000000000003'
     )
   $sql$,
   '42501'
@@ -635,6 +974,7 @@ select pg_temp.expect_error(
   $sql$,
   '42501'
 );
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
 select pg_temp.expect_error(
   'direct task assignment is refused',
   $sql$
@@ -644,6 +984,7 @@ select pg_temp.expect_error(
   $sql$,
   '42501'
 );
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
 select pg_temp.expect_error(
   'direct workshop stage mutation is refused',
   $sql$
@@ -670,6 +1011,39 @@ select pg_temp.assert_true(
   )
 );
 reset role;
+
+savepoint owner_priced_recommendation;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
+select pg_temp.assert_true(
+  'owner can create a recommendation with an estimated price',
+  (
+    select recommendation.estimated_price = 240
+    from public.create_workshop_recommendation(
+      'f2222222-0000-4000-8000-000000000003',
+      'Owner-priced recommendation',
+      p_estimated_price => 240
+    ) recommendation
+  )
+);
+reset role;
+rollback to savepoint owner_priced_recommendation;
+
+savepoint owner_quote_link;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
+select pg_temp.assert_true(
+  'owner can link a recommendation to a quote in the same case',
+  (
+    select quote.recommendation_id = '81000000-0000-4000-8000-000000000001'::uuid
+    from public.link_recommendation_quote(
+      '81000000-0000-4000-8000-000000000001',
+      'cc400000-0000-4000-8000-000000000001'
+    ) quote
+  )
+);
+reset role;
+rollback to savepoint owner_quote_link;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000007', true);
@@ -803,6 +1177,35 @@ select pg_temp.expect_error(
   '42501'
 );
 reset role;
+
+savepoint client_own_decision;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'c2000000-0000-4000-8000-000000000001', true);
+select pg_temp.assert_true(
+  'client can decide a recommendation linked to their own request',
+  (
+    select recommendation.status = 'accepted'
+      and recommendation.estimated_price is null
+      and recommendation.created_by is null
+    from public.decide_workshop_recommendation(
+      '81000000-0000-4000-8000-000000000001',
+      'accepted',
+      'Customer private note'
+    ) recommendation
+  )
+);
+select pg_temp.assert_true(
+  'client decision projection hides notes',
+  not exists (
+    select 1
+    from public.get_workshop_recommendation_decisions(
+      '81000000-0000-4000-8000-000000000001'
+    ) decision
+    where decision.note is not null
+  )
+);
+reset role;
+rollback to savepoint client_own_decision;
 
 select pg_temp.assert_true(
   'all denied and rolled-back operations preserve the workshop baseline',

@@ -651,15 +651,19 @@ async function run() {
   })
   check('Garage session adds a customer-visible diagnostic photo', !journeyPhotoUpload.error && !journeyPhotoMetadata.error, journeyPhotoUpload.error ?? journeyPhotoMetadata.error)
 
-  const journeyApprovalStage = await ownerB.rpc('transition_workshop_stage', {
+  const journeyApprovalTimeline = await ownerB.rpc('get_workshop_timeline', {
     p_request_id: journeyRequest.id,
-    p_new_stage: 'customer_approval_required',
-    p_internal_note: 'Awaiting the fictitious customer decision.',
-    p_customer_message: 'Your approval is required.',
-    p_estimated_completion_at: journeyEstimatedDelivery,
-    p_visible_to_customer: true,
   })
-  check('Garage session requests customer approval with an estimated delivery time', !journeyApprovalStage.error, journeyApprovalStage.error)
+  check(
+    'Garage session requests customer approval with an estimated delivery time',
+    !journeyApprovalTimeline.error
+      && journeyApprovalTimeline.data.some((event) => (
+        event.new_stage === 'customer_approval_required'
+        && new Date(event.estimated_completion_at).getTime()
+          === new Date(journeyEstimatedDelivery).getTime()
+      )),
+    journeyApprovalTimeline.error,
+  )
 
   const journeyClientTimeline = await clientB1.rpc('get_workshop_timeline', { p_request_id: journeyRequest.id })
   const journeyClientPhoto = await clientB1.storage.from('service-request-attachments').download(journeyPhotoPath)
@@ -690,10 +694,19 @@ async function run() {
   })
   check('Client session can ask a question and then accept once', !journeyQuestion.error && !journeyAcceptance.error && journeyAcceptance.data?.status === 'accepted', journeyQuestion.error ?? journeyAcceptance.error)
 
-  const journeyGarageDecision = await ownerB.from('workshop_recommendations').select('status,customer_decision_note').eq('id', journeyRecommendation.id).single()
-  check('Garage session sees the customer decision', !journeyGarageDecision.error && journeyGarageDecision.data.status === 'accepted', journeyGarageDecision.error)
+  const journeyGarageDecision = await ownerB.rpc('get_workshop_recommendations', {
+    p_request_id: journeyRequest.id,
+  })
+  check(
+    'Garage session sees the customer decision',
+    !journeyGarageDecision.error
+      && journeyGarageDecision.data.some((item) => (
+        item.id === journeyRecommendation.id && item.status === 'accepted'
+      )),
+    journeyGarageDecision.error,
+  )
 
-  const journeyClosingStages = ['work_authorized', 'work_in_progress', 'quality_control', 'vehicle_ready']
+  const journeyClosingStages = ['work_in_progress', 'quality_control', 'vehicle_ready']
   const journeyClosingResults = []
   for (const stage of journeyClosingStages) {
     journeyClosingResults.push(await ownerB.rpc('transition_workshop_stage', {
@@ -729,19 +742,22 @@ async function run() {
   const journeyClientReport = await clientB1.from('delivery_reports').select('id,status').eq('service_request_id', journeyRequest.id).single()
   check('Garage finalizes a report that the owning client can read', !journeyReport.error && !journeyClientReport.error && journeyClientReport.data.status === 'finalized', journeyReport.error ?? journeyClientReport.error)
 
-  const journeyFinalStages = ['vehicle_delivered', 'closed']
-  const journeyFinalResults = []
-  for (const stage of journeyFinalStages) {
-    journeyFinalResults.push(await ownerB.rpc('transition_workshop_stage', {
+  const journeyFinalResults = [
+    await ownerB.rpc('transition_workshop_stage', {
       p_request_id: journeyRequest.id,
-      p_new_stage: stage,
+      p_new_stage: 'vehicle_delivered',
       p_internal_note: null,
-      p_customer_message: `Journey stage: ${stage}`,
+      p_customer_message: 'Journey stage: vehicle_delivered',
       p_estimated_completion_at: journeyEstimatedDelivery,
       p_visible_to_customer: true,
-    }))
-  }
-  check('Garage session delivers and closes the dossier', countSuccess(journeyFinalResults) === journeyFinalStages.length, journeyFinalResults.map((result) => result.error?.message))
+    }),
+    await ownerB.rpc('close_workshop_request', {
+      p_request_id: journeyRequest.id,
+      p_internal_note: null,
+      p_customer_message: 'Journey stage: closed',
+    }),
+  ]
+  check('Garage session delivers and closes the dossier', countSuccess(journeyFinalResults) === 2, journeyFinalResults.map((result) => result.error?.message))
 
   const journeyReminder = await ownerB.rpc('create_maintenance_reminder', {
     p_garage_id: IDS.garageB,
@@ -855,10 +871,19 @@ async function run() {
   })
   const recommendation = await createRecommendation(ownerB, recommendationRequest.id)
   await proposeRecommendation(ownerB, recommendation.id)
-  const ownRecommendation = await clientB1.from('workshop_recommendations').select('id,status').eq('id', recommendation.id)
-  check('Customer can read a proposed recommendation for their dossier', !ownRecommendation.error && ownRecommendation.data.length === 1, ownRecommendation.error)
-  const otherRecommendation = await clientB2.from('workshop_recommendations').select('id').eq('id', recommendation.id)
-  check('Other customer cannot read the recommendation', !otherRecommendation.error && otherRecommendation.data.length === 0, otherRecommendation.error)
+  const ownRecommendation = await clientB1.rpc('get_workshop_recommendations', {
+    p_request_id: recommendationRequest.id,
+  })
+  check(
+    'Customer can read a proposed recommendation for their dossier',
+    !ownRecommendation.error
+      && ownRecommendation.data.some((item) => item.id === recommendation.id),
+    ownRecommendation.error,
+  )
+  const otherRecommendation = await clientB2.rpc('get_workshop_recommendations', {
+    p_request_id: recommendationRequest.id,
+  })
+  check('Other customer cannot read the recommendation', Boolean(otherRecommendation.error), otherRecommendation.data)
   const directRecommendationUpdate = await clientB1.from('workshop_recommendations').update({ status: 'accepted' }).eq('id', recommendation.id)
   check('Customer cannot update recommendation rows directly', Boolean(directRecommendationUpdate.error))
   const foreignDecision = await clientB2.rpc('decide_workshop_recommendation', {
@@ -898,10 +923,40 @@ async function run() {
     }),
   ])
   check('Two simultaneous customer decisions produce one success', countSuccess(simultaneousDecisions) === 1, simultaneousDecisions.map((result) => result.error?.message))
-  const decisionRows = await ownerB.from('recommendation_decisions').select('action').eq('recommendation_id', recommendation.id).in('action', ['accepted', 'declined'])
-  check('Exactly one terminal customer decision is journaled', !decisionRows.error && decisionRows.data.length === 1, decisionRows.error)
+  const decisionRows = await ownerB.rpc('get_workshop_recommendation_decisions', {
+    p_recommendation_id: recommendation.id,
+  })
+  check(
+    'Exactly one terminal customer decision is journaled',
+    !decisionRows.error
+      && decisionRows.data.filter((item) => ['accepted', 'declined'].includes(item.action)).length === 1,
+    decisionRows.error,
+  )
 
-  const raceRecommendation = await createRecommendation(ownerB, recommendationRequest.id, 'Decision revision race')
+  const raceRequest = await createRequest(clientB1, {
+    garageId: IDS.garageB,
+    centerId: IDS.centerB1,
+    clientId: IDS.clientB1,
+    label: 'RECOMMENDATION-RACE',
+  })
+  for (const stage of [
+    'appointment_confirmed',
+    'vehicle_expected',
+    'vehicle_checked_in',
+    'vehicle_received',
+    'diagnosis_in_progress',
+  ]) {
+    const result = await ownerB.rpc('transition_workshop_stage', {
+      p_request_id: raceRequest.id,
+      p_new_stage: stage,
+      p_internal_note: null,
+      p_customer_message: null,
+      p_estimated_completion_at: null,
+      p_visible_to_customer: false,
+    })
+    if (result.error) throw new Error(`Unable to prepare recommendation race: ${result.error.message}`)
+  }
+  const raceRecommendation = await createRecommendation(ownerB, raceRequest.id, 'Decision revision race')
   await proposeRecommendation(ownerB, raceRecommendation.id)
   const recommendationRace = await Promise.all([
     ownerB.rpc('set_workshop_recommendation_status', {
@@ -1066,7 +1121,7 @@ async function run() {
     })
     const transferStageRace = await Promise.all([
       ownerB.rpc('complete_center_transfer', { p_transfer_id: stagedTransfer.data.id }),
-      networkManager.rpc('transition_workshop_stage', {
+      ownerB.rpc('transition_workshop_stage', {
         p_request_id: transferStageRequest.id,
         p_new_stage: 'vehicle_expected',
         p_internal_note: null,

@@ -517,7 +517,7 @@ export type Database = {
       garage_members: {
         Row: {
           center_id: string | null
-          center_role: "center_manager" | "service_advisor" | "front_desk" | "technician" | "viewer" | null
+          center_role: "center_manager" | "receptionist" | "service_advisor" | "front_desk" | "technician" | "viewer" | null
           created_at: string
           garage_id: string
           id: string
@@ -529,7 +529,7 @@ export type Database = {
         }
         Insert: {
           center_id?: string | null
-          center_role?: "center_manager" | "service_advisor" | "front_desk" | "technician" | "viewer" | null
+          center_role?: "center_manager" | "receptionist" | "service_advisor" | "front_desk" | "technician" | "viewer" | null
           created_at?: string
           garage_id: string
           id?: string
@@ -541,7 +541,7 @@ export type Database = {
         }
         Update: {
           center_id?: string | null
-          center_role?: "center_manager" | "service_advisor" | "front_desk" | "technician" | "viewer" | null
+          center_role?: "center_manager" | "receptionist" | "service_advisor" | "front_desk" | "technician" | "viewer" | null
           created_at?: string
           garage_id?: string
           id?: string
@@ -2064,6 +2064,10 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["garage_members"]["Row"]
       }
+      assign_workshop_repair: {
+        Args: { p_repair_id: string; p_technician_user_id: string }
+        Returns: Database["public"]["Tables"]["repairs"]["Row"]
+      }
       accept_current_legal_document_v2: {
         Args: {
           p_document_key: string
@@ -2094,6 +2098,14 @@ export type Database = {
           p_proposed_delivery_at?: string | null
         }
         Returns: Database["public"]["Tables"]["workshop_recommendations"]["Row"]
+      }
+      close_workshop_request: {
+        Args: {
+          p_request_id: string
+          p_internal_note?: string | null
+          p_customer_message?: string | null
+        }
+        Returns: Database["public"]["Tables"]["service_request_timeline"]["Row"]
       }
       create_maintenance_reminder: {
         Args: {
@@ -2221,6 +2233,18 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Database["public"]["Tables"]["service_request_timeline"]["Row"][]
       }
+      get_workshop_recommendations: {
+        Args: { p_request_id: string }
+        Returns: Database["public"]["Tables"]["workshop_recommendations"]["Row"][]
+      }
+      get_workshop_recommendation_decisions: {
+        Args: { p_recommendation_id: string }
+        Returns: Database["public"]["Tables"]["recommendation_decisions"]["Row"][]
+      }
+      has_workshop_capability: {
+        Args: { p_request_id: string; p_capability: string }
+        Returns: boolean
+      }
       has_garage_role: {
         Args: { p_garage_id: string; p_roles: string[] }
         Returns: boolean
@@ -2312,6 +2336,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      reopen_workshop_request: {
+        Args: {
+          p_request_id: string
+          p_return_stage: string
+          p_reason: string
+          p_customer_message?: string | null
+        }
+        Returns: Database["public"]["Tables"]["service_request_timeline"]["Row"]
       }
       register_service_request_attachment: {
         Args: {

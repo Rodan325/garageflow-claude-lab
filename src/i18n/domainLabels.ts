@@ -38,6 +38,7 @@ const ORGANIZATION_ROLE_LABEL: Record<OrganizationRole, string> = {
 
 const CENTER_ROLE_LABEL: Record<CenterRole, string> = {
   center_manager: 'Responsable d’établissement',
+  receptionist: 'Réception',
   service_advisor: 'Conseiller service',
   front_desk: 'Accueil',
   technician: 'Technicien',

@@ -49,14 +49,32 @@ export function useTransitionWorkshopStage() {
           visibleToCustomer: input.visibleToCustomer,
         })
       }
-      const { data, error } = await supabase.rpc('transition_workshop_stage', {
-        p_request_id: input.requestId,
-        p_new_stage: input.newStage,
-        p_internal_note: input.internalNote,
-        p_customer_message: input.customerMessage,
-        p_estimated_completion_at: input.estimatedCompletionAt,
-        p_visible_to_customer: input.visibleToCustomer,
-      })
+      const { data, error } = input.newStage === 'closed'
+        ? await supabase.rpc('close_workshop_request', {
+            p_request_id: input.requestId,
+            p_internal_note: input.internalNote,
+            p_customer_message: input.customerMessage,
+          })
+        : await supabase.rpc('transition_workshop_stage', {
+            p_request_id: input.requestId,
+            p_new_stage: input.newStage,
+            p_internal_note: input.internalNote,
+            p_customer_message: input.customerMessage,
+            p_estimated_completion_at: input.estimatedCompletionAt,
+            p_visible_to_customer: input.visibleToCustomer,
+          })
+      if (input.newStage === 'closed' && error?.code === 'PGRST202') {
+        const legacyResult = await supabase.rpc('transition_workshop_stage', {
+          p_request_id: input.requestId,
+          p_new_stage: input.newStage,
+          p_internal_note: input.internalNote,
+          p_customer_message: input.customerMessage,
+          p_estimated_completion_at: input.estimatedCompletionAt,
+          p_visible_to_customer: input.visibleToCustomer,
+        })
+        if (legacyResult.error) throw legacyResult.error
+        return legacyResult.data
+      }
       if (error) throw error
       return data
     },
