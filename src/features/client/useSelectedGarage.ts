@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
+import { isDemo } from '@/lib/demo'
 
 const KEY = 'gf-selected-garage'
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function getSelectedGarageId() {
-  return typeof window !== 'undefined' ? localStorage.getItem(KEY) : null
+  if (typeof window === 'undefined') return null
+
+  const garageId = localStorage.getItem(KEY)
+  if (!garageId || isDemo()) return garageId
+
+  if (!UUID_PATTERN.test(garageId)) {
+    localStorage.removeItem(KEY)
+    return null
+  }
+
+  return garageId
 }
 
 export function useSelectedGarage() {
