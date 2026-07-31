@@ -107,11 +107,12 @@ describe('demo workshop timeline', () => {
     const request = demo.garageRequests()[0]
     const before = demo.workshopTimeline(request.id)
 
-    const event = demo.transitionWorkshopStage({
+    const recommendation = demo.createRecommendation({
       requestId: request.id,
-      newStage: 'customer_approval_required',
-      customerMessage: 'Votre accord est requis.',
+      title: 'Contrôle complémentaire',
     })
+    demo.setRecommendationStatus(recommendation.id, 'proposed')
+    const event = demo.workshopTimeline(request.id).at(-1)!
 
     expect(event.previous_stage).toBe('diagnosis_in_progress')
     expect(event.new_stage).toBe('customer_approval_required')
@@ -260,17 +261,17 @@ describe('demo attachments and notifications', () => {
     const request = loadFreshDemo()
     const before = demo.notificationOutbox(request.garage_id).length
 
-    demo.transitionWorkshopStage({
+    const recommendation = demo.createRecommendation({
       requestId: request.id,
-      newStage: 'customer_approval_required',
-      customerMessage: 'Votre accord est requis.',
+      title: 'Contrôle complémentaire',
     })
+    demo.setRecommendationStatus(recommendation.id, 'proposed')
 
     const outbox = demo.notificationOutbox(request.garage_id)
-    expect(outbox).toHaveLength(before + 1)
-    expect(outbox[0]).toMatchObject({
+    expect(outbox.length).toBeGreaterThanOrEqual(before + 1)
+    expect(outbox).toContainEqual(expect.objectContaining({
       template_key: 'approval_required', status: 'simulated', provider: 'demo-simulator', attempts: 1,
-    })
+    }))
   })
 })
 

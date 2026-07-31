@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rls": "node scripts/run-rls-tests.mjs",
+    "test:workshop-capabilities": "node --env-file=.env.local scripts/workshop-capabilities-rls.mjs",
     "test:legal-lifecycle": "node --env-file=.env.local scripts/legal-evidence-lifecycle.mjs",
     "security:scan": "node scripts/security-scan.mjs"
   },

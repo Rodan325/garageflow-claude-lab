@@ -8,16 +8,24 @@ import {
 } from './lifecycle'
 
 describe('workshop lifecycle', () => {
-  it('starts with a confirmed appointment and follows the default sequence', () => {
+  it('keeps ordinary workshop actions on the controlled operational path', () => {
     expect(allowedWorkshopTransitions(null)).toEqual(['appointment_confirmed'])
-    for (let index = 0; index < WORKSHOP_STAGES.length - 1; index += 1) {
-      expect(canTransitionWorkshopStage(WORKSHOP_STAGES[index], WORKSHOP_STAGES[index + 1])).toBe(true)
-    }
+    expect(canTransitionWorkshopStage('appointment_confirmed', 'vehicle_expected')).toBe(true)
+    expect(canTransitionWorkshopStage('vehicle_expected', 'vehicle_checked_in')).toBe(true)
+    expect(canTransitionWorkshopStage('vehicle_checked_in', 'vehicle_received')).toBe(true)
+    expect(canTransitionWorkshopStage('vehicle_received', 'diagnosis_in_progress')).toBe(true)
+    expect(canTransitionWorkshopStage('work_authorized', 'work_in_progress')).toBe(true)
+    expect(canTransitionWorkshopStage('work_in_progress', 'quality_control')).toBe(true)
+    expect(canTransitionWorkshopStage('quality_control', 'vehicle_ready')).toBe(true)
+    expect(canTransitionWorkshopStage('vehicle_ready', 'vehicle_delivered')).toBe(true)
+    expect(canTransitionWorkshopStage('vehicle_delivered', 'closed')).toBe(true)
   })
 
-  it('allows diagnosis without approval and quality-control rework', () => {
-    expect(canTransitionWorkshopStage('diagnosis_in_progress', 'work_authorized')).toBe(true)
-    expect(canTransitionWorkshopStage('quality_control', 'work_in_progress')).toBe(true)
+  it('routes approval, authorisation, rework, and reopening through dedicated workflows', () => {
+    expect(allowedWorkshopTransitions('diagnosis_in_progress')).toEqual([])
+    expect(allowedWorkshopTransitions('customer_approval_required')).toEqual([])
+    expect(canTransitionWorkshopStage('diagnosis_in_progress', 'work_authorized')).toBe(false)
+    expect(canTransitionWorkshopStage('quality_control', 'work_in_progress')).toBe(false)
   })
 
   it('rejects skipped and backward transitions', () => {

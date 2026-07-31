@@ -12,19 +12,30 @@ import type {
   WorkshopRecommendation,
 } from '@/features/recommendations/model'
 
+function isMissingRpc(error: { code?: string } | null): boolean {
+  return error?.code === 'PGRST202'
+}
+
 export function useRecommendations(requestId?: string, customerView = false) {
   return useQuery({
     queryKey: ['recommendations', requestId, customerView],
     enabled: !!requestId && recommendationsEnabled(),
     queryFn: async (): Promise<WorkshopRecommendation[]> => {
       if (isDemo()) return demo.recommendations(requestId!, customerView)
-      let query = supabase
-        .from('workshop_recommendations')
-        .select('*')
-        .eq('service_request_id', requestId!)
-        .order('created_at', { ascending: false })
-      if (customerView) query = query.not('status', 'in', '(draft,cancelled)')
-      const { data, error } = await query
+      const { data, error } = await supabase.rpc('get_workshop_recommendations', {
+        p_request_id: requestId!,
+      })
+      if (isMissingRpc(error)) {
+        let query = supabase
+          .from('workshop_recommendations')
+          .select('*')
+          .eq('service_request_id', requestId!)
+          .order('created_at', { ascending: false })
+        if (customerView) query = query.not('status', 'in', '(draft,cancelled)')
+        const legacyResult = await query
+        if (legacyResult.error) throw legacyResult.error
+        return (legacyResult.data ?? []) as WorkshopRecommendation[]
+      }
       if (error) throw error
       return (data ?? []) as WorkshopRecommendation[]
     },
@@ -37,11 +48,18 @@ export function useRecommendationDecisions(recommendationId?: string, customerVi
     enabled: !!recommendationId && recommendationsEnabled(),
     queryFn: async (): Promise<RecommendationDecisionEvent[]> => {
       if (isDemo()) return demo.recommendationDecisions(recommendationId!, customerView)
-      const { data, error } = await supabase
-        .from('recommendation_decisions')
-        .select('*')
-        .eq('recommendation_id', recommendationId!)
-        .order('occurred_at')
+      const { data, error } = await supabase.rpc('get_workshop_recommendation_decisions', {
+        p_recommendation_id: recommendationId!,
+      })
+      if (isMissingRpc(error)) {
+        const legacyResult = await supabase
+          .from('recommendation_decisions')
+          .select('*')
+          .eq('recommendation_id', recommendationId!)
+          .order('occurred_at')
+        if (legacyResult.error) throw legacyResult.error
+        return (legacyResult.data ?? []) as RecommendationDecisionEvent[]
+      }
       if (error) throw error
       return (data ?? []) as RecommendationDecisionEvent[]
     },

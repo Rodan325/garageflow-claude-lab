@@ -800,6 +800,54 @@ function queueDemoNotification(
   return row
 }
 
+function recordDemoWorkshopStage(
+  store: Store,
+  request: ServiceRequest,
+  newStage: WorkshopStage,
+  input: {
+    internalNote?: string | null
+    customerMessage?: string | null
+    estimatedCompletionAt?: string | null
+    visibleToCustomer?: boolean
+  } = {},
+): ServiceRequestTimelineEvent {
+  const previousStage = isWorkshopStage(request.workshop_stage) ? request.workshop_stage : null
+  const occurredAt = new Date().toISOString()
+  const event: ServiceRequestTimelineEvent = {
+    id: uid(), request_id: request.id, garage_id: request.garage_id,
+    center_id: request.center_id, previous_stage: previousStage, new_stage: newStage,
+    changed_by: DEMO_STAFF_ID, occurred_at: occurredAt,
+    internal_note: input.internalNote?.trim() || null,
+    customer_message: input.customerMessage?.trim() || null,
+    estimated_completion_at: input.estimatedCompletionAt ?? request.estimated_completion_at,
+    visible_to_customer: input.visibleToCustomer ?? true,
+    notification_status: 'simulated',
+  }
+  request.workshop_stage = newStage
+  request.estimated_completion_at = input.estimatedCompletionAt ?? request.estimated_completion_at
+  if (newStage === 'vehicle_checked_in' && !request.vehicle_checked_in_at) {
+    request.vehicle_checked_in_at = occurredAt
+  }
+  if (newStage === 'vehicle_delivered' && !request.vehicle_delivered_at) {
+    request.vehicle_delivered_at = occurredAt
+  }
+  request.updated_at = occurredAt
+  store.workshopTimeline.push(event)
+  const notificationByStage: Partial<Record<WorkshopStage, NotificationEvent>> = {
+    appointment_confirmed: 'appointment_confirmed', vehicle_received: 'vehicle_received',
+    customer_approval_required: 'approval_required', vehicle_ready: 'vehicle_ready',
+    vehicle_delivered: 'vehicle_delivered',
+  }
+  const templateKey = notificationByStage[newStage]
+  if (templateKey && event.visible_to_customer) {
+    queueDemoNotification(store, {
+      garageId: request.garage_id, centerId: request.center_id, requestId: request.id,
+      recipientUserId: request.client_id, templateKey, payload: { stage: newStage },
+    })
+  }
+  return event
+}
+
 // ---------- query helpers (mirror the real hooks) ----------
 export const demo = {
   garages: () => clone(load().garages),
@@ -976,39 +1024,7 @@ export const demo = {
     if (!request) throw new Error('Service request not found')
     const previousStage = isWorkshopStage(request.workshop_stage) ? request.workshop_stage : null
     assertWorkshopTransition(previousStage, input.newStage)
-    const occurredAt = new Date().toISOString()
-    const event: ServiceRequestTimelineEvent = {
-      id: uid(), request_id: request.id, garage_id: request.garage_id,
-      center_id: request.center_id, previous_stage: previousStage, new_stage: input.newStage,
-      changed_by: DEMO_STAFF_ID, occurred_at: occurredAt,
-      internal_note: input.internalNote?.trim() || null,
-      customer_message: input.customerMessage?.trim() || null,
-      estimated_completion_at: input.estimatedCompletionAt ?? request.estimated_completion_at,
-      visible_to_customer: input.visibleToCustomer ?? true,
-      notification_status: 'simulated',
-    }
-    request.workshop_stage = input.newStage
-    request.estimated_completion_at = input.estimatedCompletionAt ?? request.estimated_completion_at
-    if (input.newStage === 'vehicle_checked_in' && !request.vehicle_checked_in_at) {
-      request.vehicle_checked_in_at = occurredAt
-    }
-    if (input.newStage === 'vehicle_delivered' && !request.vehicle_delivered_at) {
-      request.vehicle_delivered_at = occurredAt
-    }
-    request.updated_at = occurredAt
-    s.workshopTimeline.push(event)
-    const notificationByStage: Partial<Record<WorkshopStage, NotificationEvent>> = {
-      appointment_confirmed: 'appointment_confirmed', vehicle_received: 'vehicle_received',
-      customer_approval_required: 'approval_required', vehicle_ready: 'vehicle_ready',
-      vehicle_delivered: 'vehicle_delivered',
-    }
-    const templateKey = notificationByStage[input.newStage]
-    if (templateKey && event.visible_to_customer) {
-      queueDemoNotification(s, {
-        garageId: request.garage_id, centerId: request.center_id, requestId: request.id,
-        recipientUserId: request.client_id, templateKey, payload: { stage: input.newStage },
-      })
-    }
+    const event = recordDemoWorkshopStage(s, request, input.newStage, input)
     save()
     return clone(event)
   },
@@ -1067,6 +1083,13 @@ export const demo = {
     s.recommendationDecisions.push(event)
     if (newStatus === 'proposed') {
       const request = s.requests.find((item) => item.id === recommendation.service_request_id)
+      if (request?.workshop_stage === 'diagnosis_in_progress') {
+        recordDemoWorkshopStage(s, request, 'customer_approval_required', {
+          internalNote: note,
+          customerMessage: 'Votre accord est requis.',
+          visibleToCustomer: true,
+        })
+      }
       queueDemoNotification(s, {
         garageId: recommendation.garage_id, centerId: recommendation.center_id,
         requestId: recommendation.service_request_id, recipientUserId: request?.client_id,
@@ -1100,6 +1123,13 @@ export const demo = {
       note: input.note?.trim() || null, visible_to_customer: true,
     }
     s.recommendationDecisions.push(event)
+    const request = s.requests.find((item) => item.id === recommendation.service_request_id)
+    if (input.action === 'accepted' && request?.workshop_stage === 'customer_approval_required') {
+      recordDemoWorkshopStage(s, request, 'work_authorized', {
+        customerMessage: 'Les travaux sont autorisés.',
+        visibleToCustomer: true,
+      })
+    }
     queueDemoNotification(s, {
       garageId: recommendation.garage_id, centerId: recommendation.center_id,
       requestId: recommendation.service_request_id, recipientUserId: DEMO_STAFF_ID,

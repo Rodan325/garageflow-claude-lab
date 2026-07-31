@@ -5,7 +5,7 @@ export type Garage = Tables<'garages'>
 export type GarageCenter = Tables<'garage_centers'>
 export type Profile = Tables<'profiles'>
 export type OrganizationRole = 'organization_owner' | 'network_admin' | 'regional_manager' | 'viewer'
-export type CenterRole = 'center_manager' | 'service_advisor' | 'front_desk' | 'technician' | 'viewer'
+export type CenterRole = 'center_manager' | 'receptionist' | 'service_advisor' | 'front_desk' | 'technician' | 'viewer'
 export type GarageMember = Tables<'garage_members'> & {
   organization_role?: OrganizationRole | null
   center_role?: CenterRole | null
