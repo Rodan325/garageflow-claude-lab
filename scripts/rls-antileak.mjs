@@ -334,9 +334,9 @@ async function run() {
     p_body: `Network administrator message ${fixtureRunId}`,
   })
   check(
-    'Network administrator can append a message in any organization center',
-    !networkAdminMessage.error,
-    networkAdminMessage.error,
+    'Network administrator has no implicit local messaging authority',
+    networkAdminMessage.error?.code === '42501',
+    networkAdminMessage.data,
   )
   const centerNorthMessage = await centerNorth.rpc('post_service_request_message', {
     p_request_id: centerMessageRequest.id,
@@ -569,20 +569,14 @@ async function run() {
     p_body: `Scoped center access ${fixtureRunId}`,
   })
   check(
-    'Active center-scoped member retains authorized message access',
-    !scopedMessage.error,
-    scopedMessage.error ?? scopedMessage.data,
+    'Legacy front desk does not gain canonical receptionist messaging access',
+    scopedMessage.error?.code === '42501',
+    scopedMessage.data,
   )
-  const scopedRead = scopedMessage.data?.id
-    ? await frontDeskA
-        .from('service_request_messages')
-        .select('id')
-        .eq('id', scopedMessage.data.id)
-    : { data: [], error: new Error('Scoped RPC did not return a message id') }
   check(
-    'Active center-scoped member reads the message they just posted',
-    !scopedRead.error && scopedRead.data.length === 1,
-    scopedRead.error ?? scopedRead.data,
+    'Denied legacy messaging creates no message row',
+    scopedMessage.data == null,
+    scopedMessage.data,
   )
 
   console.log('\nNetwork authorization')

@@ -85,6 +85,67 @@ values (
   now()
 );
 
+insert into public.customers (id, garage_id, first_name, last_name)
+values (
+  'cc000000-0000-4000-8000-000000000011',
+  '22222222-2222-4222-8222-222222222222',
+  'Canonical',
+  'Customer'
+);
+
+insert into public.vehicles (
+  id,
+  garage_id,
+  customer_id,
+  brand,
+  model
+)
+values (
+  'cc000000-0000-4000-8000-000000000012',
+  '22222222-2222-4222-8222-222222222222',
+  'cc000000-0000-4000-8000-000000000011',
+  'Canonical',
+  'Vehicle'
+);
+
+insert into public.repairs (
+  id,
+  garage_id,
+  appointment_id,
+  customer_id,
+  vehicle_id,
+  title
+)
+values (
+  'cc000000-0000-4000-8000-000000000013',
+  '22222222-2222-4222-8222-222222222222',
+  'cc000000-0000-4000-8000-000000000007',
+  'cc000000-0000-4000-8000-000000000011',
+  'cc000000-0000-4000-8000-000000000012',
+  'Canonical repair'
+);
+
+insert into public.tasks (
+  id,
+  garage_id,
+  related_vehicle_id,
+  title
+)
+values (
+  'cc000000-0000-4000-8000-000000000014',
+  '22222222-2222-4222-8222-222222222222',
+  'cc000000-0000-4000-8000-000000000012',
+  'Canonical task'
+);
+
+insert into public.garage_services (id, garage_id, name, is_active)
+values (
+  'cc000000-0000-4000-8000-000000000015',
+  '22222222-2222-4222-8222-222222222222',
+  'Canonical service',
+  true
+);
+
 select set_config(
   'fpv1.core_baseline',
   md5(coalesce(string_agg(
@@ -403,16 +464,48 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000002', true);
 select pg_temp.assert_true(
-  'network admin is bounded to their active garage membership',
-  public.has_core_capability(
-    '22222222-2222-4222-8222-222222222222',
-    null,
-    'vehicles.update'
+  'network admin has no local core capability',
+  not exists (
+    select 1
+    from unnest(array[
+      'customers.insert', 'customers.update', 'customers.delete',
+      'vehicles.insert', 'vehicles.update', 'vehicles.delete',
+      'appointments.insert', 'appointments.update', 'appointments.delete',
+      'repairs.insert', 'repairs.update', 'repairs.delete',
+      'tasks.insert', 'tasks.update', 'tasks.delete',
+      'garage_services.insert', 'garage_services.update', 'garage_services.delete'
+    ]::text[]) capability(name)
+    where public.has_core_capability(
+      '22222222-2222-4222-8222-222222222222',
+      null,
+      capability.name
+    )
   )
-  and not public.has_core_capability(
-    '11111111-1111-4111-8111-111111111111',
-    null,
-    'vehicles.update'
+);
+select pg_temp.assert_true(
+  'network admin retains explicit network-only capabilities',
+  public.has_organization_capability(
+    '22222222-2222-4222-8222-222222222222',
+    'network.dashboard.read'
+  )
+  and public.has_organization_capability(
+    '22222222-2222-4222-8222-222222222222',
+    'members.manage_lower'
+  )
+  and not public.has_organization_capability(
+    '22222222-2222-4222-8222-222222222222',
+    'organization.local_operations'
+  )
+  and not public.can_manage_garage_center(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001'
+  )
+  and not public.has_garage_role(
+    '22222222-2222-4222-8222-222222222222',
+    array['admin']
+  )
+  and public.can_view_network_dashboard(
+    '22222222-2222-4222-8222-222222222222'
   )
 );
 reset role;
@@ -454,8 +547,8 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000006', true);
 select pg_temp.assert_true(
-  'front desk is not promoted implicitly to a canonical receptionist',
-  public.has_core_capability(
+  'legacy front desk fails closed instead of becoming a receptionist',
+  not public.has_core_capability(
     '22222222-2222-4222-8222-222222222222',
     '22222222-2222-4222-8222-22222222c001',
     'service_requests.select'
@@ -467,6 +560,28 @@ select pg_temp.assert_true(
   )
 );
 reset role;
+
+savepoint canonical_receptionist_scope;
+update public.garage_members
+set center_role = 'receptionist'
+where user_id = 'b0000000-0000-4000-8000-000000000006'
+  and garage_id = '22222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000006', true);
+select pg_temp.assert_true(
+  'canonical receptionist retains narrow customer messaging capability',
+  public.has_center_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'service_requests.message'
+  )
+  and not public.can_manage_garage_center(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001'
+  )
+);
+reset role;
+rollback to savepoint canonical_receptionist_scope;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'c2000000-0000-4000-8000-000000000001', true);
@@ -522,8 +637,8 @@ values (
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000002', true);
 select pg_temp.assert_true(
-  'two valid memberships in distinct garages are evaluated independently',
-  public.has_core_capability(
+  'two valid memberships in distinct garages keep their canonical scopes',
+  not public.has_core_capability(
     '22222222-2222-4222-8222-222222222222',
     null,
     'customers.update'
@@ -578,6 +693,214 @@ select pg_temp.assert_true(
 );
 reset role;
 rollback to savepoint invalid_membership_shapes;
+
+savepoint regional_manager_scope;
+update public.garage_members
+set organization_role = 'regional_manager'
+where user_id = 'b0000000-0000-4000-8000-000000000002'
+  and garage_id = '22222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000002', true);
+select pg_temp.assert_true(
+  'regional manager is fail-closed for canonical, local, and network authority',
+  not public.has_core_capability(
+    '22222222-2222-4222-8222-222222222222',
+    null,
+    'customers.update'
+  )
+  and not public.has_organization_capability(
+    '22222222-2222-4222-8222-222222222222',
+    'network.dashboard.read'
+  )
+  and not public.can_manage_garage_center(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001'
+  )
+  and not public.can_view_network_dashboard(
+    '22222222-2222-4222-8222-222222222222'
+  )
+);
+reset role;
+rollback to savepoint regional_manager_scope;
+
+savepoint legacy_admin_scope;
+update public.garage_members
+set organization_role = null,
+    center_id = null,
+    center_role = null
+where user_id = 'b0000000-0000-4000-8000-000000000002'
+  and garage_id = '22222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000002', true);
+select pg_temp.assert_true(
+  'legacy admin role alone grants no authority',
+  not public.has_garage_role(
+    '22222222-2222-4222-8222-222222222222',
+    array['admin']
+  )
+  and not public.has_core_capability(
+    '22222222-2222-4222-8222-222222222222',
+    null,
+    'vehicles.update'
+  )
+);
+reset role;
+rollback to savepoint legacy_admin_scope;
+
+-- Network administrators keep network aggregation/team administration only.
+-- Every local mutation through the Data API must fail closed.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000002', true);
+select pg_temp.expect_error(
+  'network admin customer INSERT is denied',
+  $sql$
+    insert into public.customers (id, garage_id, first_name)
+    values (
+      'cc000000-0000-4000-8000-000000000021',
+      '22222222-2222-4222-8222-222222222222',
+      'Denied'
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'network admin vehicle INSERT is denied',
+  $sql$
+    insert into public.vehicles (id, garage_id, brand, model)
+    values (
+      'cc000000-0000-4000-8000-000000000022',
+      '22222222-2222-4222-8222-222222222222',
+      'Denied',
+      'Vehicle'
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'network admin appointment INSERT is denied',
+  $sql$
+    insert into public.appointments (id, garage_id, center_id, title, starts_at)
+    values (
+      'cc000000-0000-4000-8000-000000000023',
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c001',
+      'Denied',
+      now()
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'network admin repair INSERT is denied',
+  $sql$
+    insert into public.repairs (id, garage_id, title)
+    values (
+      'cc000000-0000-4000-8000-000000000024',
+      '22222222-2222-4222-8222-222222222222',
+      'Denied'
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'network admin task INSERT is denied',
+  $sql$
+    insert into public.tasks (id, garage_id, title)
+    values (
+      'cc000000-0000-4000-8000-000000000025',
+      '22222222-2222-4222-8222-222222222222',
+      'Denied'
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'network admin garage service INSERT is denied',
+  $sql$
+    insert into public.garage_services (id, garage_id, name)
+    values (
+      'cc000000-0000-4000-8000-000000000026',
+      '22222222-2222-4222-8222-222222222222',
+      'Denied'
+    )
+  $sql$,
+  '42501'
+);
+
+select pg_temp.expect_zero_rows(
+  'network admin customer UPDATE is denied',
+  $sql$update public.customers set city = 'Denied' where id = 'cc000000-0000-4000-8000-000000000011'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin vehicle UPDATE is denied',
+  $sql$update public.vehicles set model = 'Denied' where id = 'cc000000-0000-4000-8000-000000000012'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin appointment UPDATE is denied',
+  $sql$update public.appointments set title = 'Denied' where id = 'cc000000-0000-4000-8000-000000000007'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin repair UPDATE is denied',
+  $sql$update public.repairs set title = 'Denied' where id = 'cc000000-0000-4000-8000-000000000013'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin task UPDATE is denied',
+  $sql$update public.tasks set title = 'Denied' where id = 'cc000000-0000-4000-8000-000000000014'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin garage service UPDATE is denied',
+  $sql$update public.garage_services set name = 'Denied' where id = 'cc000000-0000-4000-8000-000000000015'$sql$
+);
+
+select pg_temp.expect_zero_rows(
+  'network admin customer DELETE is denied',
+  $sql$delete from public.customers where id = 'cc000000-0000-4000-8000-000000000011'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin vehicle DELETE is denied',
+  $sql$delete from public.vehicles where id = 'cc000000-0000-4000-8000-000000000012'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin appointment DELETE is denied',
+  $sql$delete from public.appointments where id = 'cc000000-0000-4000-8000-000000000007'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin repair DELETE is denied',
+  $sql$delete from public.repairs where id = 'cc000000-0000-4000-8000-000000000013'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin task DELETE is denied',
+  $sql$delete from public.tasks where id = 'cc000000-0000-4000-8000-000000000014'$sql$
+);
+select pg_temp.expect_zero_rows(
+  'network admin garage service DELETE is denied',
+  $sql$delete from public.garage_services where id = 'cc000000-0000-4000-8000-000000000015'$sql$
+);
+reset role;
+
+savepoint owner_core_operations;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
+insert into public.customers (id, garage_id, first_name)
+values (
+  'cc000000-0000-4000-8000-000000000030',
+  '22222222-2222-4222-8222-222222222222',
+  'Owner permitted'
+);
+update public.customers
+set city = 'Owner permitted'
+where id = 'cc000000-0000-4000-8000-000000000030';
+delete from public.customers
+where id = 'cc000000-0000-4000-8000-000000000030';
+select pg_temp.assert_true(
+  'organization owner retains expected local core operations',
+  not exists (
+    select 1 from public.customers
+    where id = 'cc000000-0000-4000-8000-000000000030'
+  )
+);
+reset role;
+rollback to savepoint owner_core_operations;
 
 -- Generic core DML is denied to a technician, including cross-tenant access.
 set local role authenticated;
