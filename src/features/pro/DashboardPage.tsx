@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EmptyState, Skeleton } from '@/components/ui/feedback'
+import { DataState } from '@/components/common/DataState'
 import { StatusPill } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -56,7 +57,7 @@ export function DashboardPage() {
   const [period, setPeriod] = useState<DashboardPeriod>('today')
   const [status, setStatus] = useState<DashboardStatusFilter>('all')
   const [advisorId, setAdvisorId] = useState('')
-  const { data: requests, isLoading } = useGarageRequests(garageId)
+  const { data: requests, isLoading, isError, error, refetch } = useGarageRequests(garageId)
   const { data: quotes } = useQuotes(garageId)
   const { data: appointments } = useAppointments(garageId)
   const { data: tasks } = useTasks(garageId)
@@ -69,6 +70,17 @@ export function DashboardPage() {
   })
   const attention = (requests ?? []).filter((request) => request.status === 'pending' || request.workshop_stage === 'customer_approval_required').slice(0, 5)
   const openTasks = (tasks ?? []).filter((task) => task.status !== 'done').slice(0, 5)
+
+  // A failed load must not render every KPI at zero — that reads as a quiet
+  // morning instead of an outage.
+  if (isError) {
+    return (
+      <div>
+        <PageHeader title={tr('Bonjour {name}', { name: profile?.full_name?.split(' ')[0] ?? '' })} subtitle={tr('Pilotez l’activité de votre atelier en temps réel.')} />
+        <DataState isError error={error} onRetry={() => void refetch()} />
+      </div>
+    )
+  }
 
   return (
     <div>

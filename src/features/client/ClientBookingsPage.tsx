@@ -4,7 +4,8 @@ import { CalendarX2, ChevronRight, ListChecks } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/ui/badge'
-import { EmptyState, LoadingState } from '@/components/ui/feedback'
+import { EmptyState } from '@/components/ui/feedback'
+import { DataState } from '@/components/common/DataState'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useClientRequests, useUpdateRequestStatus } from '@/data/requests'
@@ -20,7 +21,7 @@ export function ClientBookingsPage() {
   const { lang, tr } = useLang()
   const { userId } = useAuth()
   const toast = useToast()
-  const { data: requests, isLoading } = useClientRequests(userId)
+  const { data: requests, isLoading, isError, error, refetch } = useClientRequests(userId)
   const { data: garages } = useGarages()
   const update = useUpdateRequestStatus()
 
@@ -41,18 +42,25 @@ export function ClientBookingsPage() {
       <p className="mt-1 text-sm text-muted-foreground">{tr('Suivez l’état de vos réservations.')}</p>
 
       <div className="mt-4">
-        {isLoading ? (
-          <LoadingState />
-        ) : (requests ?? []).length === 0 ? (
-          <EmptyState
-            icon={ListChecks}
-            title={tr('Aucune demande')}
-            description={tr('Vos réservations apparaîtront ici.')}
-            action={<Link to="/app/book"><Button>{tr('Réserver maintenant')}</Button></Link>}
-          />
-        ) : (
+        <DataState
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRetry={() => void refetch()}
+          isEmpty={(requests ?? []).length === 0}
+          empty={
+            <EmptyState
+              icon={ListChecks}
+              title={tr('Aucune demande')}
+              description={tr('Vos réservations apparaîtront ici.')}
+              action={<Link to="/app/book"><Button>{tr('Réserver maintenant')}</Button></Link>}
+            />
+          }
+        >
           <motion.div variants={listStagger} initial="hidden" animate="show" className="space-y-3">
-            {requests!.map((r) => {
+            {/* JSX children are evaluated before DataState decides what to
+                render, so this must stay safe while the query is loading. */}
+            {(requests ?? []).map((r) => {
               const meta = requestStatusMeta(r.status as RequestStatus, lang)
               const proposed = r.status === 'reschedule_proposed'
               return (
@@ -96,7 +104,7 @@ export function ClientBookingsPage() {
               )
             })}
           </motion.div>
-        )}
+        </DataState>
       </div>
 
       {(requests ?? []).some((r) => r.status === 'cancelled') && (

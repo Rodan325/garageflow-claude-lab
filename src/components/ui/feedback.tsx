@@ -51,14 +51,27 @@ export function ErrorState({
   title,
   message,
   onRetry,
+  action,
+  icon: Icon,
 }: {
   title?: string
   message?: string
   onRetry?: () => void
+  /** Alternative to the retry button (e.g. a link to sign in again). */
+  action?: React.ReactNode
+  icon?: React.ComponentType<{ className?: string }>
 }) {
   const { tr } = useLang()
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-danger/30 bg-danger/5 px-6 py-12 text-center">
+    <div
+      role="alert"
+      className="flex flex-col items-center justify-center gap-3 rounded-xl border border-danger/30 bg-danger/5 px-6 py-12 text-center"
+    >
+      {Icon && (
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-danger/10 text-danger">
+          <Icon className="h-6 w-6" />
+        </div>
+      )}
       <p className="font-semibold text-danger">{title ?? tr('Une erreur est survenue')}</p>
       {message && <p className="mx-auto max-w-md text-sm text-muted-foreground">{message}</p>}
       {onRetry && (
@@ -69,6 +82,7 @@ export function ErrorState({
           {tr('Réessayer')}
         </button>
       )}
+      {action}
     </div>
   )
 }

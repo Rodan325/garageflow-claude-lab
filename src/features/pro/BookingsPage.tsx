@@ -10,6 +10,7 @@ import { Tabs } from '@/components/ui/tabs'
 import { Modal } from '@/components/ui/modal'
 import { Field, Input, Textarea } from '@/components/ui/input'
 import { EmptyState, LoadingState } from '@/components/ui/feedback'
+import { DataState } from '@/components/common/DataState'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -51,7 +52,7 @@ export function BookingsPage() {
   const gid = garage?.id
   const toast = useToast()
   const navigate = useNavigate()
-  const { data: requests, isLoading } = useGarageRequests(gid)
+  const { data: requests, isLoading, isError, error, refetch } = useGarageRequests(gid)
   const updateStatus = useUpdateRequestStatus()
   const convert = useConvertRequestToAppointment()
 
@@ -111,11 +112,14 @@ export function BookingsPage() {
         }))}
       />
 
-      {isLoading ? (
-        <LoadingState />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon={Inbox} title={tr('Aucune demande ici')} description={tr('Les réservations clients arriveront dans cette boîte.')} />
-      ) : (
+      <DataState
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onRetry={() => void refetch()}
+        isEmpty={filtered.length === 0}
+        empty={<EmptyState icon={Inbox} title={tr('Aucune demande ici')} description={tr('Les réservations clients arriveront dans cette boîte.')} />}
+      >
         <motion.div variants={listStagger} initial="hidden" animate="show" className="grid gap-3">
           {filtered.map((r) => {
             const meta = requestStatusMeta(r.status as RequestStatus, lang)
@@ -214,7 +218,7 @@ export function BookingsPage() {
             )
           })}
         </motion.div>
-      )}
+      </DataState>
 
       {proposeFor && (
         <ProposeSlotModal
