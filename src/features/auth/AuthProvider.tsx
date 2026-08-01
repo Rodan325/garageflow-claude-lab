@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { purgeLocalAuthSession } from '@/lib/authStorage'
 import type { Garage, GarageMember, GarageRole, Profile } from '@/types/domain'
 import { queryClient } from '@/lib/queryClient'
 import { mapAuthError } from './authErrors'
@@ -86,6 +87,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signingOutRef = useRef(false)
   // Last authenticated identity, to detect an account switch inside this tab.
   const lastUserIdRef = useRef<string | null>(null)
+  // An explicit sign-out stays authoritative: no delayed Auth event may undo
+  // it. Only a new explicit authentication (signIn / signUp) lifts the lock.
+  const signedOutRef = useRef(false)
 
   const loadAccount = useCallback(async (uid: string) => {
     if (loadingRef.current) return
@@ -127,12 +131,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
     supabase.auth.getSession().then(async ({ data }) => {
+      // A sign-out asked for in this tab wins over any session still readable
+      // from storage (e.g. the revocation failed while offline).
+      if (signedOutRef.current) {
+        setReady(true)
+        return
+      }
       lastUserIdRef.current = data.session?.user?.id ?? null
       setSession(data.session)
       if (data.session?.user) await loadAccount(data.session.user.id)
       setReady(true)
     })
     const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
+      // TOKEN_REFRESHED, INITIAL_SESSION or USER_UPDATED carrying the previous
+      // session must never resurrect it after an explicit sign-out.
+      if (signedOutRef.current) return
       const nextUserId = s?.user?.id ?? null
       // The authenticated identity changed (sign-out, expiry, or another
       // account signing in inside this tab): drop the cache BEFORE any render
@@ -183,12 +196,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = useCallback<AuthContextValue['signIn']>(async (email, password) => {
+    // Explicit authentication: lift the sign-out lock so the resulting
+    // SIGNED_IN event is honoured.
+    signedOutRef.current = false
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     return { error: error?.message ?? null }
   }, [])
 
   const signUp = useCallback<AuthContextValue['signUp']>(async (input) => {
     const email = input.email.trim()
+    // Explicit authentication too (sign-up can return a session directly).
+    signedOutRef.current = false
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -226,6 +244,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 1. Local state, synchronously — never wait for SIGNED_OUT.
+      //    The lock is raised FIRST so an event racing this block cannot undo it.
+      signedOutRef.current = true
       lastUserIdRef.current = null
       setSession(null)
       setProfile(null)
@@ -238,13 +258,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { error } = await supabase.auth.signOut()
         if (error) throw error
       } catch {
-        // Offline or backend failure: the UI is already signed out, but the
-        // persisted session would survive a refresh — drop it locally too.
+        // Offline or backend failure. `scope: 'local'` is NOT enough: auth-js
+        // performs a network call there too and returns before removing the
+        // session when it fails.
         try {
           await supabase.auth.signOut({ scope: 'local' })
         } catch {
-          /* best effort — local state is already cleared */
+          /* still offline — the direct purge below is the real guarantee */
         }
+      } finally {
+        // Unconditional: the persisted token must be gone whatever happened
+        // above, otherwise a refresh silently restores the session.
+        purgeLocalAuthSession()
       }
     } finally {
       signingOutRef.current = false

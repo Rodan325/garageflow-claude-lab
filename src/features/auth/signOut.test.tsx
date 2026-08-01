@@ -1,8 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { queryClient } from '@/lib/queryClient'
+// NOT mocked: the tests below assert against the real localStorage entry.
+import { AUTH_STORAGE_KEY } from '@/lib/authStorage'
 import { AuthProvider, useAuth } from './AuthProvider'
 
 /**
@@ -23,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(async (): Promise<{ error: Error | null }> => ({ error: null })),
   getSession: vi.fn(async () => ({ data: { session: null as unknown }, error: null })),
   onAuthStateChange: vi.fn(),
+  signInWithPassword: vi.fn(async () => ({ data: {}, error: null })),
   from: vi.fn(),
 }))
 
@@ -38,7 +41,7 @@ vi.mock('@/lib/supabase', () => ({
         authListener = cb
         return { data: { subscription: { unsubscribe: () => {} } } }
       },
-      signInWithPassword: vi.fn(),
+      signInWithPassword: mocks.signInWithPassword,
       signUp: vi.fn(),
     },
     from: () => ({
@@ -52,9 +55,17 @@ vi.mock('@/lib/supabase', () => ({
   },
 }))
 
+/** A persisted Auth session, as auth-js would store it. */
+function seedStoredSession(userId = 'user-1') {
+  localStorage.setItem(
+    AUTH_STORAGE_KEY,
+    JSON.stringify({ access_token: `token-${userId}`, user: { id: userId } }),
+  )
+}
+
 /** Renders the auth flags plus a query whose data must disappear on sign-out. */
 function Probe() {
-  const { ready, authed, signOut } = useAuth()
+  const { ready, authed, signOut, signIn } = useAuth()
   const { data } = useQuery({
     queryKey: ['secret'],
     queryFn: async () => 'DONNEE-COMPTE-PRECEDENT',
@@ -66,6 +77,7 @@ function Probe() {
       <span data-testid="authed">{String(authed)}</span>
       <span data-testid="secret">{data ?? ''}</span>
       <button onClick={() => void signOut()}>déconnexion</button>
+      <button onClick={() => void signIn('a@b.test', 'x')}>connexion</button>
     </div>
   )
 }
@@ -83,6 +95,7 @@ function renderApp() {
 beforeEach(() => {
   authListener = null
   mocks.signOut.mockReset().mockResolvedValue({ error: null })
+  mocks.signInWithPassword.mockReset().mockResolvedValue({ data: {}, error: null })
   mocks.getSession.mockReset().mockResolvedValue({ data: { session: session('user-1') }, error: null })
   queryClient.clear()
   sessionStorage.clear()
@@ -192,6 +205,109 @@ describe('AUTH-UX-01 — sign-out', () => {
     await authListener?.('SIGNED_IN', session('user-2'))
 
     await waitFor(() => expect(queryClient.getQueryData(['dossier-compte-1'])).toBeUndefined())
+  })
+
+  it('purges the stored Auth session even when the network sign-out fails', async () => {
+    // auth-js returns before removing the session when revocation fails, so
+    // both calls are simulated as failing — the token must go anyway.
+    mocks.signOut.mockRejectedValue(new Error('network down'))
+    seedStoredSession()
+    await signedIn()
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).not.toBeNull()
+
+    screen.getByText('déconnexion').click()
+
+    await waitFor(() => expect(screen.getByTestId('authed')).toHaveTextContent('false'))
+    // Real localStorage, not a mock: this is the guarantee that a refresh
+    // cannot silently restore the session.
+    await waitFor(() => expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull())
+  })
+
+  it('purges the stored Auth session on a normal sign-out', async () => {
+    seedStoredSession()
+    await signedIn()
+    screen.getByText('déconnexion').click()
+    await waitFor(() => expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull())
+  })
+
+  it('leaves other local storage entries untouched', async () => {
+    seedStoredSession()
+    localStorage.setItem('gf-lang', 'ar')
+    localStorage.setItem('gf-theme', 'dark')
+    await signedIn()
+
+    screen.getByText('déconnexion').click()
+
+    await waitFor(() => expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull())
+    expect(localStorage.getItem('gf-lang')).toBe('ar')
+    expect(localStorage.getItem('gf-theme')).toBe('dark')
+  })
+
+  it('does not restore the session after a refresh following a failed sign-out', async () => {
+    mocks.signOut.mockRejectedValue(new Error('network down'))
+    seedStoredSession()
+    // getSession behaves like auth-js: it reads the persisted entry.
+    mocks.getSession.mockImplementation(async () => {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+      return { data: { session: raw ? JSON.parse(raw) : null }, error: null }
+    })
+
+    await signedIn()
+    screen.getByText('déconnexion').click()
+    await waitFor(() => expect(screen.getByTestId('authed')).toHaveTextContent('false'))
+
+    // Simulate closing and reopening the tab.
+    cleanup()
+    renderApp()
+
+    await waitFor(() => expect(screen.getByTestId('ready')).toHaveTextContent('true'))
+    expect(screen.getByTestId('authed')).toHaveTextContent('false')
+  })
+
+  it('ignores a delayed TOKEN_REFRESHED carrying the previous session', async () => {
+    await signedIn()
+    screen.getByText('déconnexion').click()
+    await waitFor(() => expect(screen.getByTestId('authed')).toHaveTextContent('false'))
+
+    // The refresh timer fires after connectivity returns.
+    await authListener?.('TOKEN_REFRESHED', session('user-1'))
+
+    expect(screen.getByTestId('authed')).toHaveTextContent('false')
+    expect(screen.getByTestId('secret')).toHaveTextContent('')
+  })
+
+  it('ignores a delayed INITIAL_SESSION carrying the previous session', async () => {
+    await signedIn()
+    screen.getByText('déconnexion').click()
+    await waitFor(() => expect(screen.getByTestId('authed')).toHaveTextContent('false'))
+
+    await authListener?.('INITIAL_SESSION', session('user-1'))
+
+    expect(screen.getByTestId('authed')).toHaveTextContent('false')
+  })
+
+  it('ignores USER_UPDATED after a sign-out', async () => {
+    await signedIn()
+    screen.getByText('déconnexion').click()
+    await waitFor(() => expect(screen.getByTestId('authed')).toHaveTextContent('false'))
+
+    await authListener?.('USER_UPDATED', session('user-1'))
+
+    expect(screen.getByTestId('authed')).toHaveTextContent('false')
+  })
+
+  it('signs back in normally after an explicit sign-out', async () => {
+    await signedIn()
+    screen.getByText('déconnexion').click()
+    await waitFor(() => expect(screen.getByTestId('authed')).toHaveTextContent('false'))
+
+    // Explicit authentication lifts the lock…
+    screen.getByText('connexion').click()
+    await waitFor(() => expect(mocks.signInWithPassword).toHaveBeenCalled())
+    // …so the resulting event is honoured.
+    await authListener?.('SIGNED_IN', session('user-2'))
+
+    await waitFor(() => expect(screen.getByTestId('authed')).toHaveTextContent('true'))
   })
 
   it('keeps the cache when the same user refreshes their token', async () => {

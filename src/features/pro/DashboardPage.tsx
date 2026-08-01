@@ -57,12 +57,27 @@ export function DashboardPage() {
   const [period, setPeriod] = useState<DashboardPeriod>('today')
   const [status, setStatus] = useState<DashboardStatusFilter>('all')
   const [advisorId, setAdvisorId] = useState('')
-  const { data: requests, isLoading, isError, error, refetch } = useGarageRequests(garageId)
-  const { data: quotes } = useQuotes(garageId)
-  const { data: appointments } = useAppointments(garageId)
-  const { data: tasks } = useTasks(garageId)
-  const { data: team } = useTeam(garageId)
-  const { data: reminders } = useMaintenanceReminders(maintenanceRemindersEnabled() ? garageId : undefined)
+  // Every source feeding a KPI. If ANY of them fails the whole dashboard is
+  // replaced by the error state: a partial failure would render the remaining
+  // KPIs at zero, which reads as "quiet morning" instead of "outage" — the
+  // exact confusion UX-ERR-01 is about. No KPI is ever shown from partial data.
+  const requestsQuery = useGarageRequests(garageId)
+  const quotesQuery = useQuotes(garageId)
+  const appointmentsQuery = useAppointments(garageId)
+  const tasksQuery = useTasks(garageId)
+  const teamQuery = useTeam(garageId)
+  const remindersQuery = useMaintenanceReminders(maintenanceRemindersEnabled() ? garageId : undefined)
+  const kpiSources = [requestsQuery, quotesQuery, appointmentsQuery, tasksQuery, teamQuery, remindersQuery]
+
+  const { data: requests, isLoading } = requestsQuery
+  const quotes = quotesQuery.data
+  const appointments = appointmentsQuery.data
+  const tasks = tasksQuery.data
+  const team = teamQuery.data
+  const reminders = remindersQuery.data
+  const isError = kpiSources.some((query) => query.isError)
+  const error = kpiSources.find((query) => query.isError)?.error
+  const refetchKpis = () => kpiSources.forEach((query) => void query.refetch())
   const toggleTask = useToggleTask()
   const metrics = operationalDashboard({
     requests: requests ?? [], quotes: quotes ?? [], appointments: appointments ?? [], reminders: reminders ?? [],
@@ -71,13 +86,11 @@ export function DashboardPage() {
   const attention = (requests ?? []).filter((request) => request.status === 'pending' || request.workshop_stage === 'customer_approval_required').slice(0, 5)
   const openTasks = (tasks ?? []).filter((task) => task.status !== 'done').slice(0, 5)
 
-  // A failed load must not render every KPI at zero — that reads as a quiet
-  // morning instead of an outage.
   if (isError) {
     return (
       <div>
         <PageHeader title={tr('Bonjour {name}', { name: profile?.full_name?.split(' ')[0] ?? '' })} subtitle={tr('Pilotez l’activité de votre atelier en temps réel.')} />
-        <DataState isError error={error} onRetry={() => void refetch()} />
+        <DataState isError error={error} onRetry={refetchKpis} />
       </div>
     )
   }

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { env, isSupabaseConfigured } from './env'
+import { AUTH_STORAGE_KEY } from './authStorage'
 
 /**
  * Typed Supabase browser client. Uses the public anon/publishable key with
@@ -15,7 +16,7 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storageKey: 'garageflow-auth',
+      storageKey: AUTH_STORAGE_KEY,
     },
   },
 )
