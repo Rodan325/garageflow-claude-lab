@@ -264,19 +264,8 @@ select pg_temp.assert_true(
     join pg_catalog.pg_namespace function_schema
       on function_schema.oid = function_row.pronamespace
     where function_schema.nspname = 'public'
-      and function_row.proname = any(array[
-        'next_quote_number',
-        'create_quote_with_lines',
-        'update_quote_with_lines',
-        'send_quote',
-        'revise_quote',
-        'save_delivery_report',
-        'create_maintenance_reminder',
-        'mark_maintenance_reminder_converted',
-        'register_service_request_attachment',
-        'propose_center_transfer',
-        'complete_center_transfer'
-      ]::text[])
+      and function_row.prokind = 'f'
+      and function_row.prosrc ~* '\m(insert|update|delete|merge)\M'
       and function_row.prosrc
         ~* '(is_garage_member|has_garage_role|can_manage_garage_center)'
   )
@@ -748,8 +737,13 @@ select pg_temp.assert_true(
   )
 );
 select pg_temp.assert_true(
-  'canonical receptionist has quote capability without administrative expansion',
+  'canonical receptionist can read quotes but cannot compose unrestricted prices',
   public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'quotes.select'
+  )
+  and not public.has_local_business_capability(
     '22222222-2222-4222-8222-222222222222',
     '22222222-2222-4222-8222-22222222c001',
     'quotes.manage'
@@ -1393,7 +1387,266 @@ select pg_temp.assert_true(
     where reminder.source = 'pr3a-contract'
   )
 );
+
+select set_config(
+  'pr3a.quote_count',
+  (select count(*)::text from public.quotes),
+  true
+);
+select set_config(
+  'pr3a.quote_line_count',
+  (select count(*)::text from public.quote_lines),
+  true
+);
+select set_config(
+  'pr3a.reminder_count',
+  (select count(*)::text from public.maintenance_reminders),
+  true
+);
+select set_config(
+  'pr3a.outbox_count',
+  (select count(*)::text from public.notification_outbox),
+  true
+);
+
+select pg_temp.expect_error(
+  'quote creation cannot inject accepted status',
+  $sql$
+    select public.create_quote_with_lines(
+      '{"garage_id":"22222222-2222-4222-8222-222222222222","service_request_id":"f2222222-0000-4000-8000-000000000001","title":"Forged accepted quote","status":"accepted"}'::jsonb,
+      '[{"label":"Denied","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '22023'
+);
+select pg_temp.expect_error(
+  'quote creation cannot inject sent status',
+  $sql$
+    select public.create_quote_with_lines(
+      '{"garage_id":"22222222-2222-4222-8222-222222222222","service_request_id":"f2222222-0000-4000-8000-000000000001","title":"Forged sent quote","status":"sent"}'::jsonb,
+      '[{"label":"Denied","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '22023'
+);
+select pg_temp.expect_error(
+  'quote creation cannot inject declined status',
+  $sql$
+    select public.create_quote_with_lines(
+      '{"garage_id":"22222222-2222-4222-8222-222222222222","service_request_id":"f2222222-0000-4000-8000-000000000001","title":"Forged declined quote","status":"declined"}'::jsonb,
+      '[{"label":"Denied","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '22023'
+);
+select pg_temp.expect_error(
+  'quote creation cannot inject expired status',
+  $sql$
+    select public.create_quote_with_lines(
+      '{"garage_id":"22222222-2222-4222-8222-222222222222","service_request_id":"f2222222-0000-4000-8000-000000000001","title":"Forged expired quote","status":"expired"}'::jsonb,
+      '[{"label":"Denied","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '22023'
+);
+select pg_temp.expect_error(
+  'quote creation cannot inject client decision evidence',
+  $sql$
+    select public.create_quote_with_lines(
+      jsonb_build_object(
+        'garage_id', '22222222-2222-4222-8222-222222222222',
+        'service_request_id', 'f2222222-0000-4000-8000-000000000001',
+        'title', 'Forged accepted timestamp quote',
+        'status', 'draft',
+        'accepted_at', now()
+      ),
+      '[{"label":"Denied","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '22023'
+);
+select pg_temp.expect_error(
+  'quote creation rejects unknown decision metadata fail-closed',
+  $sql$
+    select public.create_quote_with_lines(
+      jsonb_build_object(
+        'garage_id', '22222222-2222-4222-8222-222222222222',
+        'service_request_id', 'f2222222-0000-4000-8000-000000000001',
+        'title', 'Forged decision metadata quote',
+        'status', 'draft',
+        'customer_decision', 'accepted'
+      ),
+      '[{"label":"Denied","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '22023'
+);
+select pg_temp.expect_error(
+  'center manager cannot create a quote in another center',
+  $sql$
+    select public.create_quote_with_lines(
+      '{"garage_id":"22222222-2222-4222-8222-222222222222","service_request_id":"f2222222-0000-4000-8000-000000000003","title":"Cross-center manager quote","status":"draft"}'::jsonb,
+      '[{"label":"Denied","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'center manager cannot target a request client mismatch',
+  $sql$
+    select public.create_maintenance_reminder(
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c001',
+      'c2000000-0000-4000-8000-000000000002',
+      null,
+      null,
+      'f2222222-0000-4000-8000-000000000001',
+      'after_service',
+      'Mismatched request client',
+      current_date + 30,
+      null,
+      now(),
+      'pr3a-mismatch-denied',
+      'fr'
+    )
+  $sql$,
+  '23514'
+);
+select pg_temp.expect_error(
+  'center manager cannot create a reminder for another center',
+  $sql$
+    select public.create_maintenance_reminder(
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c002',
+      'c2000000-0000-4000-8000-000000000001',
+      null,
+      null,
+      'f2222222-0000-4000-8000-000000000003',
+      'after_service',
+      'Cross-center reminder',
+      current_date + 30,
+      null,
+      now(),
+      'pr3a-cross-center-denied',
+      'fr'
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'center manager cannot create an unbound reminder',
+  $sql$
+    select public.create_maintenance_reminder(
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c001',
+      'c2000000-0000-4000-8000-000000000001',
+      null,
+      null,
+      null,
+      'fixed_date',
+      'Unbound manager reminder',
+      current_date + 30,
+      null,
+      now(),
+      'pr3a-unbound-manager-denied',
+      'fr'
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.assert_true(
+  'rejected quote and reminder calls are atomic',
+  (select count(*) from public.quotes)
+    = current_setting('pr3a.quote_count')::bigint
+  and (select count(*) from public.quote_lines)
+    = current_setting('pr3a.quote_line_count')::bigint
+  and (select count(*) from public.maintenance_reminders)
+    = current_setting('pr3a.reminder_count')::bigint
+  and (select count(*) from public.notification_outbox)
+    = current_setting('pr3a.outbox_count')::bigint
+);
 reset role;
+
+update public.customers
+set linked_user_id = 'c2000000-0000-4000-8000-000000000001'
+where id = 'd2222222-0000-4000-8000-000000000001'
+  and garage_id = '22222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
+select public.create_maintenance_reminder(
+  '22222222-2222-4222-8222-222222222222',
+  '22222222-2222-4222-8222-22222222c001',
+  'c2000000-0000-4000-8000-000000000001',
+  null,
+  null,
+  null,
+  'fixed_date',
+  'Owner CRM-linked reminder',
+  current_date + 30,
+  null,
+  now(),
+  'pr3a-owner-linked',
+  'fr'
+);
+select set_config(
+  'pr3a.owner_reminder_count',
+  (select count(*)::text from public.maintenance_reminders),
+  true
+);
+select set_config(
+  'pr3a.owner_outbox_count',
+  (select count(*)::text from public.notification_outbox),
+  true
+);
+select pg_temp.expect_error(
+  'owner cannot create an unbound reminder for another garage client',
+  $sql$
+    select public.create_maintenance_reminder(
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c001',
+      'c0000000-0000-4000-8000-000000000001',
+      null,
+      null,
+      null,
+      'fixed_date',
+      'External client reminder',
+      current_date + 30,
+      null,
+      now(),
+      'pr3a-external-client-denied',
+      'fr'
+    )
+  $sql$,
+  '23514'
+);
+select pg_temp.assert_true(
+  'owner external-client refusal leaves no reminder or outbox row',
+  (select count(*) from public.maintenance_reminders)
+    = current_setting('pr3a.owner_reminder_count')::bigint
+  and (select count(*) from public.notification_outbox)
+    = current_setting('pr3a.owner_outbox_count')::bigint
+);
+reset role;
+
+savepoint receptionist_quote_scope;
+update public.garage_members
+set center_role = 'receptionist'
+where user_id = 'b0000000-0000-4000-8000-000000000006'
+  and garage_id = '22222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000006', true);
+select pg_temp.expect_error(
+  'receptionist cannot freely set quote prices without a canonical threshold',
+  $sql$
+    select public.create_quote_with_lines(
+      '{"garage_id":"22222222-2222-4222-8222-222222222222","service_request_id":"f2222222-0000-4000-8000-000000000001","title":"Receptionist priced quote","status":"draft"}'::jsonb,
+      '[{"label":"Denied price","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '42501'
+);
+reset role;
+rollback to savepoint receptionist_quote_scope;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000002', true);

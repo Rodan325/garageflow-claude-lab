@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const migrationsDirectory = resolve('supabase/migrations')
 const migrationName = /_enforce_canonical_local_authorities\.sql$/
 const correctionMigrationName = /_close_residual_local_authorities\.sql$/
+const dbContractPath = resolve('scripts/core-data-api-capabilities-db-contract.sql')
 
 function loadMigration() {
   const matches = readdirSync(migrationsDirectory).filter((file) => migrationName.test(file))
@@ -22,6 +23,11 @@ function loadCorrectionMigration() {
   const path = resolve(migrationsDirectory, matches[0])
   expect(existsSync(path)).toBe(true)
   return readFileSync(path, 'utf8').replace(/\r\n?/g, '\n')
+}
+
+function loadDbContract() {
+  expect(existsSync(dbContractPath)).toBe(true)
+  return readFileSync(dbContractPath, 'utf8').replace(/\r\n?/g, '\n')
 }
 
 function functionSection(sql: string, name: string, nextName: string) {
@@ -152,6 +158,54 @@ describe('residual local authority correction contract', () => {
     expect(resolver).not.toContain('front_desk')
     expect(resolver).not.toContain('service_advisor')
     expect(resolver).not.toMatch(/actor\.role|member\.role/i)
+
+    const receptionistBlock = resolver.slice(
+      resolver.indexOf("actor.center_role = 'receptionist'"),
+      resolver.indexOf('return false;', resolver.indexOf("actor.center_role = 'receptionist'")),
+    )
+    expect(receptionistBlock).toContain("'quotes.select'")
+    expect(receptionistBlock).not.toContain("'quotes.manage'")
+  })
+
+  it('forces quote creation through the server-owned draft workflow', () => {
+    const sql = loadCorrectionMigration()
+    const createQuote = functionSection(
+      sql,
+      'public.create_quote_with_lines',
+      'public.update_quote_with_lines',
+    )
+    const updateQuote = functionSection(
+      sql,
+      'public.update_quote_with_lines',
+      'public.send_quote',
+    )
+
+    expect(createQuote).toMatch(/p_quote->>'status'[\s\S]*<> 'draft'[\s\S]*raise exception/i)
+    expect(createQuote).toMatch(/accepted_at[\s\S]*declined_at[\s\S]*client_token/i)
+    expect(createQuote).toMatch(/jsonb_object_keys[\s\S]*unsupported quote creation field/i)
+    expect(createQuote).toMatch(/insert into public\.quotes[\s\S]*\n\s*'draft',/i)
+    expect(createQuote).not.toMatch(/coalesce\(p_quote->>'status',\s*'draft'\)/i)
+    expect(updateQuote).toMatch(/p_quote->>'status'[\s\S]*<> 'draft'[\s\S]*raise exception/i)
+    expect(updateQuote).toMatch(/jsonb_object_keys[\s\S]*unsupported quote composition field/i)
+    expect(updateQuote).not.toMatch(/status\s*=\s*coalesce\(p_quote->>'status'/i)
+  })
+
+  it('binds reminder recipients to a request or an owner CRM relationship', () => {
+    const sql = loadCorrectionMigration()
+    const reminder = functionSection(
+      sql,
+      'public.create_maintenance_reminder',
+      'public.mark_maintenance_reminder_converted',
+    )
+
+    expect(reminder).toMatch(/from public\.service_requests[\s\S]*for (?:key )?share/i)
+    expect(reminder).toMatch(/request\.client_id\s+is distinct from\s+p_client_id/i)
+    expect(reminder).toMatch(/customer\.garage_id\s*=\s*p_garage_id/i)
+    expect(reminder).toMatch(/customer\.linked_user_id\s*=\s*p_client_id/i)
+    expect(reminder).toMatch(/customer\.linked_user_id[\s\S]*for share/i)
+    expect(reminder).toMatch(
+      /organization_role\s+is\s+distinct\s+from\s+'organization_owner'/i,
+    )
   })
 
   it('specializes every discovered historical mutation surface', () => {
@@ -179,6 +233,16 @@ describe('residual local authority correction contract', () => {
     expect(sql).toMatch(/drop policy if exists documents_rw/i)
     expect(sql).toMatch(/drop policy if exists garage_logos_member_(insert|update|delete)/i)
     expect(sql).toMatch(/drop policy if exists (garages_update_admin|centers_manage|news_manage|hours_manage)/i)
+  })
+
+  it('dynamically rejects mutative RPCs that regress to generic legacy helpers', () => {
+    const contract = loadDbContract()
+
+    expect(contract).toMatch(/function_row\.prosrc\s*~\* '\\m\(insert\|update\|delete\|merge\)\\M'/i)
+    expect(contract).toMatch(
+      /function_row\.prosrc[\s\S]*~\* '\(is_garage_member\|has_garage_role\|can_manage_garage_center\)'/i,
+    )
+    expect(contract).not.toMatch(/function_row\.proname\s*=\s*any\(array\[/i)
   })
 
   it('keeps mutative policies specialized and quote creation/update RPC-only', () => {
@@ -244,5 +308,16 @@ describe('residual local authority correction contract', () => {
       /\b(?:insert into|update|delete from)\s+public\.(?:garage_members|customers|vehicles|tasks|garage_services)\b/i,
     )
     expect(sql).not.toMatch(/\b(?:insert into|update|delete from)\s+auth\./i)
+  })
+
+  it('keeps document mutations owner-only until a center-bound contract exists', () => {
+    const sql = loadCorrectionMigration()
+
+    expect(sql).toMatch(/documents table has no center binding/i)
+    expect(sql).toMatch(/no mutative frontend consumer/i)
+    expect(sql).toMatch(/future specialized[\s\S]*center\/document relationship/i)
+    expect(sql).toMatch(
+      /create policy documents_insert_canonical[\s\S]*'organization\.documents\.manage'/i,
+    )
   })
 })

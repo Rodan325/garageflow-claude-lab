@@ -60,10 +60,9 @@ begin
     and actor.center_role = 'receptionist'
     and actor.actor_center_id = p_center_id
   then
-    return p_capability = any(array[
-      'quotes.select',
-      'quotes.manage'
-    ]::text[]);
+    -- No canonical server-side pricing threshold exists yet. Keep the role
+    -- read-only rather than granting unrestricted quote composition/pricing.
+    return p_capability = 'quotes.select';
   end if;
 
   return false;
@@ -352,6 +351,9 @@ grant delete on table public.quotes to authenticated;
 
 -- The historical documents table has no center binding. Preserve owner DML
 -- only rather than inferring an organization-wide scope for a center role.
+-- There is currently no mutative frontend consumer. A future specialized
+-- capability must establish a canonical center/document relationship before
+-- center_manager or receptionist DML can be enabled.
 drop policy if exists documents_rw on public.documents;
 drop policy if exists documents_select_canonical on public.documents;
 drop policy if exists documents_insert_canonical on public.documents;
@@ -535,6 +537,7 @@ declare
   v_customer uuid := nullif(p_quote->>'customer_id', '')::uuid;
   v_vehicle uuid := nullif(p_quote->>'vehicle_id', '')::uuid;
   v_req uuid := nullif(p_quote->>'service_request_id', '')::uuid;
+  v_requested_status text := nullif(pg_catalog.btrim(p_quote->>'status'), '');
   v_veh_owner uuid;
   v_quote public.quotes;
   v_line jsonb;
@@ -546,6 +549,51 @@ declare
   v_tax numeric := 0;
   v_count integer := 0;
 begin
+  if v_requested_status is not null and v_requested_status <> 'draft' then
+    raise exception 'New quotes must start as draft' using errcode = '22023';
+  end if;
+  if p_quote ?| array[
+    'accepted_at',
+    'declined_at',
+    'decline_reason',
+    'sent_at',
+    'client_token',
+    'accepted_by',
+    'declined_by',
+    'decided_by',
+    'decision',
+    'acceptance_id',
+    'acceptance_metadata'
+  ] then
+    raise exception 'Quote decision metadata is server-managed'
+      using errcode = '22023';
+  end if;
+  if exists (
+    select 1
+    from pg_catalog.jsonb_object_keys(coalesce(p_quote, '{}'::jsonb)) key(name)
+    where key.name <> all(array[
+      'garage_id',
+      'customer_id',
+      'vehicle_id',
+      'service_request_id',
+      'cross_customer_vehicle_confirmed',
+      'title',
+      'status',
+      'subtotal',
+      'tax_total',
+      'total',
+      'notes',
+      'conditions',
+      'valid_until',
+      'client_name',
+      'client_phone',
+      'client_email',
+      'vehicle_label'
+    ]::text[])
+  ) then
+    raise exception 'Unsupported quote creation field' using errcode = '22023';
+  end if;
+
   if not public.has_quote_capability(v_garage, v_req, 'quotes.manage') then
     raise exception 'Quote creation not permitted' using errcode = '42501';
   end if;
@@ -619,7 +667,7 @@ begin
     v_garage,
     public.next_quote_number(v_garage),
     coalesce(p_quote->>'title', 'Devis'),
-    coalesce(p_quote->>'status', 'draft'),
+    'draft',
     v_subtotal,
     v_tax,
     round(v_subtotal + v_tax, 2),
@@ -675,6 +723,7 @@ declare
   v_customer uuid := nullif(p_quote->>'customer_id', '')::uuid;
   v_vehicle uuid := nullif(p_quote->>'vehicle_id', '')::uuid;
   v_req uuid := nullif(p_quote->>'service_request_id', '')::uuid;
+  v_requested_status text := nullif(pg_catalog.btrim(p_quote->>'status'), '');
   v_veh_owner uuid;
   v_quote public.quotes;
   v_line jsonb;
@@ -686,6 +735,52 @@ declare
   v_tax numeric := 0;
   v_count integer := 0;
 begin
+  if v_requested_status is not null and v_requested_status <> 'draft' then
+    raise exception 'Quote composition cannot change workflow status'
+      using errcode = '22023';
+  end if;
+  if p_quote ?| array[
+    'accepted_at',
+    'declined_at',
+    'decline_reason',
+    'sent_at',
+    'client_token',
+    'accepted_by',
+    'declined_by',
+    'decided_by',
+    'decision',
+    'acceptance_id',
+    'acceptance_metadata'
+  ] then
+    raise exception 'Quote decision metadata is server-managed'
+      using errcode = '22023';
+  end if;
+  if exists (
+    select 1
+    from pg_catalog.jsonb_object_keys(coalesce(p_quote, '{}'::jsonb)) key(name)
+    where key.name <> all(array[
+      'garage_id',
+      'customer_id',
+      'vehicle_id',
+      'service_request_id',
+      'cross_customer_vehicle_confirmed',
+      'title',
+      'status',
+      'subtotal',
+      'tax_total',
+      'total',
+      'notes',
+      'conditions',
+      'valid_until',
+      'client_name',
+      'client_phone',
+      'client_email',
+      'vehicle_label'
+    ]::text[])
+  ) then
+    raise exception 'Unsupported quote composition field' using errcode = '22023';
+  end if;
+
   select quote.garage_id, quote.status, quote.service_request_id
   into v_garage, v_status, v_existing_req
   from public.quotes quote
@@ -768,7 +863,6 @@ begin
 
   update public.quotes quote
   set title = coalesce(p_quote->>'title', quote.title),
-      status = coalesce(p_quote->>'status', quote.status),
       subtotal = v_subtotal,
       tax_total = v_tax,
       total = round(v_subtotal + v_tax, 2),
@@ -1115,14 +1209,9 @@ set search_path = ''
 as $$
 declare
   reminder public.maintenance_reminders%rowtype;
+  request public.service_requests%rowtype;
+  actor record;
 begin
-  if not public.has_local_business_capability(
-    p_garage_id,
-    p_center_id,
-    'maintenance_reminders.manage'
-  ) then
-    raise exception 'Reminder creation not permitted' using errcode = '42501';
-  end if;
   if p_due_date is null and p_due_mileage is null then
     raise exception 'A date or mileage is required' using errcode = '22023';
   end if;
@@ -1138,15 +1227,59 @@ begin
   ) then
     raise exception 'Invalid reminder center' using errcode = '23514';
   end if;
-  if p_service_request_id is not null and not exists (
-    select 1
-    from public.service_requests request
-    where request.id = p_service_request_id
-      and request.garage_id = p_garage_id
-      and request.center_id = p_center_id
-      and request.client_id = p_client_id
-  ) then
-    raise exception 'Invalid reminder request' using errcode = '23514';
+
+  if p_client_id is null then
+    raise exception 'Invalid reminder client' using errcode = '23514';
+  end if;
+
+  if p_service_request_id is not null then
+    select candidate.*
+    into request
+    from public.service_requests candidate
+    where candidate.id = p_service_request_id
+    for share;
+
+    if not found
+      or request.garage_id is distinct from p_garage_id
+      or request.center_id is distinct from p_center_id
+      or request.client_id is distinct from p_client_id
+    then
+      raise exception 'Invalid reminder request' using errcode = '23514';
+    end if;
+
+    if not public.has_local_business_capability(
+      request.garage_id,
+      request.center_id,
+      'maintenance_reminders.manage'
+    ) then
+      raise exception 'Reminder creation not permitted' using errcode = '42501';
+    end if;
+  else
+    select context.*
+    into actor
+    from private.resolve_canonical_actor(p_garage_id, null) context;
+
+    if not found
+      or actor.organization_role is distinct from 'organization_owner'
+      or not public.has_local_business_capability(
+        p_garage_id,
+        p_center_id,
+        'maintenance_reminders.manage'
+      )
+    then
+      raise exception 'Reminder creation not permitted' using errcode = '42501';
+    end if;
+
+    perform 1
+    from public.customers customer
+    where customer.garage_id = p_garage_id
+      and customer.linked_user_id = p_client_id
+    for share;
+
+    if not found then
+      raise exception 'Reminder client is not linked to this garage'
+        using errcode = '23514';
+    end if;
   end if;
   if p_vehicle_id is not null and not exists (
     select 1
