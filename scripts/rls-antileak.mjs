@@ -1263,6 +1263,18 @@ async function run() {
   const spoofedPath = `${IDS.garageB}/${recommendationRequest.id}/${randomUUID()}-spoof.txt`
   const crossTenantUpload = await ownerA.storage.from(bucket).upload(spoofedPath, Buffer.from('spoof'), { contentType: 'text/plain' })
   check('Professional cannot forge another garage id in Storage path', Boolean(crossTenantUpload.error), crossTenantUpload.data)
+  const networkAttachmentPath = `${IDS.garageB}/${recommendationRequest.id}/${randomUUID()}-network.txt`
+  const networkAttachmentUpload = await networkManager.storage
+    .from(bucket)
+    .upload(networkAttachmentPath, Buffer.from('denied'), { contentType: 'text/plain' })
+  check(
+    'Network admin cannot upload a local service attachment',
+    Boolean(networkAttachmentUpload.error),
+    networkAttachmentUpload.data,
+  )
+  if (!networkAttachmentUpload.error) {
+    cleanup.storagePaths.push({ client: ownerB, bucket, paths: [networkAttachmentPath] })
+  }
   const wrongRequestPath = `${IDS.garageB}/${randomUUID()}/${randomUUID()}-missing.txt`
   const wrongPathUpload = await ownerB.storage.from(bucket).upload(wrongRequestPath, Buffer.from('bad path'), { contentType: 'text/plain' })
   check('Upload to a nonexistent request path is denied', Boolean(wrongPathUpload.error), wrongPathUpload.data)
@@ -1358,6 +1370,16 @@ async function run() {
     upsert: true,
   })
   check('Network owner can upload only in their organization path', !ownerBLogo.error, ownerBLogo.error)
+
+  const networkAdminLogo = await networkManager.storage.from(logoBucket).upload(logoBPath, onePixelPng, {
+    contentType: 'image/webp',
+    upsert: true,
+  })
+  check(
+    'Network admin cannot overwrite an organization logo',
+    Boolean(networkAdminLogo.error),
+    networkAdminLogo.data,
+  )
 
   const technicianLogo = await technicianB.storage.from(logoBucket).upload(logoBPath, onePixelPng, {
     contentType: 'image/webp',

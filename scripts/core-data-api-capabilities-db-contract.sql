@@ -241,6 +241,122 @@ select pg_temp.assert_true(
   )
 );
 select pg_temp.assert_true(
+  'historical local mutation policies use specialized capabilities',
+  not exists (
+    select 1
+    from pg_catalog.pg_policies policy
+    where policy.schemaname in ('public', 'storage')
+      and policy.cmd in ('ALL', 'INSERT', 'UPDATE', 'DELETE')
+      and not (
+        policy.schemaname = 'public'
+        and policy.tablename = 'audit_logs'
+        and policy.policyname = 'audit_insert_member'
+      )
+      and concat_ws(' ', policy.qual, policy.with_check)
+        ~* '(is_garage_member|has_garage_role|can_manage_garage_center)'
+  )
+);
+select pg_temp.assert_true(
+  'historical local mutation RPCs use specialized capabilities',
+  not exists (
+    select 1
+    from pg_catalog.pg_proc function_row
+    join pg_catalog.pg_namespace function_schema
+      on function_schema.oid = function_row.pronamespace
+    where function_schema.nspname = 'public'
+      and function_row.proname = any(array[
+        'next_quote_number',
+        'create_quote_with_lines',
+        'update_quote_with_lines',
+        'send_quote',
+        'revise_quote',
+        'save_delivery_report',
+        'create_maintenance_reminder',
+        'mark_maintenance_reminder_converted',
+        'register_service_request_attachment',
+        'propose_center_transfer',
+        'complete_center_transfer'
+      ]::text[])
+      and function_row.prosrc
+        ~* '(is_garage_member|has_garage_role|can_manage_garage_center)'
+  )
+);
+select pg_temp.assert_true(
+  'local business capability is fail-closed and minimally exposed',
+  (
+    select function_row.prosecdef
+      and function_row.proconfig = array['search_path=""']::text[]
+    from pg_catalog.pg_proc function_row
+    join pg_catalog.pg_namespace function_schema
+      on function_schema.oid = function_row.pronamespace
+    where function_schema.nspname = 'public'
+      and function_row.proname = 'has_local_business_capability'
+      and pg_catalog.pg_get_function_identity_arguments(function_row.oid)
+        = 'p_garage_id uuid, p_center_id uuid, p_capability text'
+  )
+  and has_function_privilege(
+    'authenticated',
+    'public.has_local_business_capability(uuid,uuid,text)',
+    'EXECUTE'
+  )
+  and not has_function_privilege(
+    'anon',
+    'public.has_local_business_capability(uuid,uuid,text)',
+    'EXECUTE'
+  )
+  and not has_function_privilege(
+    'authenticated',
+    'public.next_quote_number(uuid)',
+    'EXECUTE'
+  )
+);
+select pg_temp.assert_true(
+  'quote create/update are RPC-only and line DML is revoked',
+  not has_table_privilege('authenticated', 'public.quotes', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.quotes', 'UPDATE')
+  and has_table_privilege('authenticated', 'public.quotes', 'DELETE')
+  and not has_table_privilege('authenticated', 'public.quote_lines', 'INSERT')
+  and not has_table_privilege('authenticated', 'public.quote_lines', 'UPDATE')
+  and not has_table_privilege('authenticated', 'public.quote_lines', 'DELETE')
+  and exists (
+    select 1
+    from pg_catalog.pg_policies policy
+    where policy.schemaname = 'public'
+      and policy.tablename = 'quotes'
+      and policy.policyname = 'quotes_delete_canonical'
+      and policy.cmd = 'DELETE'
+      and policy.qual ilike '%status =%draft%'
+      and policy.qual ilike '%has_quote_capability%'
+  )
+);
+select pg_temp.assert_true(
+  'branding and attachment mutations use specialized storage policies',
+  not exists (
+    select 1
+    from pg_catalog.pg_policies policy
+    where policy.schemaname = 'storage'
+      and policy.tablename = 'objects'
+      and policy.policyname in (
+        'garage_logos_member_insert',
+        'garage_logos_member_update',
+        'garage_logos_member_delete'
+      )
+  )
+  and (
+    select count(*) = 3
+    from pg_catalog.pg_policies policy
+    where policy.schemaname = 'storage'
+      and policy.tablename = 'objects'
+      and policy.policyname in (
+        'garage_logos_owner_insert',
+        'garage_logos_owner_update',
+        'garage_logos_owner_delete'
+      )
+      and concat_ws(' ', policy.qual, policy.with_check)
+        ilike '%has_local_business_capability%'
+  )
+);
+select pg_temp.assert_true(
   'service request physical deletion is unavailable',
   not has_table_privilege('authenticated', 'public.service_requests', 'DELETE')
   and not exists (
@@ -508,6 +624,29 @@ select pg_temp.assert_true(
     '22222222-2222-4222-8222-222222222222'
   )
 );
+select pg_temp.assert_true(
+  'network admin has no residual local business capability',
+  not exists (
+    select 1
+    from unnest(array[
+      'organization.settings.manage',
+      'organization.centers.manage',
+      'organization.content.manage',
+      'organization.documents.manage',
+      'quotes.select',
+      'quotes.manage',
+      'delivery_reports.manage',
+      'maintenance_reminders.manage',
+      'service_attachments.manage',
+      'center_transfers.manage'
+    ]::text[]) capability(name)
+    where public.has_local_business_capability(
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c001',
+      capability.name
+    )
+  )
+);
 reset role;
 
 set local role authenticated;
@@ -528,6 +667,29 @@ select pg_temp.assert_true(
     '22222222-2222-4222-8222-222222222222',
     null,
     'customers.update'
+  )
+);
+select pg_temp.assert_true(
+  'center manager retains specialized same-center workflows only',
+  public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'delivery_reports.manage'
+  )
+  and public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'maintenance_reminders.manage'
+  )
+  and not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c002',
+    'delivery_reports.manage'
+  )
+  and not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'organization.settings.manage'
   )
 );
 reset role;
@@ -558,6 +720,11 @@ select pg_temp.assert_true(
     '22222222-2222-4222-8222-22222222c001',
     'service_requests.update'
   )
+  and not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'quotes.manage'
+  )
 );
 reset role;
 
@@ -578,6 +745,24 @@ select pg_temp.assert_true(
   and not public.can_manage_garage_center(
     '22222222-2222-4222-8222-222222222222',
     '22222222-2222-4222-8222-22222222c001'
+  )
+);
+select pg_temp.assert_true(
+  'canonical receptionist has quote capability without administrative expansion',
+  public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'quotes.manage'
+  )
+  and not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'delivery_reports.manage'
+  )
+  and not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'organization.settings.manage'
   )
 );
 reset role;
@@ -610,6 +795,11 @@ select pg_temp.assert_true(
     '11111111-1111-4111-8111-111111111111',
     '11111111-1111-4111-8111-11111111c001',
     'appointments.update'
+  )
+  and not public.has_local_business_capability(
+    '11111111-1111-4111-8111-111111111111',
+    '11111111-1111-4111-8111-11111111c001',
+    'delivery_reports.manage'
   )
 );
 reset role;
@@ -719,6 +909,11 @@ select pg_temp.assert_true(
   and not public.can_view_network_dashboard(
     '22222222-2222-4222-8222-222222222222'
   )
+  and not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'quotes.manage'
+  )
 );
 reset role;
 rollback to savepoint regional_manager_scope;
@@ -743,9 +938,59 @@ select pg_temp.assert_true(
     null,
     'vehicles.update'
   )
+  and not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    null,
+    'organization.settings.manage'
+  )
 );
 reset role;
 rollback to savepoint legacy_admin_scope;
+
+savepoint legacy_center_roles_scope;
+update public.garage_members
+set center_role = 'service_advisor'
+where user_id = 'b0000000-0000-4000-8000-000000000006'
+  and garage_id = '22222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000006', true);
+select pg_temp.assert_true(
+  'legacy service advisor fails closed for every local business capability',
+  not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'quotes.manage'
+  )
+  and not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'maintenance_reminders.manage'
+  )
+);
+reset role;
+rollback to savepoint legacy_center_roles_scope;
+
+select pg_temp.expect_error(
+  'unknown canonical role is rejected structurally',
+  $sql$
+    update public.garage_members
+    set center_role = 'unknown_role'
+    where user_id = 'b0000000-0000-4000-8000-000000000006'
+      and garage_id = '22222222-2222-4222-8222-222222222222'
+  $sql$,
+  '23514'
+);
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
+select pg_temp.assert_true(
+  'unknown capability fails closed',
+  not public.has_local_business_capability(
+    '22222222-2222-4222-8222-222222222222',
+    '22222222-2222-4222-8222-22222222c001',
+    'unknown.capability'
+  )
+);
+reset role;
 
 -- Network administrators keep network aggregation/team administration only.
 -- Every local mutation through the Data API must fail closed.
@@ -887,20 +1132,364 @@ values (
   '22222222-2222-4222-8222-222222222222',
   'Owner permitted'
 );
+insert into public.vehicles (id, garage_id, customer_id, brand, model)
+values (
+  'cc000000-0000-4000-8000-000000000031',
+  '22222222-2222-4222-8222-222222222222',
+  'cc000000-0000-4000-8000-000000000030',
+  'Owner',
+  'Permitted'
+);
+insert into public.appointments (id, garage_id, center_id, title, starts_at)
+values (
+  'cc000000-0000-4000-8000-000000000032',
+  '22222222-2222-4222-8222-222222222222',
+  '22222222-2222-4222-8222-22222222c001',
+  'Owner permitted',
+  now()
+);
+insert into public.repairs (id, garage_id, appointment_id, title)
+values (
+  'cc000000-0000-4000-8000-000000000033',
+  '22222222-2222-4222-8222-222222222222',
+  'cc000000-0000-4000-8000-000000000032',
+  'Owner permitted'
+);
+insert into public.tasks (id, garage_id, related_vehicle_id, title)
+values (
+  'cc000000-0000-4000-8000-000000000034',
+  '22222222-2222-4222-8222-222222222222',
+  'cc000000-0000-4000-8000-000000000031',
+  'Owner permitted'
+);
+insert into public.garage_services (id, garage_id, name)
+values (
+  'cc000000-0000-4000-8000-000000000035',
+  '22222222-2222-4222-8222-222222222222',
+  'Owner permitted'
+);
 update public.customers
 set city = 'Owner permitted'
 where id = 'cc000000-0000-4000-8000-000000000030';
+update public.vehicles set model = 'Owner updated'
+where id = 'cc000000-0000-4000-8000-000000000031';
+update public.appointments set title = 'Owner updated'
+where id = 'cc000000-0000-4000-8000-000000000032';
+update public.repairs set title = 'Owner updated'
+where id = 'cc000000-0000-4000-8000-000000000033';
+update public.tasks set title = 'Owner updated'
+where id = 'cc000000-0000-4000-8000-000000000034';
+update public.garage_services set name = 'Owner updated'
+where id = 'cc000000-0000-4000-8000-000000000035';
+delete from public.repairs
+where id = 'cc000000-0000-4000-8000-000000000033';
+delete from public.tasks
+where id = 'cc000000-0000-4000-8000-000000000034';
+delete from public.appointments
+where id = 'cc000000-0000-4000-8000-000000000032';
+delete from public.garage_services
+where id = 'cc000000-0000-4000-8000-000000000035';
+delete from public.vehicles
+where id = 'cc000000-0000-4000-8000-000000000031';
 delete from public.customers
 where id = 'cc000000-0000-4000-8000-000000000030';
 select pg_temp.assert_true(
-  'organization owner retains expected local core operations',
+  'organization owner retains real DML on all six local core tables',
   not exists (
     select 1 from public.customers
     where id = 'cc000000-0000-4000-8000-000000000030'
   )
+  and not exists (
+    select 1 from public.vehicles
+    where id = 'cc000000-0000-4000-8000-000000000031'
+  )
+  and not exists (
+    select 1 from public.appointments
+    where id = 'cc000000-0000-4000-8000-000000000032'
+  )
+  and not exists (
+    select 1 from public.repairs
+    where id = 'cc000000-0000-4000-8000-000000000033'
+  )
+  and not exists (
+    select 1 from public.tasks
+    where id = 'cc000000-0000-4000-8000-000000000034'
+  )
+  and not exists (
+    select 1 from public.garage_services
+    where id = 'cc000000-0000-4000-8000-000000000035'
+  )
 );
 reset role;
 rollback to savepoint owner_core_operations;
+
+savepoint organization_center_management;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000001', true);
+insert into public.garage_centers (id, garage_id, slug, name, is_active)
+values (
+  'cc000000-0000-4000-8000-000000000039',
+  '22222222-2222-4222-8222-222222222222',
+  'owner-created-center',
+  'Owner created center',
+  true
+);
+update public.garage_centers
+set name = 'Owner updated center'
+where id = 'cc000000-0000-4000-8000-000000000039';
+delete from public.garage_centers
+where id = 'cc000000-0000-4000-8000-000000000039';
+select pg_temp.assert_true(
+  'organization owner can create, update, and delete a center',
+  not exists (
+    select 1 from public.garage_centers center
+    where center.id = 'cc000000-0000-4000-8000-000000000039'
+  )
+);
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000002', true);
+select pg_temp.expect_error(
+  'network admin cannot create a local center',
+  $sql$
+    insert into public.garage_centers (id, garage_id, slug, name, is_active)
+    values (
+      'cc000000-0000-4000-8000-000000000040',
+      '22222222-2222-4222-8222-222222222222',
+      'network-denied-center',
+      'Denied center',
+      true
+    )
+  $sql$,
+  '42501'
+);
+reset role;
+rollback to savepoint organization_center_management;
+
+savepoint center_manager_core_operations;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000003', true);
+insert into public.appointments (id, garage_id, center_id, title, starts_at)
+values (
+  'cc000000-0000-4000-8000-000000000036',
+  '22222222-2222-4222-8222-222222222222',
+  '22222222-2222-4222-8222-22222222c001',
+  'Center manager permitted',
+  now()
+);
+insert into public.repairs (id, garage_id, appointment_id, title)
+values (
+  'cc000000-0000-4000-8000-000000000037',
+  '22222222-2222-4222-8222-222222222222',
+  'cc000000-0000-4000-8000-000000000036',
+  'Center manager permitted'
+);
+update public.appointments set title = 'Center manager updated'
+where id = 'cc000000-0000-4000-8000-000000000036';
+update public.repairs set title = 'Center manager updated'
+where id = 'cc000000-0000-4000-8000-000000000037';
+select pg_temp.expect_error(
+  'center manager cannot insert an appointment in another center',
+  $sql$
+    insert into public.appointments (id, garage_id, center_id, title, starts_at)
+    values (
+      'cc000000-0000-4000-8000-000000000038',
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c002',
+      'Cross-center denied',
+      now()
+    )
+  $sql$,
+  '42501'
+);
+delete from public.repairs
+where id = 'cc000000-0000-4000-8000-000000000037';
+delete from public.appointments
+where id = 'cc000000-0000-4000-8000-000000000036';
+select pg_temp.assert_true(
+  'center manager retains real DML only in their center',
+  not exists (
+    select 1 from public.appointments
+    where id in (
+      'cc000000-0000-4000-8000-000000000036',
+      'cc000000-0000-4000-8000-000000000038'
+    )
+  )
+  and not exists (
+    select 1 from public.repairs
+    where id = 'cc000000-0000-4000-8000-000000000037'
+  )
+);
+reset role;
+rollback to savepoint center_manager_core_operations;
+
+savepoint specialized_historical_operations;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000003', true);
+select public.create_quote_with_lines(
+  jsonb_build_object(
+    'garage_id', '22222222-2222-4222-8222-222222222222',
+    'service_request_id', 'f2222222-0000-4000-8000-000000000001',
+    'title', 'Center manager canonical quote',
+    'valid_until', (current_date + 30)::text
+  ),
+  '[{"label":"Canonical line","quantity":1,"unit_price":42,"tax_rate":20}]'::jsonb
+);
+select public.update_quote_with_lines(
+  (
+    select quote.id from public.quotes quote
+    where quote.title = 'Center manager canonical quote'
+    order by quote.created_at desc limit 1
+  ),
+  jsonb_build_object(
+    'service_request_id', 'f2222222-0000-4000-8000-000000000001',
+    'title', 'Center manager canonical quote updated',
+    'valid_until', (current_date + 30)::text
+  ),
+  '[{"label":"Canonical line updated","quantity":1,"unit_price":45,"tax_rate":20}]'::jsonb
+);
+select public.send_quote((
+  select quote.id from public.quotes quote
+  where quote.title = 'Center manager canonical quote updated'
+  order by quote.created_at desc limit 1
+));
+select public.save_delivery_report(
+  'f2222222-0000-4000-8000-000000000001',
+  jsonb_build_object(
+    'diagnostic_summary', 'Center manager canonical report',
+    'authorized_attachment_ids', '[]'::jsonb
+  ),
+  false
+);
+select public.create_maintenance_reminder(
+  '22222222-2222-4222-8222-222222222222',
+  '22222222-2222-4222-8222-22222222c001',
+  'c2000000-0000-4000-8000-000000000001',
+  'e2222222-0000-4000-8000-000000000001',
+  'e2000000-0000-4000-8000-000000000001',
+  'f2222222-0000-4000-8000-000000000001',
+  'after_service',
+  'Center manager canonical reminder',
+  current_date + 30,
+  null,
+  now(),
+  'pr3a-contract',
+  'fr'
+);
+select pg_temp.assert_true(
+  'center manager can use specialized quote, report, and reminder RPCs in-center',
+  exists (
+    select 1 from public.quotes quote
+    where quote.title = 'Center manager canonical quote updated'
+      and quote.status = 'sent'
+  )
+  and exists (
+    select 1 from public.delivery_reports report
+    where report.service_request_id = 'f2222222-0000-4000-8000-000000000001'
+      and report.status = 'draft'
+  )
+  and exists (
+    select 1 from public.maintenance_reminders reminder
+    where reminder.source = 'pr3a-contract'
+  )
+);
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000002', true);
+select pg_temp.expect_error(
+  'network admin cannot create a quote',
+  $sql$
+    select public.create_quote_with_lines(
+      '{"garage_id":"22222222-2222-4222-8222-222222222222","service_request_id":"f2222222-0000-4000-8000-000000000001","title":"Denied network quote"}'::jsonb,
+      '[{"label":"Denied","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'network admin cannot save a delivery report',
+  $sql$
+    select public.save_delivery_report(
+      'f2222222-0000-4000-8000-000000000002',
+      '{"diagnostic_summary":"Denied"}'::jsonb,
+      false
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'network admin cannot create a maintenance reminder',
+  $sql$
+    select public.create_maintenance_reminder(
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c001',
+      'c2000000-0000-4000-8000-000000000001',
+      null,
+      null,
+      'f2222222-0000-4000-8000-000000000001',
+      'after_service',
+      'Denied network reminder',
+      current_date + 30,
+      null,
+      now(),
+      'pr3a-network-denied',
+      'fr'
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_zero_rows(
+  'network admin cannot mutate organization branding',
+  $sql$
+    update public.garages
+    set name = name
+    where id = '22222222-2222-4222-8222-222222222222'
+  $sql$
+);
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'b0000000-0000-4000-8000-000000000006', true);
+select pg_temp.expect_error(
+  'legacy front desk cannot create a quote',
+  $sql$
+    select public.create_quote_with_lines(
+      '{"garage_id":"22222222-2222-4222-8222-222222222222","service_request_id":"f2222222-0000-4000-8000-000000000001","title":"Denied legacy quote"}'::jsonb,
+      '[{"label":"Denied","quantity":1,"unit_price":1,"tax_rate":20}]'::jsonb
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'legacy front desk cannot save a delivery report',
+  $sql$
+    select public.save_delivery_report(
+      'f2222222-0000-4000-8000-000000000002',
+      '{"diagnostic_summary":"Denied"}'::jsonb,
+      false
+    )
+  $sql$,
+  '42501'
+);
+reset role;
+rollback to savepoint specialized_historical_operations;
+
+select pg_temp.assert_true(
+  'specialized workflow fixtures are fully rolled back',
+  not exists (
+    select 1 from public.quotes quote
+    where quote.title like 'Center manager canonical quote%'
+  )
+  and not exists (
+    select 1 from public.delivery_reports report
+    where report.service_request_id = 'f2222222-0000-4000-8000-000000000001'
+  )
+  and not exists (
+    select 1 from public.maintenance_reminders reminder
+    where reminder.source = 'pr3a-contract'
+  )
+);
 
 -- Generic core DML is denied to a technician, including cross-tenant access.
 set local role authenticated;
