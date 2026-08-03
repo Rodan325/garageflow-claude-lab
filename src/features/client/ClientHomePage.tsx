@@ -4,7 +4,8 @@ import { motion } from 'framer-motion'
 import { ChevronRight, Clock, MapPin, Newspaper } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { LoadingState, EmptyState } from '@/components/ui/feedback'
+import { EmptyState } from '@/components/ui/feedback'
+import { DataState } from '@/components/common/DataState'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useGarages, useGarageServices, useGarageNews, useGarageHours } from '@/data/garagePublic'
 import { useClientProfile } from '@/data/clientData'
@@ -24,7 +25,7 @@ export function ClientHomePage() {
   const { tr } = useLang()
   const { userId, profile } = useAuth()
   const { selectedGarageId, select } = useSelectedGarage()
-  const { data: garages, isLoading } = useGarages()
+  const { data: garages, isLoading, isError, error, refetch } = useGarages()
   const { data: clientProfile } = useClientProfile(userId)
 
   useEffect(() => {
@@ -33,7 +34,14 @@ export function ClientHomePage() {
 
   const selected = garages?.find((g) => g.id === selectedGarageId) ?? null
 
-  if (isLoading) return <LoadingState />
+  // A failed fetch must not be shown as "no garage available".
+  if (isLoading || isError) {
+    return (
+      <div className="p-4">
+        <DataState isLoading={isLoading} isError={isError} error={error} onRetry={() => void refetch()} />
+      </div>
+    )
+  }
 
   if (!selected) {
     return (

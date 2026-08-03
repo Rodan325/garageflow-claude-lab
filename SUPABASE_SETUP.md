@@ -31,7 +31,8 @@ CLI : `supabase db push`. Sinon coller chaque fichier dans le SQL Editor, dans l
 
 ## 4. Identité & auth
 - `profiles` (1/compte, `account_type` staff|client) créé par trigger à l'inscription ; `garage_members` (rôle) ; `client_profiles` (extras client).
-- Comptes démo (mdp `Demo1234!`) : `owner@demo-garage.fr`, `mecano@demo-garage.fr`, `client@demo.fr`.
+- Les comptes connectés de démonstration utilisent `<DEMO_EMAIL_TEMPORAIRE>` et `<DEMO_PASSWORD_TEMPORAIRE>`, générés temporairement hors Git.
+- Les accès expirent après la démonstration, sont renouvelés avant toute réutilisation et restent distincts entre Staging et Production.
 - Réservation client possible **sans compte** jusqu'à l'étape finale (puis login/inscription).
 
 ## 5. Storage

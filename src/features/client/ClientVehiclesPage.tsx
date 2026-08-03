@@ -4,7 +4,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Field, Input, Textarea } from '@/components/ui/input'
-import { EmptyState, LoadingState } from '@/components/ui/feedback'
+import { EmptyState } from '@/components/ui/feedback'
+import { DataState } from '@/components/common/DataState'
 import { VehicleFields } from '@/components/common/VehicleFields'
 import { vehicleFieldsError } from '@/data/vehicleCatalog'
 import { useToast } from '@/components/ui/toast'
@@ -17,7 +18,7 @@ export function ClientVehiclesPage() {
   const { lang, tr } = useLang()
   const { userId } = useAuth()
   const toast = useToast()
-  const { data: vehicles, isLoading } = useClientVehicles(userId)
+  const { data: vehicles, isLoading, isError, error, refetch } = useClientVehicles(userId)
   const update = useUpdateClientVehicle(userId)
   const del = useDeleteClientVehicle(userId)
   const [editing, setEditing] = useState<ClientVehicle | 'new' | null>(null)
@@ -41,11 +42,16 @@ export function ClientVehiclesPage() {
       </p>
 
       <div className="mt-4">
-        {isLoading ? (
-          <LoadingState />
-        ) : active.length === 0 && archived.length === 0 ? (
-          <EmptyState icon={Car} title={tr('Aucun véhicule')} description={tr('Ajoutez un véhicule pour réserver plus vite la prochaine fois.')} action={<Button onClick={() => setEditing('new')}>{tr('Ajouter un véhicule')}</Button>} />
-        ) : (
+        <DataState
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          onRetry={() => void refetch()}
+          isEmpty={active.length === 0 && archived.length === 0}
+          empty={
+            <EmptyState icon={Car} title={tr('Aucun véhicule')} description={tr('Ajoutez un véhicule pour réserver plus vite la prochaine fois.')} action={<Button onClick={() => setEditing('new')}>{tr('Ajouter un véhicule')}</Button>} />
+          }
+        >
           <div className="space-y-2">
             {shown.map((v) => (
               <Card key={v.id} className={`flex items-center justify-between gap-3 p-4 ${v.archived ? 'opacity-60' : ''}`}>
@@ -85,7 +91,7 @@ export function ClientVehiclesPage() {
               </button>
             )}
           </div>
-        )}
+        </DataState>
       </div>
 
       {editing && userId && (

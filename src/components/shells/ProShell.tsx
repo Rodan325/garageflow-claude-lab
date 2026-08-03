@@ -43,6 +43,7 @@ export function ProShell() {
   const pending = (requests ?? []).filter((r) => r.status === 'pending').length
   const { mode, set } = useProMode()
   const [open, setOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const { lang, tr } = useLang()
   const advancedItems = [
     ...avance,
@@ -141,9 +142,19 @@ export function ProShell() {
             </p>
           </div>
           <button
-            onClick={async () => { await signOut(); navigate('/login') }}
+            onClick={async () => {
+              if (signingOut) return
+              setSigningOut(true)
+              try {
+                await signOut()
+              } finally {
+                // `replace` so the back button cannot return to the back-office.
+                navigate('/login', { replace: true })
+              }
+            }}
+            disabled={signingOut}
             aria-label={tr('Se déconnecter')}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+            className="rounded-lg p-2 text-muted-foreground hover:bg-muted disabled:opacity-60"
           >
             <LogOut className="h-[18px] w-[18px]" />
           </button>

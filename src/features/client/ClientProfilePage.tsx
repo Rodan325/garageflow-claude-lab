@@ -19,6 +19,7 @@ export function ClientProfilePage() {
   const { data: garages } = useGarages()
   const { data: clientProfile } = useClientProfile(userId)
   const { select } = useSelectedGarage()
+  const [signingOut, setSigningOut] = useState(false)
   const updateProfile = useUpdateProfile()
   const updateClient = useUpdateClientProfile()
 
@@ -104,9 +105,17 @@ export function ClientProfilePage() {
       <Button
         variant="outline"
         className="w-full"
+        loading={signingOut}
+        disabled={signingOut}
         onClick={async () => {
-          await signOut()
-          navigate('/app')
+          if (signingOut) return
+          setSigningOut(true)
+          try {
+            await signOut()
+          } finally {
+            // `replace` so the back button cannot return to the signed-in area.
+            navigate('/login', { replace: true })
+          }
         }}
       >
         <LogOut className="h-4 w-4" /> {tr('Se déconnecter')}
