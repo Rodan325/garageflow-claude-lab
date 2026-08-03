@@ -18,7 +18,7 @@
 - [x] Création de devis/MAJ **transactionnelle** (RPC) — un devis ne perd jamais ses lignes ; totaux **recalculés côté serveur**
 - [x] **Cycle de vie du devis** : `draft` → `sent` → `accepted` / `declined` / `expired` ; seul un brouillon est modifiable, l'accepté est définitif
 - [x] **Envoi au client** : action « Envoyer », `sent_at`, **lien de consultation tokenisé** copié (email/SMS à brancher plus tard)
-- [x] **Page client de consultation** `/devis/:token` (sans login) : document complet, **télécharger le PDF**, **accepter** ou **refuser avec motif**
+- [x] **Page client de consultation** `/quote/:token` (sans login) : document complet, **télécharger le PDF**, **accepter** ou **refuser avec motif**
 - [x] **Révision** : « Réviser » crée une nouvelle version en brouillon (lien `revised_from`), sans écraser l'envoyé/accepté
 - [x] UX progressive (Essentiel / Atelier avancé), agenda, atelier kanban, clients, véhicules
 - [x] États vides / chargement / erreur ; motion discret ; responsive sans scroll horizontal
@@ -47,11 +47,23 @@
 - [ ] Pack légal RGPD ; sauvegardes/PITR vérifiées, monitoring, plan incident
 - [ ] Tests E2E (Playwright) sur les parcours critiques
 
-## Comptes & environnement
-| Rôle | Email | Mot de passe |
-|---|---|---|
-| Gérant | `owner@demo-garage.fr` | `Demo1234!` |
-| Mécanicien | `mecano@demo-garage.fr` | `Demo1234!` |
-| Client | `client@demo.fr` | `Demo1234!` |
+## Accès temporaires de démonstration
+
+- Email : `<DEMO_EMAIL_TEMPORAIRE>`
+- Mot de passe : `<DEMO_PASSWORD_TEMPORAIRE>`
+- Générer les accès hors Git pour une démonstration précise et les transmettre par un canal protégé.
+- Définir une expiration courte, au plus tard à la fin de la démonstration, puis désactiver le compte ou effectuer une rotation.
+- Ne jamais réutiliser un mot de passe, ni partager les mêmes accès entre Staging et Production.
+- Le mode démo local sans Supabase reste le choix par défaut.
+
+### Rotation manuelle requise
+
+Les identifiants historiquement documentés ci-dessous doivent être désactivés ou renouvelés manuellement dans chaque environnement où ils existent :
+
+- `owner@demo-garage.fr`
+- `mecano@demo-garage.fr`
+- `client@demo.fr`
+
+Ce document ne confirme ni l'existence ni l'état de ces comptes distants. Toute intervention Auth nécessite une autorisation séparée.
 
 Projet Supabase `garageflow-c` (eu-west-3). Garage de démo : **Garage Central Lyon**. Mode démo local disponible sans Supabase.
