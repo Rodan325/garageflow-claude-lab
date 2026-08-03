@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { purgeLocalAuthSession } from '@/lib/authStorage'
 import type { Garage, GarageMember, GarageRole, Profile } from '@/types/domain'
 import { queryClient } from '@/lib/queryClient'
 import { mapAuthError } from './authErrors'
@@ -62,6 +63,18 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+/**
+ * Cancel every in-flight request and drop every cached query.
+ *
+ * React Query keeps results in memory for the lifetime of the tab, so without
+ * this a second account signing in inside the same tab would briefly render the
+ * previous account's data straight from the cache.
+ */
+function dropUserScopedCache() {
+  void queryClient.cancelQueries().catch(() => {})
+  queryClient.clear()
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false)
   const [demo, setDemo] = useState<DemoKind | null>(() => getDemoKind())
@@ -70,6 +83,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [membership, setMembership] = useState<GarageMember | null>(null)
   const [garage, setGarage] = useState<Garage | null>(null)
   const loadingRef = useRef(false)
+  // Guards a second click while a sign-out is still running.
+  const signingOutRef = useRef(false)
+  // Last authenticated identity, to detect an account switch inside this tab.
+  const lastUserIdRef = useRef<string | null>(null)
+  // An explicit sign-out stays authoritative: no delayed Auth event may undo
+  // it. Only a new explicit authentication (signIn / signUp) lifts the lock.
+  const signedOutRef = useRef(false)
 
   const loadAccount = useCallback(async (uid: string) => {
     if (loadingRef.current) return
@@ -111,11 +131,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
     supabase.auth.getSession().then(async ({ data }) => {
+      // A sign-out asked for in this tab wins over any session still readable
+      // from storage (e.g. the revocation failed while offline).
+      if (signedOutRef.current) {
+        setReady(true)
+        return
+      }
+      lastUserIdRef.current = data.session?.user?.id ?? null
       setSession(data.session)
       if (data.session?.user) await loadAccount(data.session.user.id)
       setReady(true)
     })
     const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
+      // TOKEN_REFRESHED, INITIAL_SESSION or USER_UPDATED carrying the previous
+      // session must never resurrect it after an explicit sign-out.
+      if (signedOutRef.current) return
+      const nextUserId = s?.user?.id ?? null
+      // The authenticated identity changed (sign-out, expiry, or another
+      // account signing in inside this tab): drop the cache BEFORE any render
+      // so nothing from the previous account can be displayed.
+      if (nextUserId !== lastUserIdRef.current) {
+        lastUserIdRef.current = nextUserId
+        dropUserScopedCache()
+      }
       setSession(s)
       if (s?.user) await loadAccount(s.user.id)
       else {
@@ -158,12 +196,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = useCallback<AuthContextValue['signIn']>(async (email, password) => {
+    // Explicit authentication: lift the sign-out lock so the resulting
+    // SIGNED_IN event is honoured.
+    signedOutRef.current = false
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     return { error: error?.message ?? null }
   }, [])
 
   const signUp = useCallback<AuthContextValue['signUp']>(async (input) => {
     const email = input.email.trim()
+    // Explicit authentication too (sign-up can return a session directly).
+    signedOutRef.current = false
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -181,16 +224,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  /**
+   * Sign out locally FIRST, then revoke server-side.
+   *
+   * `authed` is derived from `session`, so waiting for the SIGNED_OUT event —
+   * as the previous implementation did — kept the protected UI on screen until
+   * the round-trip completed, and kept it there for good when the call failed.
+   */
   const signOut = useCallback(async () => {
-    if (getDemoKind()) {
-      clearDemo()
-      setDemo(null)
-      return
+    // A second click while the first sign-out runs must be a no-op.
+    if (signingOutRef.current) return
+    signingOutRef.current = true
+    try {
+      if (getDemoKind()) {
+        clearDemo()
+        setDemo(null)
+        dropUserScopedCache()
+        return
+      }
+
+      // 1. Local state, synchronously — never wait for SIGNED_OUT.
+      //    The lock is raised FIRST so an event racing this block cannot undo it.
+      signedOutRef.current = true
+      lastUserIdRef.current = null
+      setSession(null)
+      setProfile(null)
+      setMembership(null)
+      setGarage(null)
+      dropUserScopedCache()
+
+      // 2. Server-side revocation, best effort.
+      try {
+        const { error } = await supabase.auth.signOut()
+        if (error) throw error
+      } catch {
+        // Offline or backend failure. `scope: 'local'` is NOT enough: auth-js
+        // performs a network call there too and returns before removing the
+        // session when it fails.
+        try {
+          await supabase.auth.signOut({ scope: 'local' })
+        } catch {
+          /* still offline — the direct purge below is the real guarantee */
+        }
+      } finally {
+        // Unconditional: the persisted token must be gone whatever happened
+        // above, otherwise a refresh silently restores the session.
+        purgeLocalAuthSession()
+      }
+    } finally {
+      signingOutRef.current = false
     }
-    await supabase.auth.signOut()
-    setProfile(null)
-    setMembership(null)
-    setGarage(null)
   }, [])
 
   const refresh = useCallback(async () => {

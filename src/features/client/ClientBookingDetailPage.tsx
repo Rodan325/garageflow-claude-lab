@@ -5,7 +5,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/input'
-import { LoadingState, EmptyState } from '@/components/ui/feedback'
+import { EmptyState } from '@/components/ui/feedback'
+import { DataState } from '@/components/common/DataState'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useAddRequestMessage, useClientRequests, useRequestMessages } from '@/data/requests'
@@ -27,14 +28,21 @@ export function ClientBookingDetailPage() {
   const toast = useToast()
   const { id } = useParams()
   const { userId } = useAuth()
-  const { data: requests, isLoading } = useClientRequests(userId)
+  const { data: requests, isLoading, isError, error, refetch } = useClientRequests(userId)
   const { data: messages } = useRequestMessages(id)
   const addMessage = useAddRequestMessage()
   const [body, setBody] = useState('')
 
   const request = requests?.find((r) => r.id === id)
 
-  if (isLoading) return <LoadingState />
+  // Distinguish "could not load" from "this request does not exist".
+  if (isLoading || isError) {
+    return (
+      <div className="p-4">
+        <DataState isLoading={isLoading} isError={isError} error={error} onRetry={() => void refetch()} />
+      </div>
+    )
+  }
   if (!request)
     return (
       <div className="p-4">
