@@ -334,9 +334,9 @@ async function run() {
     p_body: `Network administrator message ${fixtureRunId}`,
   })
   check(
-    'Network administrator can append a message in any organization center',
-    !networkAdminMessage.error,
-    networkAdminMessage.error,
+    'Network administrator has no implicit local messaging authority',
+    networkAdminMessage.error?.code === '42501',
+    networkAdminMessage.data,
   )
   const centerNorthMessage = await centerNorth.rpc('post_service_request_message', {
     p_request_id: centerMessageRequest.id,
@@ -569,20 +569,14 @@ async function run() {
     p_body: `Scoped center access ${fixtureRunId}`,
   })
   check(
-    'Active center-scoped member retains authorized message access',
-    !scopedMessage.error,
-    scopedMessage.error ?? scopedMessage.data,
+    'Legacy front desk does not gain canonical receptionist messaging access',
+    scopedMessage.error?.code === '42501',
+    scopedMessage.data,
   )
-  const scopedRead = scopedMessage.data?.id
-    ? await frontDeskA
-        .from('service_request_messages')
-        .select('id')
-        .eq('id', scopedMessage.data.id)
-    : { data: [], error: new Error('Scoped RPC did not return a message id') }
   check(
-    'Active center-scoped member reads the message they just posted',
-    !scopedRead.error && scopedRead.data.length === 1,
-    scopedRead.error ?? scopedRead.data,
+    'Denied legacy messaging creates no message row',
+    scopedMessage.data == null,
+    scopedMessage.data,
   )
 
   console.log('\nNetwork authorization')
@@ -1269,6 +1263,18 @@ async function run() {
   const spoofedPath = `${IDS.garageB}/${recommendationRequest.id}/${randomUUID()}-spoof.txt`
   const crossTenantUpload = await ownerA.storage.from(bucket).upload(spoofedPath, Buffer.from('spoof'), { contentType: 'text/plain' })
   check('Professional cannot forge another garage id in Storage path', Boolean(crossTenantUpload.error), crossTenantUpload.data)
+  const networkAttachmentPath = `${IDS.garageB}/${recommendationRequest.id}/${randomUUID()}-network.txt`
+  const networkAttachmentUpload = await networkManager.storage
+    .from(bucket)
+    .upload(networkAttachmentPath, Buffer.from('denied'), { contentType: 'text/plain' })
+  check(
+    'Network admin cannot upload a local service attachment',
+    Boolean(networkAttachmentUpload.error),
+    networkAttachmentUpload.data,
+  )
+  if (!networkAttachmentUpload.error) {
+    cleanup.storagePaths.push({ client: ownerB, bucket, paths: [networkAttachmentPath] })
+  }
   const wrongRequestPath = `${IDS.garageB}/${randomUUID()}/${randomUUID()}-missing.txt`
   const wrongPathUpload = await ownerB.storage.from(bucket).upload(wrongRequestPath, Buffer.from('bad path'), { contentType: 'text/plain' })
   check('Upload to a nonexistent request path is denied', Boolean(wrongPathUpload.error), wrongPathUpload.data)
@@ -1364,6 +1370,16 @@ async function run() {
     upsert: true,
   })
   check('Network owner can upload only in their organization path', !ownerBLogo.error, ownerBLogo.error)
+
+  const networkAdminLogo = await networkManager.storage.from(logoBucket).upload(logoBPath, onePixelPng, {
+    contentType: 'image/webp',
+    upsert: true,
+  })
+  check(
+    'Network admin cannot overwrite an organization logo',
+    Boolean(networkAdminLogo.error),
+    networkAdminLogo.data,
+  )
 
   const technicianLogo = await technicianB.storage.from(logoBucket).upload(logoBPath, onePixelPng, {
     contentType: 'image/webp',
