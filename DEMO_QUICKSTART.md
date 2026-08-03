@@ -30,7 +30,7 @@ Le bandeau jaune en haut propose **« Réinitialiser les données »** (repartir
 1. **Client** : Démo client → **Réserver** une prestation → choisir un créneau → véhicule + coordonnées → **Envoyer la demande** → écran de confirmation (référence `GF-…`).
 2. **Garage** : Démo garage → **Réservations** → ouvrir la demande → **Confirmer le RDV**.
 3. **Devis** : depuis la demande → **Créer un devis** → ajuster les lignes → renseigner **« Valable jusqu'au »** → **Enregistrer & envoyer** (le lien client est copié).
-4. **Client** : ouvrir le **lien du devis** (`/#/devis/<token>`) → **Télécharger le PDF** → **Accepter** (ou **Refuser** avec motif).
+4. **Client** : ouvrir le **lien du devis** (`/quote/:token`) → **Télécharger le PDF** → **Accepter** (ou **Refuser** avec motif).
 5. **Garage** : page **Devis** → le devis est **Accepté** → tester **Créer une révision**.
 
 Le jeu de démo contient déjà des devis dans tous les statuts : **brouillon, envoyé, accepté, refusé, expiré** et une **révision**.
@@ -52,11 +52,13 @@ npm run test:rls    # isolation + cycle de vie devis (nécessite .env Supabase)
   localStorage.removeItem('gf-demo-store-v4'); location.reload()
   ```
 
-## Comptes (mode réel, si `.env` configuré)
-| Rôle | Email | Mot de passe |
-|---|---|---|
-| Gérant | `owner@demo-garage.fr` | `Demo1234!` |
-| Client | `client@demo.fr` | `Demo1234!` |
+## Accès temporaires (mode connecté autorisé)
+
+- Email : `<DEMO_EMAIL_TEMPORAIRE>`
+- Mot de passe : `<DEMO_PASSWORD_TEMPORAIRE>`
+- Créer ces accès hors Git pour une durée courte et un environnement explicitement identifié.
+- Désactiver ou renouveler les accès immédiatement après la démonstration.
+- Ne jamais réutiliser les mêmes identifiants entre Staging et Production.
 
 ## Aller plus loin
 - Script commercial : `SALES_DEMO_SCRIPT.md`

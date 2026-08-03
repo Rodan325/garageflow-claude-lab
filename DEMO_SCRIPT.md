@@ -5,7 +5,8 @@
 ## Préparation
 - `npm run dev` → `http://127.0.0.1:4174`.
 - Deux fenêtres : une large (garage), une étroite/mobile (client).
-- Aucun Supabase requis pour la démo : utiliser le **mode démo local** (boutons sur `/login`). Sinon comptes réels (`owner@demo-garage.fr` / `client@demo.fr`, mot de passe `Demo1234!`).
+- Aucun Supabase requis pour la démo : utiliser le **mode démo local** depuis `/login`.
+- Pour un test connecté autorisé, utiliser `<DEMO_EMAIL_TEMPORAIRE>` et `<DEMO_PASSWORD_TEMPORAIRE>`, générés hors Git pour une seule démonstration sur l'environnement prévu.
 
 ## 1. Landing (30 s)
 - Page d'accueil sobre : titre « Recevez vos demandes de rendez-vous en ligne… ».
@@ -33,14 +34,14 @@
 5. *(Atelier avancé)* Montrer **Prestations** (créer « Vidange 5W30 » : durée, prix, TVA, lignes par défaut, visible client) et **Atelier** (kanban).
 
 ## 4. Côté client — devis + suivi (60 s) *(étroit)*
-- Ouvrir le **lien du devis** (`/devis/:token`) : document propre — garage, logo, n°, dates, véhicule, lignes, **HT/TVA/TTC**, conditions. **Télécharger le PDF**.
+- Ouvrir le **lien du devis** (`/quote/:token`) : document propre — garage, logo, n°, dates, véhicule, lignes, **HT/TVA/TTC**, conditions. **Télécharger le PDF**.
 - **Accepter** (confirmation claire ; le garage peut planifier l'intervention) **ou Refuser** avec un motif optionnel.
 - Côté garage, le devis apparaît **Accepté** / **Refusé** (avec le motif) ; il n'est plus modifiable — bouton **Réviser** pour repartir d'un brouillon.
 - Onglet **Demandes** : la réservation est passée **Confirmée**. Ouvrir le détail, échanger un message.
 
 ## 5. Robustesse & sécurité (45 s)
 - **Mode Essentiel / Atelier avancé** : simple par défaut, complet sur demande.
-- Argument sécurité : isolation par garage (RLS), `npm run test:rls` = **42/42** ; aucune clé `service_role` côté navigateur ; un client ne modifie que le statut de sa demande ; **devis consultable seulement via un lien tokenisé non devinable**, accepter/refuser réservés au client (un garage ne peut pas accepter à sa place) ; pas de doublon client/véhicule ; devis numérotés sans collision et totaux recalculés côté serveur.
+- Argument sécurité : isolation par garage (RLS), `test:rls` = **42/42** ; aucune clé `service_role` côté navigateur ; un client ne modifie que le statut de sa demande ; **devis consultable seulement via un lien tokenisé non devinable**, accepter/refuser réservés au client (un garage ne peut pas accepter à sa place) ; pas de doublon client/véhicule ; devis numérotés sans collision et totaux recalculés côté serveur.
 
 ## Réinitialiser
 - Mode démo : bouton **« Réinitialiser les données »** dans le bandeau démo (réinjecte le seed sans quitter). Sinon **« Quitter la démo »**, ou en console : `localStorage.removeItem('gf-demo-store-v4')`.
