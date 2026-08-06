@@ -127,24 +127,44 @@ where appointment.service_request_id = request.id
   and appointment.garage_id = request.garage_id
   and appointment.center_id is null;
 
--- Historical presentation accounts keep Demo1234! for compatibility. Every
--- other local validation account uses LocalDemo1234!.
-with fixture_users(id, email, full_name, account_type, password) as (
+-- Local fixture accounts. Passwords are NEVER stored in this repository.
+--
+-- Default, and the recommended path: each fixture gets its own random password
+-- nobody knows. `supabase db reset` seeds that way — it connects with its own
+-- driver and inherits no environment, so a reset never leaves a usable login
+-- behind. That is deliberate: this file must not hand out an account if it is
+-- ever run against something other than a local database.
+--
+-- To sign in as a fixture locally, run the seed yourself and pass the password
+-- through the environment. PGOPTIONS applies the parameter when the connection
+-- opens, so it is already live when -f runs — one connection, and the value
+-- never reaches argv:
+--   read -rs -p 'fixture password: ' pw; echo
+--   PGOPTIONS="-c seed.fixture_password=$pw" \
+--     psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql
+--   unset pw
+-- `read -rs` echoes nothing and leaves no shell history entry. Pick a value
+-- without spaces or backslashes: PGOPTIONS treats those as separators.
+--
+-- Do not pass it as -c "set seed.fixture_password = '...'": that lands in argv,
+-- visible to `ps`. psql does not interpolate :'var' inside -c either, so that
+-- form fails outright.
+with fixture_users(id, email, full_name, account_type) as (
   values
-    ('a0000000-0000-4000-8000-000000000001'::uuid, 'owner@demo-garage.fr', 'Sophie Martin', 'staff', 'Demo1234!'),
-    ('a0000000-0000-4000-8000-000000000002'::uuid, 'mecano@demo-garage.fr', 'Karim Benali', 'staff', 'Demo1234!'),
-    ('c0000000-0000-4000-8000-000000000001'::uuid, 'client@demo.fr', 'Julie Durand', 'client', 'Demo1234!'),
-    ('a0000000-0000-4000-8000-000000000003'::uuid, 'frontdesk.independent@example.test', 'Alex Frontdesk Example', 'staff', 'LocalDemo1234!'),
-    ('c0000000-0000-4000-8000-000000000002'::uuid, 'client.independent.two@example.test', 'Camille Client Example', 'client', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000001'::uuid, 'owner.network@example.test', 'Nora Network Owner Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000002'::uuid, 'manager.network@example.test', 'Malik Network Manager Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000003'::uuid, 'manager.north@example.test', 'Sam North Manager Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000004'::uuid, 'manager.center@example.test', 'Lee Center Manager Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000005'::uuid, 'manager.south@example.test', 'Ari South Manager Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000006'::uuid, 'frontdesk.network@example.test', 'Robin Frontdesk Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000007'::uuid, 'technician.network@example.test', 'Taylor Technician Example', 'staff', 'LocalDemo1234!'),
-    ('c2000000-0000-4000-8000-000000000001'::uuid, 'client.network.one@example.test', 'Morgan Client Example', 'client', 'LocalDemo1234!'),
-    ('c2000000-0000-4000-8000-000000000002'::uuid, 'client.network.two@example.test', 'Jordan Client Example', 'client', 'LocalDemo1234!')
+    ('a0000000-0000-4000-8000-000000000001'::uuid, 'owner@demo-garage.fr', 'Sophie Martin', 'staff'),
+    ('a0000000-0000-4000-8000-000000000002'::uuid, 'mecano@demo-garage.fr', 'Karim Benali', 'staff'),
+    ('c0000000-0000-4000-8000-000000000001'::uuid, 'client@demo.fr', 'Julie Durand', 'client'),
+    ('a0000000-0000-4000-8000-000000000003'::uuid, 'frontdesk.independent@example.test', 'Alex Frontdesk Example', 'staff'),
+    ('c0000000-0000-4000-8000-000000000002'::uuid, 'client.independent.two@example.test', 'Camille Client Example', 'client'),
+    ('b0000000-0000-4000-8000-000000000001'::uuid, 'owner.network@example.test', 'Nora Network Owner Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000002'::uuid, 'manager.network@example.test', 'Malik Network Manager Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000003'::uuid, 'manager.north@example.test', 'Sam North Manager Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000004'::uuid, 'manager.center@example.test', 'Lee Center Manager Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000005'::uuid, 'manager.south@example.test', 'Ari South Manager Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000006'::uuid, 'frontdesk.network@example.test', 'Robin Frontdesk Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000007'::uuid, 'technician.network@example.test', 'Taylor Technician Example', 'staff'),
+    ('c2000000-0000-4000-8000-000000000001'::uuid, 'client.network.one@example.test', 'Morgan Client Example', 'client'),
+    ('c2000000-0000-4000-8000-000000000002'::uuid, 'client.network.two@example.test', 'Jordan Client Example', 'client')
 )
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -153,7 +173,11 @@ insert into auth.users (
 )
 select
   '00000000-0000-0000-0000-000000000000', id, 'authenticated', 'authenticated', email,
-  extensions.crypt(password, extensions.gen_salt('bf')), now(),
+  extensions.crypt(
+    coalesce(
+      nullif(current_setting('seed.fixture_password', true), ''),
+      pg_catalog.encode(extensions.gen_random_bytes(24), 'base64')),
+    extensions.gen_salt('bf')), now(),
   jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
   jsonb_build_object('full_name', full_name, 'account_type', account_type),
   now(), now(), '', '', '', ''

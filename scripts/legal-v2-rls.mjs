@@ -42,13 +42,26 @@ const TERMS_PRO_HASH = 'bfb31cbfcb840155475d8ae6ad236893730de4558d1a3564143b4097
 const TERMS_PRO_EN_HASH = 'b1e9e013d85d1c6d38f15b3bc8aae3e1953a472040b130fa6dac41dbff3c561c'
 const TERMS_PRO_AR_HASH = 'a98b4bd3d0a8a5f46c4744efe3417dcf6e8634a99d519e36652c975e8c77406a'
 const DPA_HASH = '484d5bba3263046198fb04b4326b1b683a66c386d21dc26f1ce937dc17878120'
-const PASSWORD = 'LocalDemo1234!'
+const PASSWORD = process.env.SEED_FIXTURE_PASSWORD
+if (!PASSWORD) {
+  console.error(
+    'RLS SAFETY GUARD: SEED_FIXTURE_PASSWORD is not set.\n' +
+      'Fixtures no longer ship a password: by default each one gets a random value\n' +
+      'nobody knows. Seed them with a password of your choice, then export the same\n' +
+      'value before running the checks:\n' +
+      "  read -rs -p 'fixture password: ' pw; echo\n" +
+      '  export SEED_FIXTURE_PASSWORD="$pw"; unset pw\n' +
+      '  PGOPTIONS="-c seed.fixture_password=$SEED_FIXTURE_PASSWORD" \\\n' +
+      '    psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql',
+  )
+  process.exit(2)
+}
 const ACCOUNTS = {
-  ownerA: ['owner@demo-garage.fr', 'Demo1234!'],
+  ownerA: ['owner@demo-garage.fr', PASSWORD],
   memberA: ['frontdesk.independent@example.test', PASSWORD],
   ownerB: ['owner.network@example.test', PASSWORD],
   centerManagerB: ['manager.north@example.test', PASSWORD],
-  clientA: ['client@demo.fr', 'Demo1234!'],
+  clientA: ['client@demo.fr', PASSWORD],
 }
 
 let passed = 0

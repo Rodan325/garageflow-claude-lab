@@ -47,11 +47,24 @@ const IDS = {
   requestBClosed: 'f2222222-0000-4000-8000-000000000007',
 }
 
-const PASSWORD = 'LocalDemo1234!'
+const PASSWORD = process.env.SEED_FIXTURE_PASSWORD
+if (!PASSWORD) {
+  console.error(
+    'RLS SAFETY GUARD: SEED_FIXTURE_PASSWORD is not set.\n' +
+      'Fixtures no longer ship a password: by default each one gets a random value\n' +
+      'nobody knows. Seed them with a password of your choice, then export the same\n' +
+      'value before running the checks:\n' +
+      "  read -rs -p 'fixture password: ' pw; echo\n" +
+      '  export SEED_FIXTURE_PASSWORD="$pw"; unset pw\n' +
+      '  PGOPTIONS="-c seed.fixture_password=$SEED_FIXTURE_PASSWORD" \\\n' +
+      '    psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql',
+  )
+  process.exit(2)
+}
 const ACCOUNTS = {
-  ownerA: ['owner@demo-garage.fr', 'Demo1234!'],
+  ownerA: ['owner@demo-garage.fr', PASSWORD],
   frontDeskA: ['frontdesk.independent@example.test', PASSWORD],
-  clientA1: ['client@demo.fr', 'Demo1234!'],
+  clientA1: ['client@demo.fr', PASSWORD],
   clientA2: ['client.independent.two@example.test', PASSWORD],
   ownerB: ['owner.network@example.test', PASSWORD],
   networkManager: ['manager.network@example.test', PASSWORD],
