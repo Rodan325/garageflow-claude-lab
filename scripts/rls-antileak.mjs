@@ -52,12 +52,17 @@ if (!PASSWORD) {
   console.error(
     'RLS SAFETY GUARD: SEED_FIXTURE_PASSWORD is not set.\n' +
       'Fixtures no longer ship a password: by default each one gets a random value\n' +
-      'nobody knows. Seed them with a password of your choice, then export the same\n' +
-      'value before running the checks:\n' +
-      "  read -rs -p 'fixture password: ' pw; echo\n" +
-      '  export SEED_FIXTURE_PASSWORD="$pw"; unset pw\n' +
-      '  PGOPTIONS="-c seed.fixture_password=$SEED_FIXTURE_PASSWORD" \\\n' +
-      '    psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql',
+      'nobody knows. Seed them with a password of your choice, then pass that same\n' +
+      'value to this run, per command and never exported. Bash — Git Bash or WSL\n' +
+      'on Windows — and local development databases only:\n' +
+      "  read -rs -p 'Fixture password: ' fixture_pw\n" +
+      "  printf '\\n'\n" +
+      '  PGOPTIONS="-c seed.fixture_password=$fixture_pw" \\\n' +
+      '    psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql\n' +
+      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls\n' +
+      '  unset fixture_pw\n' +
+      'The value stays out of your shell history and out of argv, but it is\n' +
+      "readable in each child process's environment while that process runs.",
   )
   process.exit(2)
 }

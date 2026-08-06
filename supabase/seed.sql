@@ -135,20 +135,47 @@ where appointment.service_request_id = request.id
 -- behind. That is deliberate: this file must not hand out an account if it is
 -- ever run against something other than a local database.
 --
--- To sign in as a fixture locally, run the seed yourself and pass the password
--- through the environment. PGOPTIONS applies the parameter when the connection
--- opens, so it is already live when -f runs — one connection, and the value
--- never reaches argv:
---   read -rs -p 'fixture password: ' pw; echo
---   PGOPTIONS="-c seed.fixture_password=$pw" \
---     psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql
---   unset pw
--- `read -rs` echoes nothing and leaves no shell history entry. Pick a value
--- without spaces or backslashes: PGOPTIONS treats those as separators.
+-- LOCAL DEVELOPMENT DATABASES ONLY. The commands below are bash — on Windows,
+-- Git Bash or WSL.
 --
--- Do not pass it as -c "set seed.fixture_password = '...'": that lands in argv,
--- visible to `ps`. psql does not interpolate :'var' inside -c either, so that
--- form fails outright.
+-- To sign in as a fixture locally, hold the value in one shell variable and
+-- pass it per command. Never export it. Wrapping it in a function makes the
+-- variable disappear on every exit path, including a failure or a Ctrl-C:
+--
+--   seed_local_fixtures() {
+--     local fixture_pw
+--     read -rs -p 'Fixture password: ' fixture_pw
+--     printf '\n'
+--     PGOPTIONS="-c seed.fixture_password=$fixture_pw" \
+--       psql "$SUPABASE_LOCAL_DB_URL" \
+--         -v ON_ERROR_STOP=1 \
+--         -f supabase/seed.sql || return 1
+--     SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls
+--   }
+--
+-- Inline equivalent — then the final unset is yours to remember, and you must
+-- still run it if a step fails:
+--   read -rs -p 'Fixture password: ' fixture_pw
+--   printf '\n'
+--   PGOPTIONS="-c seed.fixture_password=$fixture_pw" \
+--     psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql
+--   SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls
+--   unset fixture_pw
+--
+-- What this protects, and what it does not. `read -rs` echoes nothing and adds
+-- no shell history entry, and a per-command assignment keeps the value out of
+-- argv, so it is not in the command line `ps` shows by default.
+-- It is not invisible, though: while psql or node runs, the value sits in that
+-- process's environment, readable by the same user, by root, and by a debugger
+-- or an inspection tool. That is acceptable for a throwaway local password and
+-- for nothing else.
+--
+-- PGOPTIONS parsing, measured on PostgreSQL 17: a space breaks startup, and a
+-- backslash is dropped silently — 'a\b' arrives as 'ab', with no error. Letters,
+-- digits, '-', '_', '.', '!', '@', '#' and '%' pass through unchanged.
+--
+-- Do not hand it to psql -c as a SET statement: that lands in argv. psql does
+-- not interpolate :'var' inside -c either, so that form fails anyway.
 with fixture_users(id, email, full_name, account_type) as (
   values
     ('a0000000-0000-4000-8000-000000000001'::uuid, 'owner@demo-garage.fr', 'Sophie Martin', 'staff'),

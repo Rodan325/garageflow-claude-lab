@@ -16,16 +16,28 @@
 -- seed's demo client, so on an empty database that one foreign key fails.
 --
 -- The password is NEVER stored in this repository. By default the account gets
--- a random password nobody knows. To sign in as it locally, pass the value
--- through the environment — PGOPTIONS applies the parameter when the connection
--- opens, so it is live for -f, and it never reaches argv:
---   read -rs -p 'fixture password: ' pw; echo
---   PGOPTIONS="-c seed.fixture_password=$pw" \
---     psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/rls-fixtures.sql
---   unset pw
--- Pick a value without spaces or backslashes: PGOPTIONS treats those as
--- separators. Do not use -c "set ... = '...'": that lands in argv, and psql
--- does not interpolate :'var' inside -c anyway.
+-- a random password nobody knows — keep that unless you actually need to sign
+-- in. To do so, hold the value in one shell variable and pass it per command,
+-- never exported. Bash, so Git Bash or WSL on Windows:
+--
+--   read -rs -p 'Fixture password: ' fixture_pw
+--   printf '\n'
+--   PGOPTIONS="-c seed.fixture_password=$fixture_pw" \
+--     psql "$SUPABASE_LOCAL_DB_URL" \
+--       -v ON_ERROR_STOP=1 \
+--       -f scripts/rls-fixtures.sql
+--   SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls
+--   unset fixture_pw
+--
+-- Wrap those lines in a function with `local fixture_pw` and the variable is
+-- dropped on every exit path, a failure or a Ctrl-C included. See the same note
+-- in supabase/seed.sql for the residual exposure: the value is absent from your
+-- shell history and from argv, but it is readable in the child process's
+-- environment while it runs. Local development databases only.
+--
+-- PGOPTIONS parsing, measured on PostgreSQL 17: a space breaks startup and a
+-- backslash is dropped silently. Do not use -c "set ... = '...'": that lands in
+-- argv, and psql does not interpolate :'var' inside -c anyway.
 set search_path = public, extensions, auth;
 
 insert into public.garages (id, slug, name, city, is_public)
