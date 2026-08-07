@@ -1,6 +1,13 @@
 -- Test-only fixtures for the RLS anti-leak check (NOT part of the product seed).
 -- A SECOND, private garage with its own owner + customer, used to prove that
--- garage A can never read garage B's rows. Safe to re-run.
+-- garage A can never read garage B's rows.
+--
+-- NOT A ROTATION MECHANISM. Every insert is `on conflict do nothing`: missing
+-- rows are created, existing ones are left untouched. An `auth.users` row that
+-- already exists keeps the hash it already had, whatever password you supply —
+-- silently, with no error. To get fresh credentials on a local database that
+-- was seeded earlier, recreate it with `supabase db reset --local`. Never point
+-- a reset, or this file, at a hosted project.
 --
 -- Every id here lives in a 3333… namespace of its own. It used to reuse the
 -- 2222… ids that supabase/seed.sql gives to the Atlas Demo Network, so the two
@@ -17,28 +24,37 @@
 --
 -- The password is NEVER stored in this repository. By default the account gets
 -- a random password nobody knows — keep that unless you actually need to sign
--- in. To do so, hold the value in one shell variable and pass it per command,
--- never exported. Bash, so Git Bash or WSL on Windows:
+-- in. To do so, run scripts/seed-local.sql, which applies the seed and this
+-- file over one connection with the value taken from the environment:
 --
 --   read -rs -p 'Fixture password: ' fixture_pw
 --   printf '\n'
---   PGOPTIONS="-c seed.fixture_password=$fixture_pw" \
---     psql "$SUPABASE_LOCAL_DB_URL" \
---       -v ON_ERROR_STOP=1 \
---       -f scripts/rls-fixtures.sql
---   SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls
+--   SEED_FIXTURE_PASSWORD="$fixture_pw" \
+--     psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/seed-local.sql
 --   unset fixture_pw
 --
--- Wrap those lines in a function with `local fixture_pw` and the variable is
--- dropped on every exit path, a failure or a Ctrl-C included. See the same note
--- in supabase/seed.sql for the residual exposure: the value is absent from your
--- shell history and from argv, but it is readable in the child process's
+-- Do not use PGOPTIONS: it is parsed as a list of server options, so a value
+-- containing a space becomes extra options and a backslash is swallowed. See
+-- scripts/seed-local.sql and supabase/seed.sql for the measurements and for the
+-- residual exposure — absent from shell history and argv, present in psql's
 -- environment while it runs. Local development databases only.
---
--- PGOPTIONS parsing, measured on PostgreSQL 17: a space breaks startup and a
--- backslash is dropped silently. Do not use -c "set ... = '...'": that lands in
--- argv, and psql does not interpolate :'var' inside -c anyway.
 set search_path = public, extensions, auth;
+
+-- Warn — never rotate — when the Test B account is already present.
+do $fixture_guard$
+declare
+  v_existing integer;
+begin
+  select count(*)
+  into v_existing
+  from auth.users
+  where id = 'b3333333-0000-4000-8000-000000000001'::uuid;
+
+  if v_existing > 0 then
+    raise warning 'rls-fixtures.sql: the Test B account already exists. Its password is NOT replaced by this run. Recreate the local database with "supabase db reset --local" if you need fresh credentials.';
+  end if;
+end
+$fixture_guard$;
 
 insert into public.garages (id, slug, name, city, is_public)
 values ('33333333-3333-4333-8333-333333333333', 'garage-test-b', 'Garage Test B', 'Paris', false)

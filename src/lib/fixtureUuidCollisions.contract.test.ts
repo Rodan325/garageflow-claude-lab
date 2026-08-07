@@ -50,11 +50,28 @@ describe('fixture uuid namespaces', () => {
     }
   })
 
-  it('keeps the Test B set inside its own 3333 namespace', () => {
-    const own = [...fixtureIds].filter((id) => !SHARED_ON_PURPOSE.has(id))
-    expect(own.length).toBeGreaterThan(0)
-    for (const id of own) {
-      expect(id).toMatch(/^[0-9a-f]?3{7}-/)
+  /** The Test B set, pinned exactly rather than by a permissive pattern. */
+  const TEST_B_IDS = {
+    garage: '33333333-3333-4333-8333-333333333333',
+    owner: 'b3333333-0000-4000-8000-000000000001',
+    customer: 'd3333333-0000-4000-8000-000000000001',
+    vehicle: 'e3333333-0000-4000-8000-000000000001',
+    request: 'f3333333-0000-4000-8000-000000000001',
+  } as const
+
+  it('uses exactly the five expected Test B ids and nothing else of its own', () => {
+    const own = [...fixtureIds].filter((id) => !SHARED_ON_PURPOSE.has(id)).sort()
+    expect(own).toEqual(Object.values(TEST_B_IDS).sort())
+  })
+
+  it('gives each Test B entity an id of its own, unknown to the seed', () => {
+    const ids = Object.values(TEST_B_IDS) as string[]
+    // No two Test B entities share an id…
+    expect(new Set(ids).size).toBe(ids.length)
+    // …and none of them is a name the seed also uses for something else.
+    for (const [role, id] of Object.entries(TEST_B_IDS)) {
+      expect(seed.includes(id), `${role} id must not appear in supabase/seed.sql`).toBe(false)
+      expect(fixtures.includes(id), `${role} id must appear in the fixtures`).toBe(true)
     }
   })
 

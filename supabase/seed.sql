@@ -1,5 +1,6 @@
 -- Local validation fixtures only. Every identity and business record is fictitious.
--- Safe to re-run after a local reset; never use this file against production.
+-- Re-runnable for rows that are missing, but it rotates nothing: see the note
+-- above the fixture accounts. Never use this file against a hosted project.
 set search_path = public, extensions, auth;
 
 -- One independent organization and one generic multi-center organization.
@@ -129,53 +130,72 @@ where appointment.service_request_id = request.id
 
 -- Local fixture accounts. Passwords are NEVER stored in this repository.
 --
--- Default, and the recommended path: each fixture gets its own random password
--- nobody knows. `supabase db reset` seeds that way — it connects with its own
--- driver and inherits no environment, so a reset never leaves a usable login
--- behind. That is deliberate: this file must not hand out an account if it is
--- ever run against something other than a local database.
+-- THIS FILE IS NOT A ROTATION MECHANISM. Every insert is `on conflict do
+-- nothing`, so it fills in rows that are missing and leaves existing ones
+-- exactly as they are. An `auth.users` row that already exists keeps the hash
+-- it already had, whatever password you supply here — silently, and with no
+-- error. Re-running this file therefore never neutralises a credential.
 --
--- LOCAL DEVELOPMENT DATABASES ONLY. The commands below are bash — on Windows,
--- Git Bash or WSL.
+-- If a local database was seeded before this file changed, the only way to get
+-- new credentials is to recreate it:
+--     supabase db reset --local
+-- That drops and rebuilds the local database, so the fixtures are created fresh.
+-- Never point a reset, or this file, at a hosted project.
 --
--- To sign in as a fixture locally, hold the value in one shell variable and
--- pass it per command. Never export it. Wrapping it in a function makes the
--- variable disappear on every exit path, including a failure or a Ctrl-C:
+-- Default, and the recommended path: with no password supplied, each fixture
+-- gets its own random password nobody knows. `supabase db reset` seeds that
+-- way — it connects with its own driver and inherits no environment — so a
+-- reset of a local database leaves no usable login behind.
 --
---   seed_local_fixtures() {
---     local fixture_pw
---     read -rs -p 'Fixture password: ' fixture_pw
---     printf '\n'
---     PGOPTIONS="-c seed.fixture_password=$fixture_pw" \
---       psql "$SUPABASE_LOCAL_DB_URL" \
---         -v ON_ERROR_STOP=1 \
---         -f supabase/seed.sql || return 1
---     SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls
---   }
---
--- Inline equivalent — then the final unset is yours to remember, and you must
--- still run it if a step fails:
+-- To sign in as a fixture locally, use the wrapper, which loads the value from
+-- the environment and runs this file plus scripts/rls-fixtures.sql over one
+-- connection. LOCAL DEVELOPMENT DATABASES ONLY; bash, so Git Bash or WSL on
+-- Windows:
 --   read -rs -p 'Fixture password: ' fixture_pw
 --   printf '\n'
---   PGOPTIONS="-c seed.fixture_password=$fixture_pw" \
---     psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql
---   SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls
+--   SEED_FIXTURE_PASSWORD="$fixture_pw" \
+--     psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/seed-local.sql
 --   unset fixture_pw
+--
+-- Do not use PGOPTIONS for this. It is parsed as a list of server options, so a
+-- value containing a space becomes extra options — a password of
+-- `x -c statement_timeout=999` really did set that timeout — and a backslash is
+-- swallowed, producing a different password with no error. The wrapper uses
+-- psql's `\getenv` and `:'…'` literal quoting instead; spaces, backslashes,
+-- quotes, newlines and a leading `-c` were all measured arriving byte-identical
+-- with no option injected.
 --
 -- What this protects, and what it does not. `read -rs` echoes nothing and adds
 -- no shell history entry, and a per-command assignment keeps the value out of
--- argv, so it is not in the command line `ps` shows by default.
--- It is not invisible, though: while psql or node runs, the value sits in that
--- process's environment, readable by the same user, by root, and by a debugger
--- or an inspection tool. That is acceptable for a throwaway local password and
--- for nothing else.
---
--- PGOPTIONS parsing, measured on PostgreSQL 17: a space breaks startup, and a
--- backslash is dropped silently — 'a\b' arrives as 'ab', with no error. Letters,
--- digits, '-', '_', '.', '!', '@', '#' and '%' pass through unchanged.
---
--- Do not hand it to psql -c as a SET statement: that lands in argv. psql does
--- not interpolate :'var' inside -c either, so that form fails anyway.
+-- argv, so it is not in the command line `ps` shows by default. Wrapping the
+-- block in a shell function with `local` scopes the variable to that function
+-- and drops it when the function returns, including on an error return; what
+-- happens on a signal depends on your shell, so treat `unset` as the reliable
+-- step rather than an absolute guarantee.
+-- It is not invisible either: while psql runs, the value sits in that process's
+-- environment, and it travels inside a SQL statement. Under this project's
+-- local default (`log_statement = ddl`) that statement is not written to the
+-- server log; raising `log_statement` to `all` would capture it — measured.
+-- Acceptable for a throwaway local password and for nothing else.
+
+-- Warn — never rotate — when fixture accounts are already present.
+do $fixture_guard$
+declare
+  v_existing integer;
+begin
+  select count(*)
+  into v_existing
+  from auth.users
+  where id::text like 'a0000000-%'
+     or id::text like 'b0000000-%'
+     or id::text like 'c0000000-%'
+     or id::text like 'c2000000-%';
+
+  if v_existing > 0 then
+    raise warning 'seed.sql: % fixture account(s) already exist. Their passwords are NOT replaced by this run. Recreate the local database with "supabase db reset --local" if you need fresh credentials.', v_existing;
+  end if;
+end
+$fixture_guard$;
 with fixture_users(id, email, full_name, account_type) as (
   values
     ('a0000000-0000-4000-8000-000000000001'::uuid, 'owner@demo-garage.fr', 'Sophie Martin', 'staff'),

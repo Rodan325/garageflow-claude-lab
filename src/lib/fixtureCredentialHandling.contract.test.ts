@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+// @ts-expect-error -- plain ESM helper shared with scripts/security-scan.mjs
+import { findCredentialIssues, looksBinary, trackedTextFiles } from '../../scripts/credential-patterns.mjs'
 
 /**
  * The fixture password must never come back into the repository, and the
@@ -8,64 +10,108 @@ import { describe, expect, it } from 'vitest'
  * would leave the value in the parent shell and hand it to every later process,
  * and nothing that puts it in a command line.
  *
- * These files are the ones that talk about the password.
+ * The sweep below walks every tracked file rather than a list someone has to
+ * remember to extend — a credential added to a brand-new file is exactly the
+ * regression this is here to stop.
  */
-const SOURCES = [
+
+const TRACKED: string[] = trackedTextFiles()
+
+function textOf(rel: string): string | null {
+  let raw: Buffer
+  try {
+    raw = readFileSync(resolve(rel))
+  } catch {
+    return null
+  }
+  if (looksBinary(raw)) return null
+  return raw.toString('utf8')
+}
+
+/** Files that document the local password workflow. */
+const WORKFLOW_FILES = [
   'supabase/seed.sql',
   'scripts/rls-fixtures.sql',
+  'scripts/seed-local.sql',
   'scripts/rls-antileak.mjs',
   'scripts/legal-v2-rls.mjs',
-].map((path) => [path, readFileSync(resolve(path), 'utf8')] as const)
+] as const
 
-describe('fixture credential handling', () => {
-  it.each(SOURCES)('%s never exports the password into the shell', (_path, sql) => {
-    expect(sql).not.toMatch(/\bexport\s+SEED_FIXTURE_PASSWORD\b/)
+describe('no credential anywhere in the tracked tree', () => {
+  it('sweeps a realistic number of files', () => {
+    expect(TRACKED.length).toBeGreaterThan(100)
+    expect(TRACKED).toContain('supabase/seed.sql')
   })
 
-  it.each(SOURCES)('%s never hands a literal to crypt()', (_path, sql) => {
-    expect(sql).not.toMatch(/crypt\(\s*['"]/i)
+  it('finds no hardcoded credential in any tracked file', () => {
+    const findings: Array<{ rel: string; line: number; name: string }> = []
+    for (const rel of TRACKED) {
+      const text = textOf(rel)
+      if (text === null) continue
+      findings.push(...findCredentialIssues(rel, text))
+    }
+    // Locations only — the values are never surfaced.
+    expect(findings.map((f) => `${f.rel}:${f.line} — ${f.name}`)).toEqual([])
   })
 
-  it.each(SOURCES)('%s declares no literal PASSWORD constant', (_path, sql) => {
-    // `const PASSWORD = process.env.…` is the supported form.
-    expect(sql).not.toMatch(/\b(?:const|let|var)\s+PASSWORD\s*=\s*['"]/i)
-  })
-
-  it.each(SOURCES)('%s never puts the password in a command line', (_path, sql) => {
-    // psql -c "set seed.fixture_password = '…'" lands in argv.
-    expect(sql).not.toMatch(/-c\s+["']?\s*set\s+seed\.fixture_password/i)
-    // Any assignment of the parameter must read a shell variable, never a literal.
-    for (const [assignment] of sql.matchAll(/seed\.fixture_password=(\S*)/g)) {
-      expect(assignment).toMatch(/seed\.fixture_password=\$/)
+  it('never exports the fixture password into the shell', () => {
+    for (const rel of TRACKED) {
+      const text = textOf(rel)
+      if (text === null) continue
+      expect(text, rel).not.toMatch(/\bexport\s+SEED_FIXTURE_PASSWORD\b/)
     }
   })
 
-  it.each(SOURCES)('%s no longer names the retired fixture account', (_path, sql) => {
-    expect(sql).not.toContain('ownerb@demo-garage.fr')
+  it('no longer names the retired fixture account outside its own guard', () => {
+    // Both contract tests assert the address is gone, so they must name it.
+    const guards = new Set([
+      'src/lib/fixtureUuidCollisions.contract.test.ts',
+      'src/lib/fixtureCredentialHandling.contract.test.ts',
+    ])
+    const offenders = TRACKED.filter((rel) => {
+      if (guards.has(rel)) return false
+      const text = textOf(rel)
+      return text !== null && text.includes('ownerb@demo-garage.fr')
+    })
+    expect(offenders).toEqual([])
   })
+})
 
-  it('still allows the supported forms', () => {
-    const [seed, fixtures, antileak, legal] = SOURCES.map(([, sql]) => sql)
-    // Reading the value from the environment inside the harness.
-    expect(antileak).toContain('process.env.SEED_FIXTURE_PASSWORD')
-    expect(legal).toContain('process.env.SEED_FIXTURE_PASSWORD')
-    // A per-command assignment, which does not survive into the parent shell.
-    expect(antileak).toContain('SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls')
-    expect(seed).toContain('SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls')
-    // PGOPTIONS carrying a shell variable, not a literal.
-    for (const sql of [seed, fixtures, antileak, legal]) {
-      expect(sql).toContain('PGOPTIONS="-c seed.fixture_password=$fixture_pw"')
+describe('the documented workflow keeps its shape', () => {
+  const read = (rel: string) => textOf(rel) ?? ''
+
+  it('routes the password through the wrapper, never PGOPTIONS', () => {
+    const wrapper = read('scripts/seed-local.sql')
+    expect(wrapper).toContain('\\getenv fixture_password SEED_FIXTURE_PASSWORD')
+    expect(wrapper).toContain(":'fixture_password'")
+    expect(wrapper).toContain('\\ir ../supabase/seed.sql')
+    expect(wrapper).toContain('\\ir rls-fixtures.sql')
+    for (const rel of WORKFLOW_FILES) {
+      expect(read(rel), rel).not.toMatch(/PGOPTIONS\s*=\s*"/)
     }
-    // And the cleanup the reader is told to run.
-    expect(seed).toContain('unset fixture_pw')
-    expect(fixtures).toContain('unset fixture_pw')
   })
 
-  it('states the residual exposure instead of claiming invisibility', () => {
-    const [seed] = SOURCES.map(([, sql]) => sql)
-    expect(seed).toMatch(/not\s+invisible/i)
-    expect(seed).toMatch(/environment/i)
-    // No absolute claim that ps cannot see it.
-    expect(seed).not.toMatch(/never reaches (argv|`?ps`?) or/i)
+  it('reads the value from the environment in the harness', () => {
+    for (const rel of ['scripts/rls-antileak.mjs', 'scripts/legal-v2-rls.mjs']) {
+      expect(read(rel), rel).toContain('process.env.SEED_FIXTURE_PASSWORD')
+    }
+  })
+
+  it('states that replaying the files rotates nothing', () => {
+    for (const rel of ['supabase/seed.sql', 'scripts/rls-fixtures.sql']) {
+      const text = read(rel)
+      expect(text, rel).toMatch(/NOT A ROTATION MECHANISM|not a rotation mechanism/i)
+      expect(text, rel).toContain('supabase db reset --local')
+      expect(text, rel).not.toContain('Safe to re-run')
+      // …and warns at run time rather than only in a comment.
+      expect(text, rel).toMatch(/raise warning/i)
+    }
+  })
+
+  it('describes the residual exposure without claiming invisibility', () => {
+    const seed = read('supabase/seed.sql')
+    expect(seed).toMatch(/not invisible/i)
+    expect(seed).toMatch(/log_statement/)
+    expect(seed).not.toMatch(/a space breaks startup/i)
   })
 })

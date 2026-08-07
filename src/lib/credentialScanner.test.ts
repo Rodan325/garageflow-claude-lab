@@ -1,0 +1,106 @@
+import { describe, expect, it } from 'vitest'
+// @ts-expect-error -- plain ESM helper shared with scripts/security-scan.mjs
+import { credentialLike, exemptionFor, findCredentialIssues, literalValueOf, looksBinary, trackedTextFiles } from '../../scripts/credential-patterns.mjs'
+
+/**
+ * Unit tests for the detector itself. The contract test checks the repository;
+ * this one checks that the detector would actually notice.
+ */
+
+const scan = (text: string, rel = 'scripts/example.mjs') =>
+  (findCredentialIssues(rel, text) as Array<{ name: string }>).length
+
+describe('credential detector — shapes it must catch', () => {
+  const caught: Array<[string, string]> = [
+    ['literal on a password identifier', "const PASSWORD = 'Fixture1234AAA'"],
+    ['lower-case identifier', "const password = 'Fixture1234AAA'"],
+    ['mixed-case identifier', "const PASSword = 'Fixture1234AAA'"],
+    ['pwd identifier', "let seedPwd = 'Fixture1234AAA'"],
+    ['secret identifier', "const apiSecret = 'Fixture1234AAA'"],
+    ['concatenated literal', "const PASSWORD = 'Fix' + 'ture1234AAA'"],
+    ['literal via an intermediate variable', "const holder = 'Fixture1234AAA'\nconst PASSWORD = holder"],
+    ['concatenation via an intermediate variable', "const holder = 'Fix' + 'ture1234AAA'\nconst PASSWORD = holder"],
+    ['crypt() with a literal', "crypt('Fixture1234AAA', gen_salt('bf'))"],
+    ['crypt() with an interleaved comment', "crypt /* note */ ('Fixture1234AAA', x)"],
+    ['env prefix on a command line', 'env SEED_FIXTURE_PASSWORD=Fixture1234AAA npm run test:rls'],
+    ['bare assignment on a command line', 'SEED_FIXTURE_PASSWORD=Fixture1234AAA npm run test:rls'],
+    ['psql --set', 'psql --set=seed.fixture_password=Fixture1234AAA -f a.sql'],
+    ['psql -v', 'psql -v fixture_password=Fixture1234AAA -f a.sql'],
+    ['psql -c with a SET', `psql -c "set seed.fixture_password = 'Fixture1234AAA'"`],
+    ['comment handing out a password', '-- the reusable password is Fixture1234AAA'],
+  ]
+
+  it.each(caught)('catches %s', (_label, sample) => {
+    expect(scan(sample)).toBeGreaterThan(0)
+  })
+})
+
+describe('credential detector — shapes it must leave alone', () => {
+  const allowed: Array<[string, string]> = [
+    ['reading the environment', 'const PASSWORD = process.env.SEED_FIXTURE_PASSWORD'],
+    ['per-command assignment from a shell variable', 'SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls'],
+    ['PGOPTIONS carrying a shell variable', 'PGOPTIONS="-c seed.fixture_password=$fixture_pw"'],
+    ['a UI label', "password: 'Mot de passe'"],
+    ['a short schema value', "password: 'short'"],
+    ['a value marked fictitious', "const key = 'sb_publishable_fictitious123'"],
+    ['a placeholder', "const PASSWORD = 'placeholder-1234'"],
+    ['unrelated string building', "token: scopedToken('abc' + 'def123')"],
+    ['an assertion about an old address', "expect(sql).not.toContain('ownerb@demo-garage.fr')"],
+  ]
+
+  it.each(allowed)('allows %s', (_label, sample) => {
+    expect(scan(sample)).toBe(0)
+  })
+})
+
+describe('credential detector — helpers', () => {
+  it('recognises a credential-like literal', () => {
+    expect(credentialLike('Fixture1234AAA')).toBe(true)
+    expect(credentialLike('short1')).toBe(false) // too short
+    expect(credentialLike('Mot de passe 1')).toBe(false) // whitespace
+    expect(credentialLike('abcdefghij')).toBe(false) // no digit
+    expect(credentialLike('1234567890')).toBe(false) // no letter
+  })
+
+  it('resolves only pure literal expressions', () => {
+    expect(literalValueOf("'Fix' + 'ture'")).toBe('Fixture')
+    expect(literalValueOf("'plain'")).toBe('plain')
+    expect(literalValueOf('process.env.X')).toBeNull()
+    expect(literalValueOf("fn('a')")).toBeNull()
+  })
+
+  it('treats a NUL byte as binary', () => {
+    expect(looksBinary(Buffer.from([0x41, 0x00, 0x42]))).toBe(true)
+    expect(looksBinary(Buffer.from('plain text'))).toBe(false)
+  })
+})
+
+describe('credential detector — exemptions stay narrow', () => {
+  it('exempts only the documented paths, each with a reason', () => {
+    for (const rel of [
+      'src/i18n/fr.ts',
+      'scripts/credential-patterns.mjs',
+      'src/features/auth/signupSchema.test.ts',
+    ]) {
+      expect(exemptionFor(rel)?.reason?.length ?? 0).toBeGreaterThan(10)
+    }
+  })
+
+  it('does not exempt test files at large', () => {
+    expect(exemptionFor('src/features/pro/somethingElse.test.ts')).toBeUndefined()
+    expect(exemptionFor('scripts/rls-antileak.mjs')).toBeUndefined()
+    expect(scan("const PASSWORD = 'Fixture1234AAA'", 'src/features/pro/anything.test.ts')).toBeGreaterThan(0)
+  })
+})
+
+describe('credential detector — file enumeration', () => {
+  it('lists tracked files only, with forward slashes', () => {
+    const files = trackedTextFiles() as string[]
+    expect(files.length).toBeGreaterThan(100)
+    expect(files).toContain('supabase/seed.sql')
+    expect(files.some((f) => f.includes('\\'))).toBe(false)
+    // Generated by a local `supabase start`; untracked, so never scanned.
+    expect(files.some((f) => f.startsWith('supabase/.temp/'))).toBe(false)
+    expect(files.some((f) => f.startsWith('node_modules/'))).toBe(false)
+  })
+})
