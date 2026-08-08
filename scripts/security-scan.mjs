@@ -5,16 +5,16 @@
  *
  * Run:  npm run security:scan   (exit 1 if a hard secret is found)
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, relative, extname, basename } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join, basename } from 'node:path'
+import { trackedTextFiles, looksBinary, findCredentialIssues } from './credential-patterns.mjs'
 
 const ROOT = process.cwd()
-const SELF = 'security-scan.mjs'
 
-// Directories/files we never scan.
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'dev-dist', '.git', '.claude', 'coverage', '.vscode'])
+// Only tracked files are scanned. Generated artefacts — `supabase/.temp`, build
+// output, anything a local `supabase start` drops — are untracked, so they can
+// no longer fail the scan for a developer who happens to have the stack running.
 const SKIP_FILES = new Set(['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'])
-const SCAN_EXT = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json', '.md', '.html', '.css', '.yml', '.yaml', '.txt', '.sql', ''])
 
 // Server-only code lives here — legitimately uses Deno.env + Bearer (never shipped to the browser).
 const SERVER_ONLY = ['supabase/functions/']
@@ -42,29 +42,29 @@ const WARN_FRONTEND = [
 // An env assignment that is NOT empty and NOT clearly a public VITE_ var.
 const ENV_NONPUBLIC = /^\s*(?!VITE_|#)([A-Z0-9_]*(?:SECRET|SERVICE_ROLE|PRIVATE|API_KEY|TOKEN|PASSWORD)[A-Z0-9_]*)\s*=\s*\S+/m
 
-function walk(dir, out = []) {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry)
-    const st = statSync(full)
-    if (st.isDirectory()) {
-      if (!SKIP_DIRS.has(entry)) walk(full, out)
-    } else if (!SKIP_FILES.has(entry) && entry !== SELF && SCAN_EXT.has(extname(entry))) {
-      out.push(full)
-    }
-  }
-  return out
-}
-
 const under = (rel, prefixes) => prefixes.some((p) => rel.replace(/\\/g, '/').startsWith(p))
 
 const blocks = []
 const warns = []
 
-for (const file of walk(ROOT)) {
-  const rel = relative(ROOT, file)
-  let text
-  try { text = readFileSync(file, 'utf8') } catch { continue }
+let tracked
+try {
+  tracked = trackedTextFiles(ROOT)
+} catch (err) {
+  console.error(`\x1b[31m✗ ${err.message}\x1b[0m`)
+  console.error('  The scan needs the git index to know which files are real.\n')
+  process.exit(2)
+}
+
+for (const rel of tracked) {
+  if (SKIP_FILES.has(basename(rel))) continue
+  let raw
+  try { raw = readFileSync(join(ROOT, rel)) } catch { continue }
+  if (looksBinary(raw)) continue
+  const text = raw.toString('utf8')
   const lines = text.split(/\r?\n/)
+
+  blocks.push(...findCredentialIssues(rel, text).map((f) => ({ ...f, text: '(value withheld)' })))
 
   lines.forEach((line, i) => {
     for (const p of BLOCK) if (p.re.test(line)) blocks.push({ rel, line: i + 1, name: p.name, text: line.trim().slice(0, 100) })
@@ -74,7 +74,7 @@ for (const file of walk(ROOT)) {
   })
 
   // .env.example must never carry a real non-public value.
-  if (basename(file) === '.env.example' && ENV_NONPUBLIC.test(text)) {
+  if (basename(rel) === '.env.example' && ENV_NONPUBLIC.test(text)) {
     blocks.push({ rel, line: 0, name: 'non-public value in .env.example', text: '(review .env.example)' })
   }
 }

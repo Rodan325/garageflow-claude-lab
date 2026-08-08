@@ -12,6 +12,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
+    "db:seed:local": "node scripts/seed-local.mjs",
     "test:rls": "node scripts/run-rls-tests.mjs",
     "test:workshop-capabilities": "node --env-file=.env.local scripts/workshop-capabilities-rls.mjs",
     "test:legal-lifecycle": "node --env-file=.env.local scripts/legal-evidence-lifecycle.mjs",

@@ -51,7 +51,7 @@ describe('historical seed migration bootstrap', () => {
     }
 
     const authFixtures = seed.match(
-      /with fixture_users\(id, email, full_name, account_type, password\) as \(\s*values([\s\S]*?)\)\s*insert into auth\.users/i,
+      /with fixture_users\(id, email, full_name, account_type\) as \(\s*values([\s\S]*?)\)\s*insert into auth\.users/i,
     )?.[1]
     const emails = [...(authFixtures ?? '').matchAll(/'[^']+'::uuid,\s*'([^']+)'/g)].map(
       (match) => match[1],
@@ -59,6 +59,15 @@ describe('historical seed migration bootstrap', () => {
 
     expect(emails).toHaveLength(14)
     expect(new Set(emails).size).toBe(emails.length)
+  })
+
+  it('never hardcodes a fixture password', () => {
+    // The seed once shipped literal passwords for accounts that also existed on
+    // hosted projects, in a public repository. The password must come from the
+    // session setting and fall back to a random value nobody knows.
+    expect(seed).not.toMatch(/crypt\(\s*'/i)
+    expect(seed).toContain("current_setting('seed.fixture_password', true)")
+    expect(seed).toContain('gen_random_bytes')
   })
 
   it('marks trigger-generated seed notifications as simulated', () => {

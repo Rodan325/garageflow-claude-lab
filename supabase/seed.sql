@@ -1,5 +1,6 @@
 -- Local validation fixtures only. Every identity and business record is fictitious.
--- Safe to re-run after a local reset; never use this file against production.
+-- Re-runnable for rows that are missing, but it rotates nothing: see the note
+-- above the fixture accounts. Never use this file against a hosted project.
 set search_path = public, extensions, auth;
 
 -- One independent organization and one generic multi-center organization.
@@ -127,24 +128,89 @@ where appointment.service_request_id = request.id
   and appointment.garage_id = request.garage_id
   and appointment.center_id is null;
 
--- Historical presentation accounts keep Demo1234! for compatibility. Every
--- other local validation account uses LocalDemo1234!.
-with fixture_users(id, email, full_name, account_type, password) as (
+-- Local fixture accounts. Passwords are NEVER stored in this repository.
+--
+-- THIS FILE IS NOT A ROTATION MECHANISM. Every insert is `on conflict do
+-- nothing`, so it fills in rows that are missing and leaves existing ones
+-- exactly as they are. An `auth.users` row that already exists keeps the hash
+-- it already had, whatever password you supply here — silently, and with no
+-- error. Re-running this file therefore never neutralises a credential.
+--
+-- If a local database was seeded before this file changed, the only way to get
+-- new credentials is to recreate it:
+--     supabase db reset --local
+-- That drops and rebuilds the local database, so the fixtures are created fresh.
+-- Never point a reset, or this file, at a hosted project.
+--
+-- Default, and the recommended path: with no password supplied, each fixture
+-- gets its own random password nobody knows. `supabase db reset` seeds that
+-- way — it connects with its own driver and inherits no environment — so a
+-- reset of a local database leaves no usable login behind.
+--
+-- To sign in as a fixture locally, use the wrapper, which loads the value from
+-- the environment and runs this file plus scripts/rls-fixtures.sql over one
+-- connection. LOCAL DEVELOPMENT DATABASES ONLY; bash, so Git Bash or WSL on
+-- Windows:
+--   read -rs -p 'Fixture password: ' fixture_pw
+--   printf '\n'
+--   SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local
+--   unset fixture_pw
+--
+-- Do not use PGOPTIONS for this. It is parsed as a list of server options, so a
+-- value containing a space becomes extra options — a password of
+-- `x -c statement_timeout=999` really did set that timeout — and a backslash is
+-- swallowed, producing a different password with no error. The wrapper uses
+-- psql's `\getenv` and `:'…'` literal quoting instead; spaces, backslashes,
+-- quotes, newlines and a leading `-c` were all measured arriving byte-identical
+-- with no option injected.
+--
+-- What this protects, and what it does not. `read -rs` echoes nothing and adds
+-- no shell history entry, and a per-command assignment keeps the value out of
+-- argv, so it is not in the command line `ps` shows by default. Wrapping the
+-- block in a shell function with `local` scopes the variable to that function
+-- and drops it when the function returns, including on an error return; what
+-- happens on a signal depends on your shell, so treat `unset` as the reliable
+-- step rather than an absolute guarantee.
+-- It is not invisible either: while psql runs, the value sits in that process's
+-- environment, and it travels inside a SQL statement. Under this project's
+-- local default (`log_statement = ddl`) that statement is not written to the
+-- server log; raising `log_statement` to `all` would capture it — measured.
+-- Acceptable for a throwaway local password and for nothing else.
+
+-- Warn — never rotate — when fixture accounts are already present.
+do $fixture_guard$
+declare
+  v_existing integer;
+begin
+  select count(*)
+  into v_existing
+  from auth.users
+  where id::text like 'a0000000-%'
+     or id::text like 'b0000000-%'
+     or id::text like 'c0000000-%'
+     or id::text like 'c2000000-%';
+
+  if v_existing > 0 then
+    raise warning 'seed.sql: % fixture account(s) already exist. Their passwords are NOT replaced by this run. Recreate the local database with "supabase db reset --local" if you need fresh credentials.', v_existing;
+  end if;
+end
+$fixture_guard$;
+with fixture_users(id, email, full_name, account_type) as (
   values
-    ('a0000000-0000-4000-8000-000000000001'::uuid, 'owner@demo-garage.fr', 'Sophie Martin', 'staff', 'Demo1234!'),
-    ('a0000000-0000-4000-8000-000000000002'::uuid, 'mecano@demo-garage.fr', 'Karim Benali', 'staff', 'Demo1234!'),
-    ('c0000000-0000-4000-8000-000000000001'::uuid, 'client@demo.fr', 'Julie Durand', 'client', 'Demo1234!'),
-    ('a0000000-0000-4000-8000-000000000003'::uuid, 'frontdesk.independent@example.test', 'Alex Frontdesk Example', 'staff', 'LocalDemo1234!'),
-    ('c0000000-0000-4000-8000-000000000002'::uuid, 'client.independent.two@example.test', 'Camille Client Example', 'client', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000001'::uuid, 'owner.network@example.test', 'Nora Network Owner Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000002'::uuid, 'manager.network@example.test', 'Malik Network Manager Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000003'::uuid, 'manager.north@example.test', 'Sam North Manager Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000004'::uuid, 'manager.center@example.test', 'Lee Center Manager Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000005'::uuid, 'manager.south@example.test', 'Ari South Manager Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000006'::uuid, 'frontdesk.network@example.test', 'Robin Frontdesk Example', 'staff', 'LocalDemo1234!'),
-    ('b0000000-0000-4000-8000-000000000007'::uuid, 'technician.network@example.test', 'Taylor Technician Example', 'staff', 'LocalDemo1234!'),
-    ('c2000000-0000-4000-8000-000000000001'::uuid, 'client.network.one@example.test', 'Morgan Client Example', 'client', 'LocalDemo1234!'),
-    ('c2000000-0000-4000-8000-000000000002'::uuid, 'client.network.two@example.test', 'Jordan Client Example', 'client', 'LocalDemo1234!')
+    ('a0000000-0000-4000-8000-000000000001'::uuid, 'owner@demo-garage.fr', 'Sophie Martin', 'staff'),
+    ('a0000000-0000-4000-8000-000000000002'::uuid, 'mecano@demo-garage.fr', 'Karim Benali', 'staff'),
+    ('c0000000-0000-4000-8000-000000000001'::uuid, 'client@demo.fr', 'Julie Durand', 'client'),
+    ('a0000000-0000-4000-8000-000000000003'::uuid, 'frontdesk.independent@example.test', 'Alex Frontdesk Example', 'staff'),
+    ('c0000000-0000-4000-8000-000000000002'::uuid, 'client.independent.two@example.test', 'Camille Client Example', 'client'),
+    ('b0000000-0000-4000-8000-000000000001'::uuid, 'owner.network@example.test', 'Nora Network Owner Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000002'::uuid, 'manager.network@example.test', 'Malik Network Manager Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000003'::uuid, 'manager.north@example.test', 'Sam North Manager Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000004'::uuid, 'manager.center@example.test', 'Lee Center Manager Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000005'::uuid, 'manager.south@example.test', 'Ari South Manager Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000006'::uuid, 'frontdesk.network@example.test', 'Robin Frontdesk Example', 'staff'),
+    ('b0000000-0000-4000-8000-000000000007'::uuid, 'technician.network@example.test', 'Taylor Technician Example', 'staff'),
+    ('c2000000-0000-4000-8000-000000000001'::uuid, 'client.network.one@example.test', 'Morgan Client Example', 'client'),
+    ('c2000000-0000-4000-8000-000000000002'::uuid, 'client.network.two@example.test', 'Jordan Client Example', 'client')
 )
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -153,7 +219,11 @@ insert into auth.users (
 )
 select
   '00000000-0000-0000-0000-000000000000', id, 'authenticated', 'authenticated', email,
-  extensions.crypt(password, extensions.gen_salt('bf')), now(),
+  extensions.crypt(
+    coalesce(
+      nullif(current_setting('seed.fixture_password', true), ''),
+      pg_catalog.encode(extensions.gen_random_bytes(24), 'base64')),
+    extensions.gen_salt('bf')), now(),
   jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
   jsonb_build_object('full_name', full_name, 'account_type', account_type),
   now(), now(), '', '', '', ''

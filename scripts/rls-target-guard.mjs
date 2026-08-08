@@ -41,6 +41,70 @@ export function assertSupabaseTestTarget(rawUrl, options = {}) {
   return target
 }
 
+/**
+ * Hosts that are unambiguously this machine. Compared by exact equality after
+ * normalisation — never by substring, so `localhost.evil.example` and
+ * `127.0.0.1.evil.example` are rejected like any other remote name.
+ */
+export const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+const POSTGRES_PROTOCOLS = new Set(['postgres:', 'postgresql:'])
+
+/**
+ * Parse a PostgreSQL connection URL and refuse anything that is not a local
+ * database. Returns the pieces the caller should hand to psql through the
+ * environment, so the password never reaches a command line.
+ *
+ * Throws with an actionable message and never echoes the URL or the password.
+ */
+export function assertLocalPostgresUrl(rawUrl, varName = 'SUPABASE_LOCAL_DB_URL') {
+  if (rawUrl === undefined || rawUrl === null || String(rawUrl).trim() === '') {
+    throw new Error(`${varName} is required and must not be empty`)
+  }
+  const raw = String(rawUrl)
+  if (/[\r\n\t]/.test(raw)) {
+    throw new Error(`${varName} must not contain line breaks or tabs`)
+  }
+
+  let url
+  try {
+    url = new URL(raw)
+  } catch {
+    throw new Error(`${varName} is not a valid URL`)
+  }
+
+  if (!POSTGRES_PROTOCOLS.has(url.protocol)) {
+    throw new Error(`Refusing ${varName}: expected a postgres:// or postgresql:// URL`)
+  }
+
+  // URL keeps IPv6 literals in brackets; compare the address itself.
+  const hostname = url.hostname.toLowerCase()
+  const host = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname
+  if (!LOOPBACK_HOSTS.has(host)) {
+    throw new Error(
+      `Refusing ${varName}: the host is not a loopback address. ` +
+        'Only localhost, 127.0.0.1 and ::1 are accepted, so this workflow cannot ' +
+        'reach a hosted project. Point it at your local Supabase database.',
+    )
+  }
+
+  if (!/^\d+$/.test(url.port)) {
+    throw new Error(`Refusing ${varName}: an explicit numeric port is required`)
+  }
+
+  const database = decodeURIComponent(url.pathname.replace(/^\//, ''))
+  if (!database) {
+    throw new Error(`Refusing ${varName}: no database name in the URL path`)
+  }
+
+  return {
+    host,
+    port: url.port,
+    database,
+    user: url.username ? decodeURIComponent(url.username) : '',
+    password: url.password ? decodeURIComponent(url.password) : '',
+  }
+}
+
 export function assertPublishableKey(key) {
   if (!key) throw new Error('VITE_SUPABASE_ANON_KEY is required')
   if (key.startsWith('sb_secret_') || /service_role/i.test(key)) {

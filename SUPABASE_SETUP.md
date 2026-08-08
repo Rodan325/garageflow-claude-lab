@@ -51,4 +51,35 @@ VITE_SUPABASE_ANON_KEY=sb_publishable_...
 
 ## 8. Vérifications
 - Advisors Security/Performance après tout DDL.
-- `npm run test:rls` (isolation inter-garages) — nécessite les fixtures `scripts/rls-fixtures.sql` (2ᵉ garage de test).
+- `npm run test:rls` (isolation inter-garages). Les fixtures ne sont **pas** appliquées
+  automatiquement : `scripts/seed-local.sql` applique `supabase/seed.sql` puis
+  `scripts/rls-fixtures.sql` sur une seule connexion, et le harnais échoue si le
+  garage Test B (`3333…`) est absent ou a été semé avec un autre mot de passe.
+
+### Workflow local complet (bases locales uniquement)
+
+Bash — sous Windows, Git Bash ou WSL. Le mot de passe ne transite ni par `argv`
+ni par l'historique du shell ; il reste dans l'environnement des processus fils
+le temps de leur exécution.
+
+```bash
+supabase db reset --local --no-seed
+
+read -rs -p 'Fixture password: ' fixture_pw
+printf '\n'
+
+SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local
+SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls
+
+unset fixture_pw
+```
+
+Sans `SEED_FIXTURE_PASSWORD`, chaque fixture reçoit un mot de passe aléatoire
+inconnu — c'est le comportement par défaut recommandé, mais `npm run test:rls`
+ne peut alors pas se connecter.
+
+Rejouer les fichiers de seed **ne fait aucune rotation** : les lignes
+`auth.users` déjà présentes conservent leur hash, et un avertissement SQL le
+signale. Pour de nouveaux identifiants, recréez la base avec
+`supabase db reset --local`. Ne pointez jamais ces commandes vers un projet
+hébergé.

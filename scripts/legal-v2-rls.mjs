@@ -42,13 +42,31 @@ const TERMS_PRO_HASH = 'bfb31cbfcb840155475d8ae6ad236893730de4558d1a3564143b4097
 const TERMS_PRO_EN_HASH = 'b1e9e013d85d1c6d38f15b3bc8aae3e1953a472040b130fa6dac41dbff3c561c'
 const TERMS_PRO_AR_HASH = 'a98b4bd3d0a8a5f46c4744efe3417dcf6e8634a99d519e36652c975e8c77406a'
 const DPA_HASH = '484d5bba3263046198fb04b4326b1b683a66c386d21dc26f1ce937dc17878120'
-const PASSWORD = 'LocalDemo1234!'
+const PASSWORD = process.env.SEED_FIXTURE_PASSWORD
+if (!PASSWORD) {
+  console.error(
+    'RLS SAFETY GUARD: SEED_FIXTURE_PASSWORD is not set.\n' +
+      'Fixtures no longer ship a password: by default each one gets a random value\n' +
+      'nobody knows. Seed them with a password of your choice, then pass that same\n' +
+      'value to this run, per command and never exported. The wrapper loads it\n' +
+      'from the environment and applies the seed plus the Test B fixtures over one\n' +
+      'connection. Bash — Git Bash or WSL on Windows — local databases only:\n' +
+      "  read -rs -p 'Fixture password: ' fixture_pw\n" +
+      "  printf '\\n'\n" +
+      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local\n' +
+      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls\n' +
+      '  unset fixture_pw\n' +
+      'The value stays out of your shell history and out of argv, but it is\n' +
+      "readable in each child process's environment while that process runs.",
+  )
+  process.exit(2)
+}
 const ACCOUNTS = {
-  ownerA: ['owner@demo-garage.fr', 'Demo1234!'],
+  ownerA: ['owner@demo-garage.fr', PASSWORD],
   memberA: ['frontdesk.independent@example.test', PASSWORD],
   ownerB: ['owner.network@example.test', PASSWORD],
   centerManagerB: ['manager.north@example.test', PASSWORD],
-  clientA: ['client@demo.fr', 'Demo1234!'],
+  clientA: ['client@demo.fr', PASSWORD],
 }
 
 let passed = 0
