@@ -32,15 +32,28 @@ const WRAPPER_SQL = join(HERE, 'seed-local.sql')
 
 export function buildChildEnv(baseEnv, target) {
   const env = { ...baseEnv }
+
   // The URL has been parsed; the child does not need it, and it carries the
   // database password.
   delete env.SUPABASE_LOCAL_DB_URL
+
+  // Drop every inherited libpq setting before rebuilding the few we control.
+  // Validating the URL is pointless if PGHOSTADDR, PGSERVICE, PGSERVICEFILE,
+  // PGPASSFILE or PGOPTIONS can still steer the connection somewhere else — and
+  // libpq keeps gaining variables, so this is a prefix sweep rather than a
+  // denylist: anything named PG* that we do not set ourselves never reaches psql.
+  // Windows environment names are case-insensitive, hence the /i.
+  for (const key of Object.keys(env)) {
+    if (/^PG/i.test(key)) delete env[key]
+  }
+
   env.PGHOST = target.host
   env.PGPORT = target.port
   env.PGDATABASE = target.database
+  // Only what the validated URL actually carried; an inherited value is gone.
   if (target.user) env.PGUSER = target.user
   if (target.password) env.PGPASSWORD = target.password
-  else delete env.PGPASSWORD
+
   // SEED_FIXTURE_PASSWORD is deliberately left in place: seed-local.sql reads it
   // with \getenv. It is absent from argv and lives only in psql's environment.
   return env

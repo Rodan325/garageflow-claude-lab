@@ -4,11 +4,15 @@
  * Used by scripts/security-scan.mjs and by the contract test, so both cover the
  * same ground: every tracked text file, not a hand-maintained list.
  *
- * The rule that keeps this usable is what counts as a credential-like literal:
- * at least 8 characters, no whitespace, and a mix of letters and digits. UI
- * labels ("Mot de passe"), short schema-validation values ("short") and prose
- * do not qualify, so the identifier patterns below can be broad without burying
- * the output in false positives.
+ * What counts as a credential-like literal: at least 10 characters, containing
+ * a letter. A digit is NOT required, and whitespace is allowed — a passphrase is
+ * a credential too. What is filtered out is prose, by word count, sentence
+ * punctuation, non-ASCII text and common function words in both interface
+ * languages, so UI labels and validation messages do not drown the output.
+ *
+ * This is a high-confidence heuristic, not a proof that the tree holds no
+ * secret: a short value, prose that happens to read like a passphrase, or a
+ * secret assembled at run time can still slip through.
  */
 import { execFileSync } from 'node:child_process'
 

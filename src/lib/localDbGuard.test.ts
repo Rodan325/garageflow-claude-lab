@@ -111,6 +111,110 @@ describe('local database guard — how psql is invoked', () => {
     ) as Record<string, string | undefined>
     expect(env.PGPASSWORD).toBeUndefined()
   })
+})
+
+describe('local database guard — inherited libpq settings', () => {
+  /**
+   * Validating the URL achieves nothing if libpq can still be steered by the
+   * environment: PGHOSTADDR overrides the host, PGSERVICE and PGSERVICEFILE
+   * name a whole connection elsewhere, PGPASSFILE supplies credentials.
+   */
+  const hostileParent = {
+    PGHOSTADDR: '203.0.113.10',
+    PGSERVICE: 'production',
+    PGSERVICEFILE: '/tmp/evil.conf',
+    PGSYSCONFDIR: '/tmp/evil',
+    PGPASSFILE: '/tmp/evil.pgpass',
+    PGOPTIONS: '-c statement_timeout=999',
+    PGSSLMODE: 'disable',
+    PGREQUIREAUTH: 'none',
+    PGCHANNELBINDING: 'disable',
+    PGUSER: 'inherited-user',
+    PGPASSWORD: 'inherited-placeholder',
+    // Not a real variable today. libpq keeps gaining them, so the sweep must be
+    // generic rather than a denylist that ages badly.
+    PGSOMETHINGNEW: 'whatever-comes-next',
+    SEED_FIXTURE_PASSWORD: 'placeholder-for-child',
+    PATH: '/usr/bin',
+  }
+
+  const pgKeys = (env: Record<string, string | undefined>) =>
+    Object.keys(env).filter((k) => /^PG/i.test(k)).sort()
+
+  it('keeps only the settings derived from the validated URL', () => {
+    const env = buildChildEnv(hostileParent, {
+      host: '127.0.0.1',
+      port: '54322',
+      database: 'postgres',
+      user: 'postgres',
+      password: 'pw',
+    }) as Record<string, string | undefined>
+
+    expect(pgKeys(env)).toEqual(['PGDATABASE', 'PGHOST', 'PGPASSWORD', 'PGPORT', 'PGUSER'])
+    expect(env.PGHOST).toBe('127.0.0.1')
+    expect(env.PGPORT).toBe('54322')
+    expect(env.PGDATABASE).toBe('postgres')
+    // The values come from the URL, never from the parent.
+    expect(env.PGUSER).toBe('postgres')
+    expect(env.PGPASSWORD).toBe('pw')
+    // Unrelated variables are untouched.
+    expect(env.SEED_FIXTURE_PASSWORD).toBe('placeholder-for-child')
+    expect(env.PATH).toBe('/usr/bin')
+  })
+
+  it.each([
+    'PGHOSTADDR',
+    'PGSERVICE',
+    'PGSERVICEFILE',
+    'PGSYSCONFDIR',
+    'PGPASSFILE',
+    'PGOPTIONS',
+    'PGSSLMODE',
+    'PGREQUIREAUTH',
+    'PGCHANNELBINDING',
+    'PGSOMETHINGNEW',
+  ])('never forwards an inherited %s', (name) => {
+    const env = buildChildEnv(hostileParent, {
+      host: '127.0.0.1',
+      port: '54322',
+      database: 'postgres',
+      user: 'postgres',
+      password: 'pw',
+    }) as Record<string, string | undefined>
+    expect(env[name]).toBeUndefined()
+  })
+
+  it('does not fall back to an inherited PGUSER when the URL has none', () => {
+    const env = buildChildEnv(hostileParent, {
+      host: '127.0.0.1',
+      port: '54322',
+      database: 'postgres',
+      user: '',
+      password: 'pw',
+    }) as Record<string, string | undefined>
+    expect(env.PGUSER).toBeUndefined()
+    expect(pgKeys(env)).toEqual(['PGDATABASE', 'PGHOST', 'PGPASSWORD', 'PGPORT'])
+  })
+
+  it('does not fall back to an inherited PGPASSWORD when the URL has none', () => {
+    const env = buildChildEnv(hostileParent, {
+      host: '127.0.0.1',
+      port: '54322',
+      database: 'postgres',
+      user: 'postgres',
+      password: '',
+    }) as Record<string, string | undefined>
+    expect(env.PGPASSWORD).toBeUndefined()
+    expect(pgKeys(env)).toEqual(['PGDATABASE', 'PGHOST', 'PGPORT', 'PGUSER'])
+  })
+
+  it('sweeps regardless of case, as Windows environment names are insensitive', () => {
+    const env = buildChildEnv(
+      { pgservice: 'production', PgPassFile: '/tmp/evil.pgpass' },
+      { host: '127.0.0.1', port: '54322', database: 'postgres', user: '', password: '' },
+    ) as Record<string, string | undefined>
+    expect(pgKeys(env)).toEqual(['PGDATABASE', 'PGHOST', 'PGPORT'])
+  })
 
   it('propagates the exit code of psql', () => {
     const spawn = vi.fn().mockReturnValue({ status: 3 })
