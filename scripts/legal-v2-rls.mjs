@@ -53,8 +53,7 @@ if (!PASSWORD) {
       'connection. Bash — Git Bash or WSL on Windows — local databases only:\n' +
       "  read -rs -p 'Fixture password: ' fixture_pw\n" +
       "  printf '\\n'\n" +
-      '  SEED_FIXTURE_PASSWORD="$fixture_pw" \\\n' +
-      '    psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/seed-local.sql\n' +
+      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local\n' +
       '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls\n' +
       '  unset fixture_pw\n' +
       'The value stays out of your shell history and out of argv, but it is\n' +

@@ -5,9 +5,13 @@
 --
 --   read -rs -p 'Fixture password: ' fixture_pw
 --   printf '\n'
---   SEED_FIXTURE_PASSWORD="$fixture_pw" \
---     psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/seed-local.sql
+--   SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local
 --   unset fixture_pw
+--
+-- Go through that npm script rather than calling psql yourself: it is
+-- scripts/seed-local.mjs, which refuses any SUPABASE_LOCAL_DB_URL whose host is
+-- not a loopback address before psql is spawned, and passes the connection
+-- details through the environment so no password reaches a command line.
 --
 -- Leave SEED_FIXTURE_PASSWORD unset and every fixture gets its own random
 -- password nobody knows. That is the default and the recommended path.
@@ -33,8 +37,20 @@
 \set fixture_password ''
 \getenv fixture_password SEED_FIXTURE_PASSWORD
 
+-- \gset keeps the returned value in a psql variable, so both the variable that
+-- carried the password in and the one that carries it back out are cleared
+-- before anything else runs.
 select set_config('seed.fixture_password', :'fixture_password', false) as fixture_password_configured \gset
 \unset fixture_password
+\unset fixture_password_configured
 
 \ir ../supabase/seed.sql
 \ir rls-fixtures.sql
+
+-- Clear the session setting too. A DO block returns no row, so nothing echoes
+-- the value and no new psql variable is created.
+do $seed_local_cleanup$
+begin
+  perform set_config('seed.fixture_password', '', false);
+end
+$seed_local_cleanup$;

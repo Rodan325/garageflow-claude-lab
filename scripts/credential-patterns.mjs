@@ -39,46 +39,101 @@ export function looksBinary(buffer) {
  */
 const FICTITIOUS = /fictitious|dummy|placeholder|changeme|change-me|your-|example\.|xxxxx|<[a-z-]+>/i
 
-/** Literal that could actually be typed at a login prompt. */
+/**
+ * Exact values that exist to be rejected by something. Listed one by one, with
+ * the reason: this is not a prefix rule and it cannot be widened by accident.
+ */
+const KNOWN_TEST_VECTORS = new Map([
+  ['password1234', 'canonical weak-password example, asserted to be refused by the signup schema'],
+])
+
+export function knownTestVectorReason(value) {
+  return KNOWN_TEST_VECTORS.get(value)
+}
+
+/**
+ * Could this literal be typed at a login prompt?
+ *
+ * Deliberately does NOT require a digit, and does not reject spaces: a
+ * passphrase is a credential too. What it does reject is prose, because the
+ * high-confidence contexts below sit next to translation catalogues full of
+ * sentences about passwords.
+ */
 export function credentialLike(value) {
   if (typeof value !== 'string') return false
-  if (value.length < 8 || value.length > 200) return false
-  if (/\s/.test(value)) return false
+  // An unresolved `${…}` is filled in at run time; what is written here is not
+  // the credential. Judge only the fixed part.
+  value = value.replace(/\$\{[^}]*\}/g, '')
+  if (value.length < 10 || value.length > 200) return false
   if (FICTITIOUS.test(value)) return false
-  return /[A-Za-z]/.test(value) && /[0-9]/.test(value)
+  if (KNOWN_TEST_VECTORS.has(value)) return false
+  if (!/[A-Za-z]/.test(value)) return false
+
+  if (/\s/.test(value)) {
+    const words = value.trim().split(/\s+/)
+    // A passphrase is a handful of bare words. Prose has more of them, or
+    // sentence punctuation, or letters outside the ASCII range.
+    if (words.length < 3 || words.length > 8) return false
+    if (/[.,;:!?]/.test(value)) return false
+    if (/[^\x20-\x7E]/.test(value)) return false
+    // …and prose leans on function words that a passphrase rarely strings together.
+    if (words.some((w) => FUNCTION_WORDS.has(w.toLowerCase()))) return false
+  }
+  return true
 }
+
+/**
+ * Prose leans on these; a passphrase rarely strings several together. Both
+ * languages of the interface are covered, because the catalogues are French and
+ * the messages talk about passwords.
+ */
+const FUNCTION_WORDS = new Set([
+  // English
+  'a', 'an', 'the', 'is', 'are', 'be', 'to', 'of', 'and', 'or', 'not', 'must',
+  'should', 'can', 'may', 'with', 'without', 'for', 'from', 'in', 'on', 'at',
+  'this', 'that', 'it', 'your', 'you', 'we', 'us', 'contain', 'contains',
+  'use', 'used', 'uses', 'least', 'more', 'than',
+  // French
+  'un', 'une', 'le', 'la', 'les', 'de', 'des', 'du', 'et', 'ou', 'pour',
+  'avec', 'sans', 'votre', 'vos', 'vous', 'doit', 'doivent', 'dans', 'sur',
+  'par', 'au', 'aux', 'ne', 'pas', 'est', 'sont', 'que', 'qui', 'plus',
+])
+
+/** Identifiers that name a piece of interface, not a secret. */
+const UI_IDENT =
+  /(label|placeholder|message|description|hint|title|text|help|error|aria|toggle|show|hide|confirm|strength|requirement|policy|rule|prompt|caption|tooltip)/i
 
 const IDENT = String.raw`[A-Za-z_$][A-Za-z0-9_$]*`
 const IDENT_CHARS = String.raw`[A-Za-z0-9_$]*`
 const CRED_WORD = String.raw`(?:password|passwd|passphrase|pwd|secret)`
 const CRED_IDENT = `${IDENT_CHARS}${CRED_WORD}${IDENT_CHARS}`
 
+const CREDENTIAL_IDENT_FINDING = 'credential-like literal assigned to a password identifier'
+
 /**
- * Path-scoped exemptions. Each names a reason, each is pinned by a test in
- * scripts/security-scan.test.mjs, and none of them is a general allowlist:
- * being a test file earns nothing by itself.
+ * Exemptions are per finding and per shape — never per file. Nothing here can
+ * silence a whole path: a `const`, a `crypt()` call, a psql option, a comment or
+ * an indirect assignment is still reported wherever it appears, including in the
+ * files listed below. Each entry carries a reason and is pinned by a test.
  */
-const PATH_EXEMPTIONS = [
+const SHAPE_EXEMPTIONS = [
   {
-    match: (rel) => /^src\/i18n\//.test(rel),
-    reason: 'translation catalogue: values are UI labels, not credentials',
-  },
-  {
-    match: (rel) =>
-      rel === 'scripts/credential-patterns.mjs' ||
-      rel === 'scripts/security-scan.mjs' ||
-      rel === 'src/lib/credentialScanner.test.ts' ||
-      rel === 'src/lib/fixtureCredentialHandling.contract.test.ts',
-    reason: 'the detector and its own tests quote the shapes they forbid',
-  },
-  {
-    match: (rel) => rel === 'src/features/auth/signupSchema.test.ts',
-    reason: 'password-strength validator vectors: they exercise the schema and authenticate nothing',
+    name: 'translation catalogue label',
+    reason:
+      'i18n catalogues map credential-named keys to interface strings; only the ' +
+      'object-property shape is spared there, and only for this finding type',
+    applies: ({ rel, findingName, operator }) =>
+      /^src\/i18n\//.test(rel) && findingName === CREDENTIAL_IDENT_FINDING && operator === ':',
   },
 ]
 
-export function exemptionFor(rel) {
-  return PATH_EXEMPTIONS.find((e) => e.match(rel))
+export function shapeExemptionFor(context) {
+  return SHAPE_EXEMPTIONS.find((e) => e.applies(context))
+}
+
+/** Kept for callers that want to know an exemption exists at all. */
+export function exemptionReasons() {
+  return SHAPE_EXEMPTIONS.map((e) => ({ name: e.name, reason: e.reason }))
 }
 
 /**
@@ -94,13 +149,8 @@ export function literalValueOf(rhs) {
   return parts.map((p) => p.slice(1, -1)).join('')
 }
 
-/** Rules whose capture group 1 is a right-hand side to evaluate. */
-const RHS_RULES = [
-  {
-    name: 'credential-like literal assigned to a password identifier',
-    re: new RegExp(String.raw`\b${CRED_IDENT}\s*[:=]\s*([^,;\n)]+)`, 'gi'),
-  },
-]
+/** Groups: 1 = identifier, 2 = `:` or `=`, 3 = right-hand side. */
+const CREDENTIAL_ASSIGNMENT = new RegExp(String.raw`\b(${CRED_IDENT})\s*([:=])\s*([^,;\n)]+)`, 'gi')
 
 /** Rules whose capture group 1 is already the value. */
 const VALUE_RULES = [
@@ -117,8 +167,13 @@ const VALUE_RULES = [
     re: /(?:--set(?:=|\s+)|--variable(?:=|\s+)|-v\s+|-c\s+['"]?\s*set\s+)[A-Za-z_.]*(?:password|pwd|secret)[A-Za-z_.]*\s*=\s*['"]?([^\s'"]+)/gi,
   },
   {
+    // `-- shared password: correct horse battery staple` — the value follows the
+    // credential word after `is`, `:` or `=`. Prose is filtered by credentialLike.
     name: 'comment naming a reusable password',
-    re: new RegExp(String.raw`(?:--|//|#)[^\n]*\b${CRED_WORD}\b[^\n]*?['"]?([A-Za-z0-9!@#$%^&*_-]{8,})['"]?\s*$`, 'gim'),
+    re: new RegExp(
+      String.raw`(?:--|//|#)[^\n]*\b${CRED_WORD}\b\s*(?:is|are|=|:)\s*['"]?([^\n'"]{10,})['"]?\s*$`,
+      'gim',
+    ),
   },
 ]
 
@@ -152,16 +207,15 @@ const lineOf = (text, index) => text.slice(0, index).split(/\r?\n/).length
 
 /** Findings for one file. `rel` must be repo-relative with forward slashes. */
 export function findCredentialIssues(rel, text) {
-  if (exemptionFor(rel)) return []
   const findings = []
 
-  for (const rule of RHS_RULES) {
-    for (const match of text.matchAll(rule.re)) {
-      const value = literalValueOf(match[1])
-      if (value && credentialLike(value)) {
-        findings.push({ rel, line: lineOf(text, match.index), name: rule.name })
-      }
-    }
+  for (const match of text.matchAll(CREDENTIAL_ASSIGNMENT)) {
+    const [, identifier, operator, rhs] = match
+    if (UI_IDENT.test(identifier)) continue
+    const value = literalValueOf(rhs)
+    if (!value || !credentialLike(value)) continue
+    if (shapeExemptionFor({ rel, findingName: CREDENTIAL_IDENT_FINDING, operator, identifier })) continue
+    findings.push({ rel, line: lineOf(text, match.index), name: CREDENTIAL_IDENT_FINDING })
   }
 
   for (const rule of VALUE_RULES) {

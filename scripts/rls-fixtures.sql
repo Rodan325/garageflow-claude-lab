@@ -29,8 +29,7 @@
 --
 --   read -rs -p 'Fixture password: ' fixture_pw
 --   printf '\n'
---   SEED_FIXTURE_PASSWORD="$fixture_pw" \
---     psql "$SUPABASE_LOCAL_DB_URL" -v ON_ERROR_STOP=1 -f scripts/seed-local.sql
+--   SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local
 --   unset fixture_pw
 --
 -- Do not use PGOPTIONS: it is parsed as a list of server options, so a value
