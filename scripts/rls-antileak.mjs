@@ -45,13 +45,38 @@ const IDS = {
   clientB2: 'c2000000-0000-4000-8000-000000000002',
   requestBApproval: 'f2222222-0000-4000-8000-000000000001',
   requestBClosed: 'f2222222-0000-4000-8000-000000000007',
+  // Test B — the private third garage created by scripts/rls-fixtures.sql.
+  garageTestB: '33333333-3333-4333-8333-333333333333',
+  ownerTestB: 'b3333333-0000-4000-8000-000000000001',
+  customerTestB: 'd3333333-0000-4000-8000-000000000001',
+  vehicleTestB: 'e3333333-0000-4000-8000-000000000001',
+  requestTestB: 'f3333333-0000-4000-8000-000000000001',
 }
 
-const PASSWORD = 'LocalDemo1234!'
+const PASSWORD = process.env.SEED_FIXTURE_PASSWORD
+if (!PASSWORD) {
+  console.error(
+    'RLS SAFETY GUARD: SEED_FIXTURE_PASSWORD is not set.\n' +
+      'Fixtures no longer ship a password: by default each one gets a random value\n' +
+      'nobody knows. Seed them with a password of your choice, then pass that same\n' +
+      'value to this run, per command and never exported. The wrapper loads it\n' +
+      'from the environment and applies the seed plus the Test B fixtures over one\n' +
+      'connection. Bash — Git Bash or WSL on Windows — local databases only:\n' +
+      "  read -rs -p 'Fixture password: ' fixture_pw\n" +
+      "  printf '\\n'\n" +
+      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local\n' +
+      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls\n' +
+      '  unset fixture_pw\n' +
+      'The value stays out of your shell history and out of argv, but it is\n' +
+      "readable in each child process's environment while that process runs.",
+  )
+  process.exit(2)
+}
 const ACCOUNTS = {
-  ownerA: ['owner@demo-garage.fr', 'Demo1234!'],
+  ownerA: ['owner@demo-garage.fr', PASSWORD],
+  ownerTestB: ['owner.test-b@example.test', PASSWORD],
   frontDeskA: ['frontdesk.independent@example.test', PASSWORD],
-  clientA1: ['client@demo.fr', 'Demo1234!'],
+  clientA1: ['client@demo.fr', PASSWORD],
   clientA2: ['client.independent.two@example.test', PASSWORD],
   ownerB: ['owner.network@example.test', PASSWORD],
   networkManager: ['manager.network@example.test', PASSWORD],
@@ -193,6 +218,76 @@ async function run() {
   })
   check('Auth health endpoint is reachable', health.ok, `${health.status}`)
 
+  // ---- Test B ------------------------------------------------------------
+  // scripts/rls-fixtures.sql builds a third, private garage. Signing in as its
+  // owner is the precondition: it fails both when the fixtures were never
+  // applied and when they were applied with a different password, so this suite
+  // can no longer pass while pretending to cover them.
+  let ownerTestB
+  try {
+    ownerTestB = await signedIn('ownerTestB')
+  } catch (cause) {
+    throw new Error(
+      'Test B fixtures missing, or seeded with a different password. Apply them in\n' +
+        'the same run as the seed, with the same value:\n' +
+        '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local\n' +
+        `underlying error: ${cause.message}`,
+    )
+  }
+
+  const testBGarage = await ownerTestB.from('garages').select('id, slug, is_public').eq('id', IDS.garageTestB)
+  check(
+    'Test B garage exists and stays private',
+    !testBGarage.error && testBGarage.data.length === 1 && testBGarage.data[0].is_public === false,
+    testBGarage.error ?? testBGarage.data,
+  )
+
+  const testBMembership = await ownerTestB
+    .from('garage_members')
+    .select('role, organization_role, center_role, center_id, status')
+    .eq('garage_id', IDS.garageTestB)
+    .eq('user_id', IDS.ownerTestB)
+  const membership = testBMembership.data?.[0]
+  check(
+    'Test B owner holds the canonical organization_owner role',
+    !testBMembership.error &&
+      membership?.role === 'owner' &&
+      membership?.organization_role === 'organization_owner' &&
+      membership?.center_role === null &&
+      membership?.center_id === null &&
+      membership?.status === 'active',
+    testBMembership.error ?? membership,
+  )
+
+  const testBOwnRows = await Promise.all([
+    ownerTestB.from('customers').select('id').eq('id', IDS.customerTestB),
+    ownerTestB.from('vehicles').select('id').eq('id', IDS.vehicleTestB),
+    ownerTestB.from('service_requests').select('id, client_id').eq('id', IDS.requestTestB),
+  ])
+  check(
+    'Test B owner reads its own customer, vehicle and request',
+    testBOwnRows.every((r) => !r.error && r.data.length === 1),
+    testBOwnRows.map((r) => r.error ?? r.data.length),
+  )
+
+  const testBCrossTenant = await ownerTestB
+    .from('service_requests')
+    .select('id')
+    .in('garage_id', [IDS.garageA, IDS.garageB])
+  check(
+    'Test B owner reads no request from the seeded garages',
+    !testBCrossTenant.error && testBCrossTenant.data.length === 0,
+    testBCrossTenant.error ?? testBCrossTenant.data,
+  )
+
+  // The Test B request deliberately points at the seeded demo client, so the
+  // shared-customer path is exercised rather than merely declared.
+  check(
+    'Test B request is attached to the shared demo client',
+    testBOwnRows[2].data?.[0]?.client_id === IDS.clientA1,
+    testBOwnRows[2].data?.[0]?.client_id,
+  )
+
   const accountNames = [
     'ownerA',
     'frontDeskA',
@@ -250,6 +345,29 @@ async function run() {
   check('Anonymous catalog excludes private organization centers', !anonymousCenters.error && anonymousCenters.data.length > 0 && anonymousCenters.data.every((row) => row.garage_id === IDS.garageA), anonymousCenters.error ?? anonymousCenters.data)
   const anonymousWrite = await anonymous.from('client_profiles').insert({ id: randomUUID() })
   check('Anonymous table writes fail with insufficient privilege', anonymousWrite.error?.code === '42501', anonymousWrite.error)
+
+  const testBFromOwnerA = await Promise.all([
+    ownerA.from('garages').select('id').eq('id', IDS.garageTestB),
+    ownerA.from('customers').select('id').eq('id', IDS.customerTestB),
+    ownerA.from('vehicles').select('id').eq('id', IDS.vehicleTestB),
+    ownerA.from('service_requests').select('id').eq('id', IDS.requestTestB),
+  ])
+  check(
+    'Independent garage owner sees none of the Test B rows',
+    testBFromOwnerA.every((r) => !r.error && r.data.length === 0),
+    testBFromOwnerA.map((r) => r.error ?? r.data.length),
+  )
+
+  const testBWriteFromOwnerA = await ownerA
+    .from('service_requests')
+    .update({ service_name: 'cross-tenant write attempt' })
+    .eq('id', IDS.requestTestB)
+    .select('id')
+  check(
+    'Independent garage owner cannot modify a Test B request',
+    Boolean(testBWriteFromOwnerA.error) || testBWriteFromOwnerA.data.length === 0,
+    testBWriteFromOwnerA.error ?? testBWriteFromOwnerA.data,
+  )
 
   const messageIsolationRequest = await createRequest(clientA1, {
     garageId: IDS.garageA,
