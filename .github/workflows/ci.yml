@@ -1,0 +1,58 @@
+name: Clikarage CI
+
+# Runs the checks the repository already ships, on every pull request into main
+# and on main itself. Until this existed, a pull request whose tests, types,
+# lint or secret scan failed was still reported green as long as the deploy
+# preview built.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Read-only: this workflow inspects the code, it never writes to the repository.
+permissions:
+  contents: read
+
+# One run per pull request or branch; superseded runs are cancelled.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # `npm ci` installs exactly what the lockfile pins and never rewrites it.
+      - name: Install dependencies
+        run: npm ci
+
+      # Credentials first: a leaked secret should stop the run before anything
+      # slower gets a chance to hide it in the log.
+      - name: Security scan
+        run: npm run security:scan
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
