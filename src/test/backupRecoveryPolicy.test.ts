@@ -47,6 +47,16 @@ describe('backup recovery policy', () => {
     expect(normalized).toContain('no credentials or customer data')
   })
 
+  it('states the approved pilot backup layers without overstating resilience', () => {
+    expect(normalized).toContain('database backup: verified - supabase pro')
+    expect(normalized).toContain('storage backup: local encrypted restic repository on ssd')
+    expect(normalized).toContain(
+      'off-site backup: not implemented - accepted pilot residual risk',
+    )
+    expect(normalized).toContain('dpapi currentuser')
+    expect(normalized).not.toContain('backblaze')
+  })
+
   it('does not publish routine destructive rehearsal commands', () => {
     const commands = fencedCommandLines(runbook)
     expect(commands.some((line) => /\bdb\s+reset\b/i.test(line))).toBe(false)

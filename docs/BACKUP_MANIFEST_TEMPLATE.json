@@ -14,11 +14,11 @@
   "encryption_key_reference": "<SECRET_MANAGER_REFERENCE_ONLY>",
   "tool_versions": {
     "restic": "<PINNED_VERSION>",
-    "database_export_tool": "<TOOL_AND_VERSION>",
+    "database_export_tool": "<NOT_APPLICABLE_OR_TOOL_AND_VERSION>",
     "storage_export_tool": "<TOOL_AND_VERSION>"
   },
   "operator": "<OPERATOR_IDENTIFIER>",
-  "external_destination_identifier": "<NON_SECRET_BUCKET_OR_REGISTER_ID>",
+  "backup_destination_identifier": "<NON_SECRET_LOCAL_REPOSITORY_OR_REGISTER_ID>",
   "retention_expires_at_utc": "<ISO_8601_UTC>",
   "verification_status": "<CREATED_CHECKED_RESTORED_OR_FAILED>"
 }

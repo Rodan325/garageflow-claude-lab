@@ -1,8 +1,8 @@
 # Production backup and disaster-recovery runbook
 
-Status: **DR-01 is not closed**. This document defines the approved design and
-safety gates. It does not authorize a Production export, a Backblaze mutation,
-tool installation, or creation of a Supabase restore project.
+Status: **DR-01 is not closed**. This document defines the approved pilot
+design and safety gates. It does not authorize a Production export, a Supabase
+mutation, or creation of a Supabase restore project.
 
 Official references used for this design:
 
@@ -10,10 +10,9 @@ Official references used for this design:
 - [Supabase restore to a new project](https://supabase.com/docs/guides/platform/clone-project)
 - [Supabase Storage object download](https://supabase.com/docs/guides/storage/management/download-objects)
 - [Supabase Storage S3 compatibility](https://supabase.com/docs/guides/storage/s3/compatibility)
-- [Backblaze B2 data regions](https://www.backblaze.com/docs/cloud-storage-data-regions)
-- [Backblaze B2 Object Lock](https://www.backblaze.com/docs/cloud-storage-object-lock)
-- [Backblaze B2 with restic](https://www.backblaze.com/docs/cloud-storage-integrate-restic-with-backblaze-b2)
 - [restic repository setup](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html)
+- [restic restore](https://restic.readthedocs.io/en/stable/050_restore.html)
+- [restic repository checks](https://restic.readthedocs.io/en/stable/045_working_with_repos.html#checking-integrity-and-consistency)
 
 ## 1. Purpose
 
@@ -30,8 +29,8 @@ reset, restored into, or repurposed for disaster recovery.
 
 No Production read/export begins without a human approval naming the exact
 target, data classes, destination, encryption method, expected duration, and
-cleanup plan. No restore project, bucket, key, retention rule, lifecycle rule,
-tool installation, or destructive cleanup is implicit in this runbook.
+cleanup plan. No restore project, retention policy, backup schedule, tool
+installation, or destructive cleanup is implicit in this runbook.
 
 The following are prohibited as routine recovery actions: database reset,
 migration-history repair, seed inclusion, in-place Production restore, object
@@ -79,27 +78,31 @@ does not prove an uninterrupted historical database RPO of 24 hours.
 Dashboard backups cover the database, including database-resident Auth and
 Storage metadata. They do not contain the actual Storage object payloads.
 
-## 6. Independent encrypted backup
+## 6. Pilot backup architecture
 
-Layer B is a proposed off-platform logical backup stored in a dedicated private
-Backblaze B2 bucket through its S3-compatible API. The proposed bucket name is
-non-sensitive and globally unique, for example `clikarage-dr-eu-<random-suffix>`;
-it must not contain a Supabase project reference, customer name, or environment
-credential.
+**Database backup: VERIFIED - Supabase Pro.** Supabase-managed physical backup
+remains the pilot's database recovery layer. No independent logical database
+export is configured or claimed.
 
-Use B2 EU Central when the approved B2 account is provisioned in that region.
-It stores data in Amsterdam, keeps data in Europe, and is geographically
-separate while close to the Production region in Paris. B2 fixes the data
-region at account creation, so abort if the approved account is in another
-region until the owner accepts that residency decision.
+**Storage backup: LOCAL ENCRYPTED RESTIC REPOSITORY ON SSD.** The approved
+destination is a dedicated directory on the owner's personal SSD. The SSD
+remains a normal shared volume: it is not repartitioned, reformatted, or
+encrypted as a whole. restic encrypts and authenticates only repository
+content before writing it to disk. No home-grown cryptography is permitted.
 
-The proposed client is a pinned, verified restic release using the B2
-S3-compatible endpoint. restic encrypts and authenticates repository content
-client-side before upload. B2 SSE-B2 is a second server-side encryption layer.
-No home-grown cryptography is permitted.
+The repository is initialized at `D:\Clikarage-DR\repository` on the confirmed
+NTFS volume `L3ziz`. A synthetic backup/check/restore rehearsal succeeded with
+restic 0.19.1. The test snapshot was forgotten and pruned, so the initialized
+repository is empty and contains no Production or Staging data.
 
-This layer is **not active**. Before the first export, obtain separate approval
-for the bucket, App Keys, restic installation, and sensitive Production read.
+**Off-site backup: NOT IMPLEMENTED - ACCEPTED PILOT RESIDUAL RISK.** Loss,
+theft, ransomware, or simultaneous failure affecting the workstation and SSD
+can therefore remove this Storage recovery layer. This must not be described
+as geographic redundancy or disaster isolation.
+
+Before the first Storage payload export, obtain separate approval naming the
+Production project, allowed buckets, local plaintext staging directory,
+repository destination, cleanup plan, and verification evidence.
 
 ## 7. Storage backup
 
@@ -119,12 +122,12 @@ The backup must preserve bucket identity, public/private state, MIME metadata,
 object path, payload, aggregate object count, and a payload checksum where
 feasible. Do not place real object paths, filenames, UUIDs, or counts in Git.
 
-Proposed daily sequence after approval:
+Proposed daily Storage sequence after approval:
 
 1. create a restricted encrypted temporary workspace outside the repository;
-2. export an authorized logical database backup and Storage payload tree;
+2. download only the explicitly authorized Storage payload tree;
 3. produce a manifest without customer data;
-4. submit both classes to separate restic snapshot paths/tags;
+4. create a dedicated restic snapshot with environment and date tags;
 5. verify snapshot presence and repository integrity;
 6. remove only that run's plaintext staging after independent verification;
 7. record success or alert failure in the controlled backup register.
@@ -138,42 +141,31 @@ aggregate Storage verification, encrypted archive checksum, encryption method,
 key reference, tool versions, operator, destination identifier, retention
 expiry, and verification state. It contains no credentials or customer data.
 
-## 9. Retention and Object Lock
+## 9. Retention
 
 | Class | Target | Current state |
 | --- | --- | --- |
 | Supabase-managed database points | Platform-visible window | Seven visible points; one date gap observed |
-| External database snapshots | 30 days | Proposed, not configured |
-| External Storage snapshots | 30 days | Proposed, not configured |
+| Independent database snapshots | None for pilot | Supabase Pro remains the database layer |
+| Local encrypted Storage snapshots | 30 days | Proposed, not scheduled or populated |
+| Off-site snapshots | None | Accepted pilot residual risk |
 | Disposable restore project | Delete only after evidence review and approval | None created |
 
-Create the B2 bucket as PRIVATE. Enable Object Lock only after an explicit
-approval acknowledging that it cannot later be disabled. For the pilot,
-Governance mode is preferred over Compliance: it protects retained objects but
-still permits an authorized recovery from a policy mistake. The daily backup
-key must not receive `bypassGovernance`, bucket-retention administration,
-lifecycle administration, or account administration.
-
-Do not configure a blanket 30-day default retention until a disposable restic
-compatibility rehearsal proves that repository lock cleanup, `forget`, and
-`prune` behave safely. Locked object versions can block deletion and lifecycle
-rules until expiry. If blanket locking is incompatible, retain immutable daily
-encrypted export archives under a separate prefix while keeping restic's
-repository metadata operational; document the tested design before activation.
-
-Lifecycle rules must remove only expired, unlocked historical versions after
-the 30-day target and must be tested against Object Lock. No lifecycle rule is
-currently active or claimed.
+No immutable retention or off-site lifecycle exists in this pilot design.
+Apply the proposed 30-day Storage retention only through a reviewed restic
+`forget`/`prune` policy after real backup scheduling is separately authorized.
+The synthetic rehearsal proved those maintenance operations on test data only;
+it did not authorize deletion of a real snapshot.
 
 ## 10. Verification cadence
 
 - Database: inspect the newest Supabase restore point daily; alert on age over
   24 hours or a missing expected point.
-- Database and Storage export: daily after the B2 process is activated.
+- Storage export: daily after the local SSD process is explicitly activated.
 - Backup health: verify expected restic snapshots and run structural
   `restic check` at least weekly.
 - Integrity: run `restic check --read-data` on a controlled cadence (proposed
-  monthly) after evaluating B2 read/API cost and duration.
+  monthly) after evaluating local duration and SSD health.
 - Restore drill: before the first garage, after material DR changes, and at
   least quarterly during the pilot.
 
@@ -271,34 +263,30 @@ evidence status, and retention deadline, then request explicit deletion
 authorization. After approval, delete only the verified disposable project and
 its temporary artifacts. Never delete Production or Staging.
 
-## Credential model for the proposed B2/restic process
+## Credential model for the local restic repository
 
-- Use a standard B2 App Key, never the master key.
-- Scope the daily key to the dedicated private bucket and backup prefix. Grant
-  only list/read/write/delete capabilities required by tested restic behavior;
-  no account, bucket, lifecycle, retention, legal-hold, or governance-bypass
-  administration.
-- Use a separate read-only verification/restore key where supported.
-- Keep any rare maintenance key separately controlled and inactive by default.
-- Store the B2 key and restic password in an approved secret manager, never in
-  Git, chat, command arguments, or logs.
-- Keep the restic repository password independent of the B2 App Key. Prefer an
-  approved password file/command integration over a plaintext environment value.
-- Rotate B2 App Keys at least every 90 days and immediately after suspicion;
-  validate the replacement before revoking the old key.
-- Rotate restic access independently by adding and validating a new repository
-  key before removing the old one. Losing all restic keys makes recovery
-  impossible.
+- Keep the restic repository password in the owner's personal password manager,
+  never in Git, chat, command arguments, logs, or a persistent environment
+  variable.
+- The local automation uses a Windows DPAPI CurrentUser blob outside the
+  repository and a password-command helper that decrypts only in process memory.
+- The password manager copy and DPAPI blob are separate recovery dependencies.
+  Losing both makes the encrypted repository unrecoverable.
+- Rotate access independently by adding and validating a new restic repository
+  key before removing the old key. A rotation is a separately reviewed
+  maintenance operation.
+- Do not copy the DPAPI blob as if it were a portable recovery key: it is bound
+  to the Windows user context. Any portable recovery procedure must rely on the
+  separately protected password-manager record.
 
 ## Cost and operational risks
 
-Expected cost classes are B2 retained storage and versions, API transactions,
-integrity-read/restore egress beyond any current allowance, Supabase's temporary
-paid restore project, local encrypted staging space, and operator time. Confirm
-current prices in each provider console before activation; no cost is approved
-by this document.
+Expected pilot costs are the existing Supabase Pro plan, local SSD capacity,
+temporary local staging space, a future disposable Supabase restore project,
+and operator time. No additional cloud backup service is configured.
 
-Main risks are an irreversible Object Lock configuration, lock/lifecycle/restic
-interaction, forgotten repository passwords, broad or leaked App Keys, missed
-daily jobs, incomplete Storage export, hidden version growth, and unmeasured
-restore time. Each remains a gate until a disposable end-to-end drill succeeds.
+Main risks are single-site SSD loss or theft, ransomware, media failure,
+forgotten repository passwords, missed daily jobs, incomplete Storage export,
+unbounded repository growth, and unmeasured end-to-end restore time. Each
+remains a gate until a Production-authorized Storage export and a disposable
+end-to-end drill succeed.
