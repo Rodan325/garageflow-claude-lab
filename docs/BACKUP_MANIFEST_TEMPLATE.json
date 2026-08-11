@@ -1,0 +1,24 @@
+{
+  "format_version": 1,
+  "backup_id": "<NON_SENSITIVE_BACKUP_ID>",
+  "source_environment": "Production",
+  "source_project_ref": "<APPROVED_PROJECT_REFERENCE>",
+  "source_git_sha": "<GIT_SHA>",
+  "created_at_utc": "<ISO_8601_UTC>",
+  "database_backup_timestamp_utc": "<ISO_8601_UTC>",
+  "database_backup_type": "<PHYSICAL_OR_LOGICAL>",
+  "storage_bucket_count": "<AGGREGATE_COUNT>",
+  "storage_object_count_verified": "<YES_OR_NO>",
+  "encrypted_archive_sha256": "<SHA256>",
+  "encryption_mechanism": "restic authenticated client-side encryption",
+  "encryption_key_reference": "<SECRET_MANAGER_REFERENCE_ONLY>",
+  "tool_versions": {
+    "restic": "<PINNED_VERSION>",
+    "database_export_tool": "<TOOL_AND_VERSION>",
+    "storage_export_tool": "<TOOL_AND_VERSION>"
+  },
+  "operator": "<OPERATOR_IDENTIFIER>",
+  "external_destination_identifier": "<NON_SECRET_BUCKET_OR_REGISTER_ID>",
+  "retention_expires_at_utc": "<ISO_8601_UTC>",
+  "verification_status": "<CREATED_CHECKED_RESTORED_OR_FAILED>"
+}
