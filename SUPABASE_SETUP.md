@@ -20,7 +20,30 @@
 | `0011_quote_numbering_snapshot` | `quote_counters` + RPC `next_quote_number()` (DV-YYYY-NNNN) ; `quotes` : client_phone, client_email. |
 | `0012_quote_transactions` | RPC **`create_quote_with_lines`** / **`update_quote_with_lines`** (transactionnelles, member-checked). |
 
-CLI : `supabase db push`. Sinon coller chaque fichier dans le SQL Editor, dans l'ordre.
+### Application locale des migrations
+
+Pour le développement courant, appliquer les migrations uniquement à la stack
+Supabase locale avec :
+
+```bash
+npm run db:push:local
+```
+
+Le défaut sûr du dépôt est **LOCAL**. La commande nue `supabase db push` ne doit
+pas être utilisée comme instruction courante : un dépôt Supabase peut conserver
+dans `.temp` un état de liaison vers un projet hébergé. Cet état n'est jamais une
+autorisation de modifier ce projet, et Production ne doit notamment jamais être
+ciblée au seul motif que le dépôt y serait lié.
+
+Les déploiements de migrations vers Staging et Production sont des opérations de
+release séparées. Ils exigent une identification explicite de la cible, une revue
+explicite et une autorisation explicite. Cette documentation ne fournit pas de
+commande distante prête à copier et ce dépôt n'ajoute ici aucun mécanisme de
+déploiement distant.
+
+`supabase migration repair` n'est pas une commande courante de correction du
+drift et ne doit jamais être proposée automatiquement face à un historique de
+migrations divergent.
 
 ## 3. Fonctions RPC (SECURITY DEFINER, `search_path` épinglé)
 - `is_garage_member(uuid)`, `has_garage_role(uuid, text[])` — utilisées par les policies RLS.
