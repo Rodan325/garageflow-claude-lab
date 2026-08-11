@@ -12,6 +12,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
+    "db:push:local": "supabase db push --local",
     "db:seed:local": "node scripts/seed-local.mjs",
     "test:rls": "node scripts/run-rls-tests.mjs",
     "test:workshop-capabilities": "node --env-file=.env.local scripts/workshop-capabilities-rls.mjs",

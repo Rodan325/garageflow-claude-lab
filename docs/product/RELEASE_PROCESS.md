@@ -218,7 +218,9 @@ Avant une migration :
 
 Application :
 
-- utiliser le mécanisme normal `supabase db push` ;
+- utiliser uniquement la procédure de release distante explicitement approuvée
+  pour la cible identifiée ; l'état de liaison local du dépôt n'est jamais une
+  autorisation et ce document ne fournit aucune commande distante prête à copier ;
 - ne pas exécuter de seed, reset, repair, DDL manuel ou backfill non autorisé ;
 - capturer début, fin, durée, erreurs et avertissements ;
 - arrêter à la première divergence ou erreur.
