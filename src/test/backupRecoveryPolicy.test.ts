@@ -49,7 +49,14 @@ describe('backup recovery policy', () => {
   })
 
   it('states the approved pilot backup layers without overstating resilience', () => {
-    expect(normalized).toContain('database backup: verified - supabase pro')
+    expect(compact).toContain(
+      'scheduled production database backup availability: verified - supabase pro',
+    )
+    expect(compact).toContain(
+      'database restore proof: not verified - isolated restore not yet performed',
+    )
+    expect(compact).toContain('database recoverability is therefore not verified')
+    expect(compact).not.toContain('database backup: verified - supabase pro')
     expect(normalized).toContain('storage backup: local encrypted restic repository on ssd')
     expect(normalized).toContain(
       'off-site backup: not implemented - accepted pilot residual risk',

@@ -11,7 +11,7 @@ credentials, customer identifiers, object paths, or record values.
 | Frozen/source Git SHA | `6634686b4544bac41f1ad6f004beadfc31769966` |
 | Source environment | Production |
 | Supabase plan | Pro |
-| Scheduled Production database backup verified | YES |
+| Scheduled Production database backup availability verified | YES |
 | Latest backup UTC | 2026-08-11T03:37:12Z |
 | Latest backup age at inspection | Approximately 14 hours 58 minutes |
 | Visible restore points | 7 physical restore points spanning 2026-08-04 to 2026-08-11 |
@@ -29,6 +29,8 @@ credentials, customer identifiers, object paths, or record values.
 | Production payload download path verified | NO - no payload existed |
 | Production Storage snapshot created | NO - not required for an empty source |
 | Disposable restore performed | NO |
+| Database restore proof | NOT VERIFIED - isolated restore not yet performed |
+| Database recoverability | NOT VERIFIED |
 | Database schema match | NO - not tested |
 | Auth aggregate match | NO - not tested |
 | Critical business aggregate match | NO - not tested |
@@ -67,7 +69,11 @@ credentials, customer identifiers, object paths, or record values.
 
 `scheduled Production DB backup verified = PASS`
 
-`Database backup = VERIFIED - Supabase Pro`
+`Scheduled Production database backup availability = VERIFIED - Supabase Pro`
+
+`Database restore proof = NOT VERIFIED - isolated restore not yet performed`
+
+`Database recoverability = NOT VERIFIED`
 
 `Storage backup = LOCAL ENCRYPTED RESTIC REPOSITORY ON SSD (SOURCE INVENTORY VALID AND EMPTY; SYNTHETIC RESTIC TEST ONLY)`
 

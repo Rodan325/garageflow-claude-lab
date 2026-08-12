@@ -80,9 +80,11 @@ Storage metadata. They do not contain the actual Storage object payloads.
 
 ## 6. Pilot backup architecture
 
-**Database backup: VERIFIED - Supabase Pro.** Supabase-managed physical backup
-remains the pilot's database recovery layer. No independent logical database
-export is configured or claimed.
+**Scheduled Production database backup availability: VERIFIED - Supabase Pro.**
+The Supabase-managed automatic physical backup exists and remains the pilot's
+database backup layer. **Database restore proof: NOT VERIFIED - isolated
+restore not yet performed.** Database recoverability is therefore not verified.
+No independent logical database export is configured or claimed.
 
 **Storage backup: LOCAL ENCRYPTED RESTIC REPOSITORY ON SSD.** The approved
 destination is a dedicated directory on the owner's personal SSD. The SSD
