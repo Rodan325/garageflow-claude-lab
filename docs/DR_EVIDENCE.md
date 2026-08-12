@@ -22,6 +22,12 @@ credentials, customer identifiers, object paths, or record values.
 | Synthetic snapshot retained | NO - forgotten and pruned after verification |
 | Off-site backup implemented | NO - accepted pilot residual risk |
 | Storage payload backup verified | NO |
+| Production Storage bucket inventory | PASS - exact tracked bucket set |
+| Production Storage object inventory | PASS - valid empty inventory |
+| Production Storage source objects | 0 |
+| Production Storage source bytes | 0 |
+| Production payload download path verified | NO - no payload existed |
+| Production Storage snapshot created | NO - not required for an empty source |
 | Disposable restore performed | NO |
 | Database schema match | NO - not tested |
 | Auth aggregate match | NO - not tested |
@@ -41,14 +47,21 @@ credentials, customer identifiers, object paths, or record values.
   does not demonstrate an uninterrupted historical database RPO of 24 hours.
 - Supabase scheduled database backup verification does not cover actual Storage
   payloads.
+- On 2026-08-12, one approved read-only list request per tracked bucket returned
+  HTTP 200 with a complete empty array. The valid source baseline is therefore
+  `source_object_count = 0` and `source_total_bytes = 0`.
+- No payload download or Production restic snapshot was needed for that empty
+  source. The result proves inventory handling only and does not prove the real
+  Production payload download/checksum path.
 - The approved Storage destination is the local encrypted restic repository on
   the owner's SSD. It is initialized and synthetically verified, but contains
   no Production or Staging data and has no active schedule.
 - No off-site copy exists. Workstation/SSD co-failure, theft, and ransomware
   remain accepted pilot risks and must not be represented as mitigated.
-- DR-01 remains open until an authorized Production Storage payload backup is
-  created and a full database-plus-Storage recovery is checked, compared, and
-  timed end to end on an isolated disposable target.
+- DR-01 remains open. The first real Production Storage backup must run after
+  at least one payload appears or during the next approved DR drill, and a full
+  database-plus-Storage recovery must still be checked, compared, and timed end
+  to end on an isolated disposable target.
 
 ## Current decision
 
@@ -56,7 +69,7 @@ credentials, customer identifiers, object paths, or record values.
 
 `Database backup = VERIFIED - Supabase Pro`
 
-`Storage backup = LOCAL ENCRYPTED RESTIC REPOSITORY ON SSD (EMPTY; SYNTHETIC TEST ONLY)`
+`Storage backup = LOCAL ENCRYPTED RESTIC REPOSITORY ON SSD (SOURCE INVENTORY VALID AND EMPTY; SYNTHETIC RESTIC TEST ONLY)`
 
 `Off-site backup = NOT IMPLEMENTED - ACCEPTED PILOT RESIDUAL RISK`
 

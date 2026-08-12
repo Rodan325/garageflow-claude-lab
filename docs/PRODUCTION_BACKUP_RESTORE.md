@@ -104,6 +104,15 @@ Before the first Storage payload export, obtain separate approval naming the
 Production project, allowed buckets, local plaintext staging directory,
 repository destination, cleanup plan, and verification evidence.
 
+On 2026-08-12, an approved read-only Production inventory returned HTTP 200
+and a complete empty array for each tracked bucket. This is a **valid empty
+inventory**, not a backup failure: `source_object_count = 0` and
+`source_total_bytes = 0`. No payload download was required and no empty
+Production restic snapshot was created merely to satisfy a test. This proves
+the authenticated bucket and object-list inventory path only. It does **not**
+prove the download, checksum, snapshot, or restore path for a real Production
+payload.
+
 ## 7. Storage backup
 
 Database rows in `storage.buckets` and `storage.objects` are metadata only.
@@ -124,13 +133,22 @@ feasible. Do not place real object paths, filenames, UUIDs, or counts in Git.
 
 Proposed daily Storage sequence after approval:
 
-1. create a restricted encrypted temporary workspace outside the repository;
-2. download only the explicitly authorized Storage payload tree;
-3. produce a manifest without customer data;
-4. create a dedicated restic snapshot with environment and date tags;
-5. verify snapshot presence and repository integrity;
-6. remove only that run's plaintext staging after independent verification;
-7. record success or alert failure in the controlled backup register.
+1. inventory the exact authorized bucket set and record aggregate count/bytes;
+2. treat HTTP 200 plus a complete zero-object inventory as a successful empty
+   source state, record `0` objects and `0` bytes, and stop without download,
+   plaintext staging, or snapshot;
+3. when at least one payload exists, create a restricted temporary workspace
+   outside the repository and download only the authorized payload tree;
+4. produce a private manifest without customer data;
+5. create a dedicated restic snapshot with environment and date tags;
+6. verify snapshot presence, file count, checksums, and repository integrity;
+7. remove only that run's plaintext staging after independent verification;
+8. record success or alert failure in the controlled backup register.
+
+The first real Production Storage backup must run after at least one payload
+appears or during the next approved DR drill. Until then, the synthetic restic
+backup/check/restore remains the only proof of the local encrypted repository
+mechanism. DR-01 remains open.
 
 ## 8. Backup manifest
 
@@ -147,7 +165,7 @@ expiry, and verification state. It contains no credentials or customer data.
 | --- | --- | --- |
 | Supabase-managed database points | Platform-visible window | Seven visible points; one date gap observed |
 | Independent database snapshots | None for pilot | Supabase Pro remains the database layer |
-| Local encrypted Storage snapshots | 30 days | Proposed, not scheduled or populated |
+| Local encrypted Storage snapshots | 30 days | No Production snapshot: source inventory is valid and empty |
 | Off-site snapshots | None | Accepted pilot residual risk |
 | Disposable restore project | Delete only after evidence review and approval | None created |
 
@@ -162,6 +180,10 @@ it did not authorize deletion of a real snapshot.
 - Database: inspect the newest Supabase restore point daily; alert on age over
   24 hours or a missing expected point.
 - Storage export: daily after the local SSD process is explicitly activated.
+- Empty Storage source: inventory and record `0` objects / `0` bytes; do not
+  create an empty snapshot solely as proof of a payload backup.
+- First real Storage backup: after at least one Production payload appears or
+  during the next approved DR drill.
 - Backup health: verify expected restic snapshots and run structural
   `restic check` at least weekly.
 - Integrity: run `restic check --read-data` on a controlled cadence (proposed
@@ -249,6 +271,10 @@ outbound integration risk, plaintext outside the restricted workspace, secret
 exposure, or an RTO trajectory over four hours. Do not repair migration history
 or overwrite Production. Preserve logs without secrets and escalate.
 
+An expected, complete HTTP 200 inventory of zero objects is not a missing
+bucket or object-count variance. It is a valid empty source state and must be
+recorded without manufacturing an empty Production snapshot.
+
 ## 19. Evidence
 
 Update `docs/DR_EVIDENCE.md` with repository-safe results and the controlled
@@ -287,6 +313,8 @@ and operator time. No additional cloud backup service is configured.
 
 Main risks are single-site SSD loss or theft, ransomware, media failure,
 forgotten repository passwords, missed daily jobs, incomplete Storage export,
-unbounded repository growth, and unmeasured end-to-end restore time. Each
-remains a gate until a Production-authorized Storage export and a disposable
+unbounded repository growth, and unmeasured end-to-end restore time. The real
+payload download path remains unverified while Production Storage is empty.
+Each remains a gate until a non-empty Production-authorized Storage export (or
+the next approved DR drill with representative payloads) and a disposable
 end-to-end drill succeed.

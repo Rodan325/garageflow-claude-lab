@@ -8,6 +8,7 @@ const runbook = readFileSync(
   'utf8',
 )
 const normalized = runbook.toLowerCase()
+const compact = normalized.replace(/\s+/g, ' ')
 
 function fencedCommandLines(markdown: string) {
   const blocks = markdown.match(/```[^\n]*\n[\s\S]*?```/g) ?? []
@@ -55,6 +56,17 @@ describe('backup recovery policy', () => {
     )
     expect(normalized).toContain('dpapi currentuser')
     expect(normalized).not.toContain('backblaze')
+  })
+
+  it('accepts a complete empty Storage inventory without manufacturing a snapshot', () => {
+    expect(compact).toContain('valid empty inventory')
+    expect(compact).toContain('source_object_count = 0')
+    expect(compact).toContain('source_total_bytes = 0')
+    expect(compact).toContain('no payload download was required')
+    expect(compact).toContain('no empty production restic snapshot was created')
+    expect(compact).toContain('real payload download path remains unverified')
+    expect(compact).toContain('after at least one payload appears')
+    expect(compact).toContain('dr-01 remains open')
   })
 
   it('does not publish routine destructive rehearsal commands', () => {
