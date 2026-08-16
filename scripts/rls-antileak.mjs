@@ -91,6 +91,7 @@ let passed = 0
 let failed = 0
 const cleanup = {
   requests: [],
+  appointments: [],
   storagePaths: [],
   quotes: [],
 }
@@ -200,6 +201,10 @@ async function cleanupRunArtifacts() {
   for (const item of cleanup.quotes) {
     const { error } = await item.client.from('quotes').delete().eq('id', item.id)
     if (error) cleanupErrors.push(`quote: ${error.message}`)
+  }
+  for (const item of cleanup.appointments) {
+    const { error } = await item.client.from('appointments').delete().eq('id', item.id)
+    if (error) cleanupErrors.push(`appointment: ${error.message}`)
   }
   check(
     'Application cleanup never physically deletes service requests',
@@ -1148,6 +1153,253 @@ async function run() {
   check('Center manager cannot create recommendation for another center', Boolean(crossCenterRecommendation.error), crossCenterRecommendation)
 
   console.log('\nTransfers and cross-tenant integrity')
+  const oneWayTransferRequest = await createRequest(clientB2, {
+    garageId: IDS.garageB,
+    centerId: IDS.centerB1,
+    clientId: IDS.clientB2,
+    label: 'TRANSFER-ONE-WAY-REQUEST-APPOINTMENT',
+  })
+  const oneWayAppointment = await ownerB
+    .from('appointments')
+    .insert({
+      garage_id: IDS.garageB,
+      center_id: IDS.centerB1,
+      service_request_id: null,
+      title: 'Local validation one-way transfer appointment',
+      starts_at: new Date(Date.now() + 86_400_000).toISOString(),
+    })
+    .select('id,garage_id,center_id,service_request_id')
+    .single()
+  check('One-way transfer appointment fixture is created', !oneWayAppointment.error, oneWayAppointment.error)
+  if (!oneWayAppointment.error) {
+    cleanup.appointments.push({ id: oneWayAppointment.data.id, client: ownerB })
+    const linkedRequest = await ownerB
+      .from('service_requests')
+      .update({ appointment_id: oneWayAppointment.data.id })
+      .eq('id', oneWayTransferRequest.id)
+      .select('id,garage_id,center_id,appointment_id')
+      .single()
+    check(
+      'One-way request-to-appointment fixture starts coherent without a reciprocal link',
+      !linkedRequest.error
+        && linkedRequest.data.garage_id === oneWayAppointment.data.garage_id
+        && linkedRequest.data.center_id === oneWayAppointment.data.center_id
+        && linkedRequest.data.appointment_id === oneWayAppointment.data.id
+        && oneWayAppointment.data.service_request_id === null,
+      linkedRequest.error,
+    )
+
+    const oneWayTransfer = await ownerB.rpc('propose_center_transfer', {
+      p_request_id: oneWayTransferRequest.id,
+      p_to_center_id: IDS.centerB2,
+      p_reason: 'Validate one-way request-to-appointment transfer consistency.',
+    })
+    check('One-way relationship transfer can be proposed', !oneWayTransfer.error, oneWayTransfer.error)
+    if (!oneWayTransfer.error) {
+      const oneWayDecision = await clientB2.rpc('decide_center_transfer', {
+        p_transfer_id: oneWayTransfer.data.id,
+        p_accept: true,
+        p_note: 'Accepted for local invariant validation.',
+      })
+      check('One-way relationship transfer can be customer-confirmed', !oneWayDecision.error, oneWayDecision.error)
+      const oneWayCompletion = await ownerB.rpc('complete_center_transfer', {
+        p_transfer_id: oneWayTransfer.data.id,
+      })
+      check('One-way relationship transfer can be completed', !oneWayCompletion.error, oneWayCompletion.error)
+
+      const [movedOneWayRequest, movedOneWayAppointment] = await Promise.all([
+        ownerB
+          .from('service_requests')
+          .select('garage_id,center_id,appointment_id')
+          .eq('id', oneWayTransferRequest.id)
+          .single(),
+        ownerB
+          .from('appointments')
+          .select('garage_id,center_id,service_request_id')
+          .eq('id', oneWayAppointment.data.id)
+          .single(),
+      ])
+      check(
+        'Completed transfer preserves center consistency for a one-way request-to-appointment link',
+        !movedOneWayRequest.error
+          && !movedOneWayAppointment.error
+          && movedOneWayRequest.data.garage_id === movedOneWayAppointment.data.garage_id
+          && movedOneWayRequest.data.center_id === IDS.centerB2
+          && movedOneWayAppointment.data.center_id === IDS.centerB2
+          && movedOneWayRequest.data.center_id === movedOneWayAppointment.data.center_id
+          && movedOneWayRequest.data.appointment_id === oneWayAppointment.data.id
+          && movedOneWayAppointment.data.service_request_id === null,
+        movedOneWayRequest.error ?? movedOneWayAppointment.error ?? {
+          requestCenter: movedOneWayRequest.data?.center_id,
+          appointmentCenter: movedOneWayAppointment.data?.center_id,
+        },
+      )
+    }
+  }
+
+  const sharedAppointmentPrimaryRequest = await createRequest(clientB2, {
+    garageId: IDS.garageB,
+    centerId: IDS.centerB1,
+    clientId: IDS.clientB2,
+    label: 'TRANSFER-SHARED-APPOINTMENT-PRIMARY',
+  })
+  const sharedAppointmentOtherRequest = await createRequest(clientB1, {
+    garageId: IDS.garageB,
+    centerId: IDS.centerB1,
+    clientId: IDS.clientB1,
+    label: 'TRANSFER-SHARED-APPOINTMENT-OTHER',
+  })
+  const sharedAppointment = await ownerB
+    .from('appointments')
+    .insert({
+      garage_id: IDS.garageB,
+      center_id: IDS.centerB1,
+      service_request_id: null,
+      title: 'Local validation shared transfer appointment',
+      starts_at: new Date(Date.now() + 86_400_000).toISOString(),
+    })
+    .select('id,garage_id,center_id,service_request_id')
+    .single()
+  check(
+    'Shared transfer appointment fixture is created',
+    !sharedAppointment.error,
+    sharedAppointment.error,
+  )
+
+  if (!sharedAppointment.error) {
+    cleanup.appointments.push({
+      id: sharedAppointment.data.id,
+      client: ownerB,
+    })
+
+    const [primaryLink, otherLink] = await Promise.all([
+      ownerB
+        .from('service_requests')
+        .update({ appointment_id: sharedAppointment.data.id })
+        .eq('id', sharedAppointmentPrimaryRequest.id)
+        .select('id,garage_id,center_id,appointment_id')
+        .single(),
+      ownerB
+        .from('service_requests')
+        .update({ appointment_id: sharedAppointment.data.id })
+        .eq('id', sharedAppointmentOtherRequest.id)
+        .select('id,garage_id,center_id,appointment_id')
+        .single(),
+    ])
+
+    check(
+      'Two same-center requests can form the shared-appointment conflict fixture',
+      !primaryLink.error
+        && !otherLink.error
+        && primaryLink.data.center_id === IDS.centerB1
+        && otherLink.data.center_id === IDS.centerB1
+        && primaryLink.data.appointment_id === sharedAppointment.data.id
+        && otherLink.data.appointment_id === sharedAppointment.data.id
+        && sharedAppointment.data.service_request_id === null,
+      primaryLink.error ?? otherLink.error,
+    )
+
+    if (!primaryLink.error && !otherLink.error) {
+      const sharedConflictTransfer = await ownerB.rpc('propose_center_transfer', {
+        p_request_id: sharedAppointmentPrimaryRequest.id,
+        p_to_center_id: IDS.centerB2,
+        p_reason: 'Validate shared appointment transfer rejection.',
+      })
+
+      check(
+        'Shared-appointment conflict transfer can be proposed',
+        !sharedConflictTransfer.error,
+        sharedConflictTransfer.error,
+      )
+
+      if (!sharedConflictTransfer.error) {
+        const sharedConflictDecision = await clientB2.rpc(
+          'decide_center_transfer',
+          {
+            p_transfer_id: sharedConflictTransfer.data.id,
+            p_accept: true,
+            p_note: 'Accepted only to validate atomic conflict rejection.',
+          },
+        )
+
+        check(
+          'Shared-appointment conflict transfer can be customer-confirmed',
+          !sharedConflictDecision.error,
+          sharedConflictDecision.error,
+        )
+
+        if (!sharedConflictDecision.error) {
+          const sharedConflictCompletion = await ownerB.rpc(
+            'complete_center_transfer',
+            {
+              p_transfer_id: sharedConflictTransfer.data.id,
+            },
+          )
+
+          check(
+            'Transfer rejects an appointment referenced by another service request',
+            Boolean(sharedConflictCompletion.error),
+            sharedConflictCompletion.data,
+          )
+
+          const [
+            primaryAfterConflict,
+            otherAfterConflict,
+            appointmentAfterConflict,
+            transferAfterConflict,
+          ] = await Promise.all([
+            ownerB
+              .from('service_requests')
+              .select('center_id,appointment_id')
+              .eq('id', sharedAppointmentPrimaryRequest.id)
+              .single(),
+            ownerB
+              .from('service_requests')
+              .select('center_id,appointment_id')
+              .eq('id', sharedAppointmentOtherRequest.id)
+              .single(),
+            ownerB
+              .from('appointments')
+              .select('center_id,service_request_id')
+              .eq('id', sharedAppointment.data.id)
+              .single(),
+            ownerB
+              .from('service_request_transfers')
+              .select('status,completed_at')
+              .eq('id', sharedConflictTransfer.data.id)
+              .single(),
+          ])
+
+          check(
+            'Rejected shared-appointment transfer is atomic',
+            !primaryAfterConflict.error
+              && !otherAfterConflict.error
+              && !appointmentAfterConflict.error
+              && !transferAfterConflict.error
+              && primaryAfterConflict.data.center_id === IDS.centerB1
+              && otherAfterConflict.data.center_id === IDS.centerB1
+              && appointmentAfterConflict.data.center_id === IDS.centerB1
+              && primaryAfterConflict.data.appointment_id === sharedAppointment.data.id
+              && otherAfterConflict.data.appointment_id === sharedAppointment.data.id
+              && appointmentAfterConflict.data.service_request_id === null
+              && transferAfterConflict.data.status === 'customer_confirmed'
+              && transferAfterConflict.data.completed_at === null,
+            primaryAfterConflict.error
+              ?? otherAfterConflict.error
+              ?? appointmentAfterConflict.error
+              ?? transferAfterConflict.error
+              ?? {
+                primaryCenter: primaryAfterConflict.data?.center_id,
+                otherCenter: otherAfterConflict.data?.center_id,
+                appointmentCenter: appointmentAfterConflict.data?.center_id,
+                transferStatus: transferAfterConflict.data?.status,
+                completedAt: transferAfterConflict.data?.completed_at,
+              },
+          )
+        }
+      }
+    }
+  }
   const transferRequest = await createRequest(clientB2, {
     garageId: IDS.garageB,
     centerId: IDS.centerB1,

@@ -182,7 +182,301 @@ from (
   from public.garage_services service
 ) baseline;
 
+-- ============================================================
+-- PILOT RLS INVARIANT REGRESSIONS
+-- Reproduced locally before pilot hardening.
+--
+-- Invariant A:
+-- linked appointment/service_request rows must belong to the
+-- same garage AND the same canonical center.
+--
+-- Invariant B:
+-- an ordinary authenticated caller must not persist an audit
+-- event attributed to another authenticated user.
+--
+-- Every successful probe is deliberately rolled back inside a
+-- PL/pgSQL subtransaction before the contract continues.
+-- ============================================================
+
+savepoint pilot_rls_invariant_regressions;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  'b0000000-0000-4000-8000-000000000001',
+  true
+);
+
+do $pilot$
+declare
+  same_center_request_id uuid;
+  cross_center_request_id uuid;
+  failures text[] := array[]::text[];
+begin
+  select request.id
+  into same_center_request_id
+  from public.service_requests request
+  where request.garage_id =
+        '22222222-2222-4222-8222-222222222222'
+    and request.center_id =
+        '22222222-2222-4222-8222-22222222c001'
+  order by request.id
+  limit 1;
+
+  select request.id
+  into cross_center_request_id
+  from public.service_requests request
+  where request.garage_id =
+        '22222222-2222-4222-8222-222222222222'
+    and request.center_id is not null
+    and request.center_id <>
+        '22222222-2222-4222-8222-22222222c001'
+  order by request.id
+  limit 1;
+
+  if same_center_request_id is null then
+    raise exception
+      'Pilot invariant fixture missing: no center-A request';
+  end if;
+
+  if cross_center_request_id is null then
+    raise exception
+      'Pilot invariant fixture missing: no cross-center request';
+  end if;
+
+  -- Positive control:
+  -- same-center appointment/request links must remain valid.
+  begin
+    insert into public.appointments (
+      garage_id,
+      center_id,
+      service_request_id,
+      title,
+      starts_at,
+      status
+    )
+    values (
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c001',
+      same_center_request_id,
+      'Pilot invariant same-center positive control',
+      now() + interval '1 day',
+      'scheduled'
+    );
+
+    -- Force rollback of the successful positive-control write.
+    raise exception using
+      errcode = 'ZX002',
+      message = 'EXPECTED_SUCCESS_ROLLBACK';
+  exception
+    when sqlstate 'ZX002' then
+      raise notice
+        '[PASS] same-center appointment/request relation remains accepted';
+    when others then
+      failures := array_append(
+        failures,
+        format(
+          'positive same-center appointment/request relation failed with SQLSTATE %s',
+          SQLSTATE
+        )
+      );
+  end;
+
+  -- A1: appointment in center A referencing a request in another
+  -- center of the same organization must be denied.
+  begin
+    insert into public.appointments (
+      garage_id,
+      center_id,
+      service_request_id,
+      title,
+      starts_at,
+      status
+    )
+    values (
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-22222222c001',
+      cross_center_request_id,
+      'Pilot invariant cross-center negative control',
+      now() + interval '1 day',
+      'scheduled'
+    );
+
+    raise exception using
+      errcode = 'ZX001',
+      message = 'EXPECTED_DENIAL_MISSING';
+  exception
+    when sqlstate 'ZX001' then
+      failures := array_append(
+        failures,
+        'A1 cross-center appointment -> service_request was accepted'
+      );
+    when insufficient_privilege then
+      raise notice
+        '[PASS] A1 cross-center appointment -> service_request denied';
+    when others then
+      failures := array_append(
+        failures,
+        format(
+          'A1 denied for unexpected SQLSTATE %s',
+          SQLSTATE
+        )
+      );
+  end;
+
+  -- A2: reciprocal link must obey the same center invariant.
+  begin
+    update public.service_requests
+    set appointment_id =
+      'cc000000-0000-4000-8000-000000000007'
+    where id = cross_center_request_id;
+
+    if not found then
+      raise exception
+        'Pilot invariant fixture disappeared during A2';
+    end if;
+
+    raise exception using
+      errcode = 'ZX001',
+      message = 'EXPECTED_DENIAL_MISSING';
+  exception
+    when sqlstate 'ZX001' then
+      failures := array_append(
+        failures,
+        'A2 cross-center service_request -> appointment was accepted'
+      );
+    when insufficient_privilege then
+      raise notice
+        '[PASS] A2 cross-center service_request -> appointment denied';
+    when others then
+      failures := array_append(
+        failures,
+        format(
+          'A2 denied for unexpected SQLSTATE %s',
+          SQLSTATE
+        )
+      );
+  end;
+
+  -- B1: caller is an organization owner but claims a different
+  -- fictitious actor_id.
+  begin
+    insert into public.audit_logs (
+      garage_id,
+      actor_id,
+      entity_type,
+      entity_id,
+      action,
+      metadata
+    )
+    values (
+      '22222222-2222-4222-8222-222222222222',
+      'c2000000-0000-4000-8000-000000000001',
+      'rls_validation',
+      null,
+      'pilot_actor_integrity_member_garage',
+      '{"validation":true}'::jsonb
+    );
+
+    raise exception using
+      errcode = 'ZX001',
+      message = 'EXPECTED_DENIAL_MISSING';
+  exception
+    when sqlstate 'ZX001' then
+      failures := array_append(
+        failures,
+        'B1 authenticated caller forged audit actor_id in member garage'
+      );
+    when insufficient_privilege then
+      raise notice
+        '[PASS] B1 forged member-garage audit actor denied';
+    when others then
+      failures := array_append(
+        failures,
+        format(
+          'B1 denied for unexpected SQLSTATE %s',
+          SQLSTATE
+        )
+      );
+  end;
+
+  -- B2: NULL garage must not provide an unscoped audit-write bypass.
+  begin
+    insert into public.audit_logs (
+      garage_id,
+      actor_id,
+      entity_type,
+      entity_id,
+      action,
+      metadata
+    )
+    values (
+      null,
+      'c2000000-0000-4000-8000-000000000001',
+      'rls_validation',
+      null,
+      'pilot_actor_integrity_null_garage',
+      '{"validation":true}'::jsonb
+    );
+
+    raise exception using
+      errcode = 'ZX001',
+      message = 'EXPECTED_DENIAL_MISSING';
+  exception
+    when sqlstate 'ZX001' then
+      failures := array_append(
+        failures,
+        'B2 authenticated caller forged unscoped NULL-garage audit event'
+      );
+    when insufficient_privilege then
+      raise notice
+        '[PASS] B2 NULL-garage direct audit insert denied';
+    when others then
+      failures := array_append(
+        failures,
+        format(
+          'B2 denied for unexpected SQLSTATE %s',
+          SQLSTATE
+        )
+      );
+  end;
+
+  if cardinality(failures) > 0 then
+    raise exception
+      'Pilot RLS invariant regression failed: %',
+      array_to_string(failures, '; ');
+  end if;
+
+  raise notice
+    '[PASS] PILOT RLS INVARIANT REGRESSIONS';
+end
+$pilot$;
+
+reset role;
+rollback to savepoint pilot_rls_invariant_regressions;
+
 -- Structural contract: capabilities, policies, grants, and physical deletion.
+select pg_temp.assert_true(
+  'audit_logs direct writes are fail-closed',
+  not has_table_privilege(
+    'authenticated',
+    'public.audit_logs',
+    'INSERT'
+  )
+  and not has_table_privilege(
+    'anon',
+    'public.audit_logs',
+    'INSERT'
+  )
+  and not exists (
+    select 1
+    from pg_catalog.pg_policies policy
+    where policy.schemaname = 'public'
+      and policy.tablename = 'audit_logs'
+      and policy.policyname = 'audit_insert_member'
+  )
+);
+
 select pg_temp.assert_true(
   'capability resolver is SECURITY DEFINER with an empty search_path',
   (
