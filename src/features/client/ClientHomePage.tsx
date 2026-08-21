@@ -13,7 +13,7 @@ import { useSelectedGarage } from './useSelectedGarage'
 import { nextSlots } from '@/lib/slots'
 import { euro, shortDate } from '@/lib/format'
 import { listItem, listStagger } from '@/lib/motion'
-import type { GarageService, GarageHours } from '@/types/domain'
+import type { GarageHours, PublicGarageService } from '@/types/domain'
 import { useLang } from '@/i18n'
 import { localizeDemoText } from '@/i18n/demoContent'
 import { maintenanceRemindersEnabled } from '@/lib/features'
@@ -171,7 +171,7 @@ function SelectedGarageHome({
 function ServiceCard({
   service, hours, onBook,
 }: {
-  service: GarageService
+  service: PublicGarageService
   hours: GarageHours[] | undefined
   onBook: () => void
 }) {

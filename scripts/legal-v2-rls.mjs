@@ -5,6 +5,7 @@
  * assertion below uses anonymous or ordinary authenticated Data API clients.
  */
 import { createClient } from '@supabase/supabase-js'
+import { fixtureCredentials } from './rls-fixture-accounts.mjs'
 import { assertPublishableKey, assertSupabaseTestTarget } from './rls-target-guard.mjs'
 
 const url = process.env.VITE_SUPABASE_URL
@@ -46,27 +47,24 @@ const PASSWORD = process.env.SEED_FIXTURE_PASSWORD
 if (!PASSWORD) {
   console.error(
     'RLS SAFETY GUARD: SEED_FIXTURE_PASSWORD is not set.\n' +
-      'Fixtures no longer ship a password: by default each one gets a random value\n' +
-      'nobody knows. Seed them with a password of your choice, then pass that same\n' +
-      'value to this run, per command and never exported. The wrapper loads it\n' +
-      'from the environment and applies the seed plus the Test B fixtures over one\n' +
-      'connection. Bash — Git Bash or WSL on Windows — local databases only:\n' +
-      "  read -rs -p 'Fixture password: ' fixture_pw\n" +
-      "  printf '\\n'\n" +
-      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local\n' +
-      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls\n' +
-      '  unset fixture_pw\n' +
-      'The value stays out of your shell history and out of argv, but it is\n' +
-      "readable in each child process's environment while that process runs.",
+      'Create a missing baseline with npm run db:seed:local; that guarded command\n' +
+      'deliberately creates random unusable fixture credentials and rejects a\n' +
+      'shared password. After validating the exact local fixture target set, pass\n' +
+      'one newly generated in-memory value only to the child process running:\n' +
+      '  node scripts/rls-fixture-admin.mjs rekey\n' +
+      'Pass the same ephemeral value only to this RLS child process, then remove it\n' +
+      'from process memory immediately. Never persist, export, log, or place it in\n' +
+      'argv, a file, shell history, or user/system environment configuration.',
   )
   process.exit(2)
 }
+const CANONICAL_ACCOUNTS = fixtureCredentials(PASSWORD)
 const ACCOUNTS = {
-  ownerA: ['owner@demo-garage.fr', PASSWORD],
-  memberA: ['frontdesk.independent@example.test', PASSWORD],
-  ownerB: ['owner.network@example.test', PASSWORD],
-  centerManagerB: ['manager.north@example.test', PASSWORD],
-  clientA: ['client@demo.fr', PASSWORD],
+  ownerA: CANONICAL_ACCOUNTS.ownerA,
+  memberA: CANONICAL_ACCOUNTS.frontDeskA,
+  ownerB: CANONICAL_ACCOUNTS.ownerB,
+  centerManagerB: CANONICAL_ACCOUNTS.centerNorth,
+  clientA: CANONICAL_ACCOUNTS.clientA1,
 }
 
 let passed = 0

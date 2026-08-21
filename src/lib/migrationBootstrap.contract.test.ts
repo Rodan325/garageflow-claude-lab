@@ -70,17 +70,20 @@ describe('historical seed migration bootstrap', () => {
     expect(seed).toContain('gen_random_bytes')
   })
 
-  it('marks trigger-generated seed notifications as simulated', () => {
-    const simulationUpdate = seed.match(
-      /update public\.notification_outbox[\s\S]*?and provider is null;/i,
-    )?.[0]
+  it('leaves trigger-generated notification rows in their natural state', () => {
+    expect(seed).not.toMatch(/update\s+public\.notification_outbox/i)
+    expect(seed).toMatch(/random outbox ids are trigger-owned/i)
+  })
 
-    expect(simulationUpdate).toBeDefined()
-    expect(simulationUpdate).toContain("status = 'simulated'")
-    expect(simulationUpdate).toContain("provider = 'demo-simulator'")
-    expect(simulationUpdate).toContain("'appointment_confirmed'")
-    expect(simulationUpdate).toContain("'approval_required'")
-    expect(simulationUpdate).toContain("'vehicle_ready'")
+  it('limits baseline mutations to exact fixture identities', () => {
+    const hours = insertStatement('garage_hours')
+    expect(hours).toMatch(/on conflict\s*\(id\)\s*do update/i)
+    expect(hours).not.toMatch(/on conflict\s*\(garage_id,\s*weekday\)/i)
+
+    expect(seed).not.toMatch(/delete\s+from\s+public\.garage_centers/i)
+    expect(seed).not.toMatch(/update\s+public\.service_requests/i)
+    expect(seed).not.toMatch(/update\s+public\.appointments/i)
+    expect(seed).not.toMatch(/update\s+public\.notification_outbox/i)
   })
 
   it('seeds delivery report list fields as renderable strings', () => {

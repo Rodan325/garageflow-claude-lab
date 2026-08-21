@@ -1,9 +1,48 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { isDemo, demo } from '@/lib/demo'
-import type { GarageService } from '@/types/domain'
+import type { GarageHours, GarageService, PublicGarage } from '@/types/domain'
 import type { TablesInsert, TablesUpdate } from '@/types/database.types'
 import { garageLogoStoragePath } from './logoUpload'
+
+const PUBLIC_GARAGE_FIELDS = 'id,slug,name,phone,website,address,city,postal_code,country,description,specialties,logo_url,accent_color,maps_url'
+const PUBLIC_HOURS_FIELDS = 'id,garage_id,weekday,open_time,close_time,is_closed'
+
+/** Public garage fields for an authenticated client workflow. */
+export function useGarageDetails(garageId?: string) {
+  return useQuery({
+    queryKey: ['garage-details', garageId],
+    enabled: !!garageId,
+    queryFn: async (): Promise<PublicGarage | null> => {
+      if (isDemo()) return demo.garages().find((garage) => garage.id === garageId) ?? null
+      const { data, error } = await supabase
+        .from('garages')
+        .select(PUBLIC_GARAGE_FIELDS)
+        .eq('id', garageId!)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+/** Full hours, including private garages, for authenticated management. */
+export function useManageGarageHours(garageId?: string) {
+  return useQuery({
+    queryKey: ['hours-all', garageId],
+    enabled: !!garageId,
+    queryFn: async (): Promise<GarageHours[]> => {
+      if (isDemo()) return demo.hours()
+      const { data, error } = await supabase
+        .from('garage_hours')
+        .select(PUBLIC_HOURS_FIELDS)
+        .eq('garage_id', garageId!)
+        .order('weekday')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
 
 /** All services (active + inactive) for the garage management view. */
 export function useManageServices(garageId?: string) {
@@ -13,9 +52,7 @@ export function useManageServices(garageId?: string) {
     queryFn: async (): Promise<GarageService[]> => {
       if (isDemo()) return demo.allServices()
       const { data, error } = await supabase
-        .from('garage_services')
-        .select('*')
-        .eq('garage_id', garageId!)
+        .rpc('get_managed_garage_services', { p_garage_id: garageId! })
         .order('sort_order')
       if (error) throw error
       return data ?? []
@@ -33,7 +70,11 @@ export function useCreateService() {
   return useMutation({
     mutationFn: async (input: TablesInsert<'garage_services'>) => {
       if (isDemo()) return demo.createService(input as Partial<GarageService>)
-      const { data, error } = await supabase.from('garage_services').insert(input).select('*').single()
+      const { data, error } = await supabase
+        .from('garage_services')
+        .insert(input)
+        .select('id,garage_id')
+        .single()
       if (error) throw error
       return data
     },

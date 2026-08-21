@@ -713,7 +713,7 @@ insert into public.garage_services (
 values
   (
     'cc000000-0000-4000-8000-000000000008',
-    '22222222-2222-4222-8222-222222222222',
+    '11111111-1111-4111-8111-111111111111',
     'Synthetic active public service',
     true
   ),
@@ -2328,6 +2328,452 @@ select pg_temp.expect_error(
   '42501'
 );
 reset role;
+
+-- Public discovery is a server-enforced, column-minimized boundary. The
+-- synthetic rows below live only for this transaction and exercise both a
+-- private parent and inactive/unpublished children of a public parent.
+savepoint public_data_boundary;
+insert into public.garage_centers (
+  id, garage_id, slug, name, is_active, sort_order
+)
+values
+  (
+    'cc000000-0000-4000-8000-000000000021',
+    '33333333-3333-4333-8333-333333333333',
+    'private-public-boundary',
+    'Private public-boundary center',
+    true,
+    901
+  ),
+  (
+    'cc000000-0000-4000-8000-000000000022',
+    '11111111-1111-4111-8111-111111111111',
+    'inactive-public-boundary',
+    'Inactive public-boundary center',
+    false,
+    902
+  );
+
+insert into public.garage_services (
+  id, garage_id, name, description, category, duration_minutes, price_from,
+  is_active, sort_order, tax_rate, labor_hours, price_type, default_lines
+)
+values
+  (
+    'cc000000-0000-4000-8000-000000000023',
+    '33333333-3333-4333-8333-333333333333',
+    'Private public-boundary service',
+    'Synthetic private catalog row',
+    'maintenance',
+    30,
+    10,
+    true,
+    901,
+    20,
+    1,
+    'fixed',
+    '[]'::jsonb
+  ),
+  (
+    'cc000000-0000-4000-8000-000000000024',
+    '11111111-1111-4111-8111-111111111111',
+    'Inactive public-boundary service',
+    'Synthetic inactive catalog row',
+    'maintenance',
+    30,
+    10,
+    false,
+    902,
+    20,
+    1,
+    'fixed',
+    '[]'::jsonb
+  );
+
+insert into public.garage_hours (
+  id, garage_id, weekday, open_time, close_time, is_closed
+)
+values (
+  'cc000000-0000-4000-8000-000000000025',
+  '33333333-3333-4333-8333-333333333333',
+  6,
+  '09:00',
+  '10:00',
+  false
+);
+
+insert into public.garage_news (
+  id, garage_id, title, body, is_published, published_at
+)
+values
+  (
+    'cc000000-0000-4000-8000-000000000026',
+    '33333333-3333-4333-8333-333333333333',
+    'Private published public-boundary news',
+    'Synthetic private catalog row',
+    true,
+    now()
+  ),
+  (
+    'cc000000-0000-4000-8000-000000000027',
+    '11111111-1111-4111-8111-111111111111',
+    'Unpublished public-boundary news',
+    'Synthetic unpublished catalog row',
+    false,
+    now()
+  );
+
+set local role anon;
+select pg_temp.assert_true(
+  'anonymous sees a public garage through the minimized contract',
+  exists (
+    select 1 from public.garages
+    where id = '11111111-1111-4111-8111-111111111111'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous sees an active center of a public garage',
+  exists (
+    select 1 from public.garage_centers
+    where garage_id = '11111111-1111-4111-8111-111111111111'
+      and is_active
+  )
+);
+select pg_temp.assert_true(
+  'anonymous sees an active service of a public garage',
+  exists (
+    select 1 from public.garage_services
+    where garage_id = '11111111-1111-4111-8111-111111111111'
+      and is_active
+  )
+);
+select pg_temp.assert_true(
+  'anonymous sees hours of a public garage',
+  exists (
+    select 1 from public.garage_hours
+    where garage_id = '11111111-1111-4111-8111-111111111111'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous sees published news of a public garage',
+  exists (
+    select 1 from public.garage_news
+    where garage_id = '11111111-1111-4111-8111-111111111111'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous cannot see the private garage',
+  not exists (
+    select 1 from public.garages
+    where id = '33333333-3333-4333-8333-333333333333'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous cannot see an active center of a private garage',
+  not exists (
+    select 1 from public.garage_centers
+    where id = 'cc000000-0000-4000-8000-000000000021'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous cannot see an active service of a private garage',
+  not exists (
+    select 1 from public.garage_services
+    where id = 'cc000000-0000-4000-8000-000000000023'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous cannot see hours of a private garage',
+  not exists (
+    select 1 from public.garage_hours
+    where id = 'cc000000-0000-4000-8000-000000000025'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous cannot see published news of a private garage',
+  not exists (
+    select 1 from public.garage_news
+    where id = 'cc000000-0000-4000-8000-000000000026'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous cannot see an inactive center of a public garage',
+  not exists (
+    select 1 from public.garage_centers
+    where id = 'cc000000-0000-4000-8000-000000000022'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous cannot see an inactive service of a public garage',
+  not exists (
+    select 1 from public.garage_services
+    where id = 'cc000000-0000-4000-8000-000000000024'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous cannot see unpublished news of a public garage',
+  not exists (
+    select 1 from public.garage_news
+    where id = 'cc000000-0000-4000-8000-000000000027'
+  )
+);
+select pg_temp.expect_error(
+  'anonymous cannot select garage settings',
+  $sql$select settings from public.garages limit 1$sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'anonymous cannot select garage email',
+  $sql$select email from public.garages limit 1$sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'anonymous cannot select service default lines',
+  $sql$select default_lines from public.garage_services limit 1$sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'anonymous cannot select service labor hours',
+  $sql$select labor_hours from public.garage_services limit 1$sql$,
+  '42501'
+);
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  'c2000000-0000-4000-8000-000000000001',
+  true
+);
+select pg_temp.assert_true(
+  'authenticated client retains the public garage and service allowlist',
+  exists (
+    select id, name, phone
+    from public.garages
+    where id = '11111111-1111-4111-8111-111111111111'
+  )
+  and exists (
+    select id, name, price_from
+    from public.garage_services
+    where garage_id = '11111111-1111-4111-8111-111111111111'
+      and is_active
+  )
+);
+select pg_temp.assert_true(
+  'unrelated authenticated client cannot see an active center of a private garage',
+  not exists (
+    select 1 from public.garage_centers
+    where id = 'cc000000-0000-4000-8000-000000000021'
+  )
+);
+select pg_temp.assert_true(
+  'unrelated authenticated client cannot see an active service of a private garage',
+  not exists (
+    select 1 from public.garage_services
+    where id = 'cc000000-0000-4000-8000-000000000023'
+  )
+);
+select pg_temp.assert_true(
+  'unrelated authenticated client cannot see hours of a private garage',
+  not exists (
+    select 1 from public.garage_hours
+    where id = 'cc000000-0000-4000-8000-000000000025'
+  )
+);
+select pg_temp.assert_true(
+  'unrelated authenticated client cannot see published news of a private garage',
+  not exists (
+    select 1 from public.garage_news
+    where id = 'cc000000-0000-4000-8000-000000000026'
+  )
+);
+select pg_temp.expect_error(
+  'authenticated client cannot select garage settings',
+  $sql$select settings from public.garages limit 1$sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'authenticated client cannot select garage email',
+  $sql$select email from public.garages limit 1$sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'authenticated client cannot select service default lines',
+  $sql$select default_lines from public.garage_services limit 1$sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'authenticated client cannot select service labor hours',
+  $sql$select labor_hours from public.garage_services limit 1$sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'authenticated client cannot select service tax rate',
+  $sql$select tax_rate from public.garage_services limit 1$sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'authenticated client cannot use the garage management RPC',
+  $sql$
+    select *
+    from public.get_managed_garage(
+      '11111111-1111-4111-8111-111111111111'
+    )
+  $sql$,
+  '42501'
+);
+select pg_temp.expect_error(
+  'authenticated client cannot use the service management RPC',
+  $sql$
+    select *
+    from public.get_managed_garage_services(
+      '11111111-1111-4111-8111-111111111111'
+    )
+  $sql$,
+  '42501'
+);
+reset role;
+
+select pg_temp.assert_true(
+  'catalog and management function privileges are narrowly assigned',
+  has_function_privilege(
+    'anon',
+    'public.is_public_catalog_garage(uuid)',
+    'execute'
+  )
+  and not has_function_privilege(
+    'authenticated',
+    'public.is_public_catalog_garage(uuid)',
+    'execute'
+  )
+  and not has_function_privilege(
+    'anon',
+    'public.get_managed_garage(uuid)',
+    'execute'
+  )
+  and not has_function_privilege(
+    'anon',
+    'public.get_managed_garage_services(uuid)',
+    'execute'
+  )
+  and has_function_privilege(
+    'authenticated',
+    'public.get_managed_garage(uuid)',
+    'execute'
+  )
+  and has_function_privilege(
+    'authenticated',
+    'public.get_managed_garage_services(uuid)',
+    'execute'
+  )
+);
+select pg_temp.assert_true(
+  'anonymous has no private schema usage and authenticated has no private helper execution',
+  not has_schema_privilege('anon', 'private', 'usage')
+  and not exists (
+    select 1
+    from pg_proc procedure
+    join pg_namespace namespace
+      on namespace.oid = procedure.pronamespace
+    where namespace.nspname = 'private'
+      and has_function_privilege('authenticated', procedure.oid, 'execute')
+  )
+);
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  'b3333333-0000-4000-8000-000000000001',
+  true
+);
+select pg_temp.expect_error(
+  'authorized owner also cannot bypass minimized base-table columns',
+  $sql$select settings from public.garages limit 1$sql$,
+  '42501'
+);
+select pg_temp.assert_true(
+  'authorized private-garage owner obtains internal fields through the management RPC',
+  exists (
+    select 1
+    from public.get_managed_garage(
+      '33333333-3333-4333-8333-333333333333'
+    ) garage
+    where garage.settings is not null
+      and pg_typeof(garage.email) = 'text'::regtype
+  )
+);
+select pg_temp.assert_true(
+  'authorized private-garage owner retains private catalog content',
+  exists (
+    select 1
+    from public.get_managed_garage_services(
+      '33333333-3333-4333-8333-333333333333'
+    ) service
+    where service.id = 'cc000000-0000-4000-8000-000000000023'
+      and service.default_lines is not null
+      and service.labor_hours is not null
+      and service.tax_rate is not null
+  )
+  and exists (
+    select 1 from public.garage_centers
+    where id = 'cc000000-0000-4000-8000-000000000021'
+  )
+  and exists (
+    select 1 from public.garage_hours
+    where id = 'cc000000-0000-4000-8000-000000000025'
+  )
+  and exists (
+    select 1 from public.garage_news
+    where id = 'cc000000-0000-4000-8000-000000000026'
+  )
+);
+reset role;
+
+set local role service_role;
+select pg_temp.assert_true(
+  'service_role retains direct full catalog reads',
+  exists (
+    select settings, email
+    from public.garages
+    where id = '33333333-3333-4333-8333-333333333333'
+  )
+  and exists (
+    select default_lines, labor_hours, tax_rate
+    from public.garage_services
+    where id = 'cc000000-0000-4000-8000-000000000023'
+  )
+);
+reset role;
+
+rollback to savepoint public_data_boundary;
+select pg_temp.assert_true(
+  'public data boundary fixtures are fully rolled back',
+  not exists (
+    select 1 from public.garage_centers
+    where id in (
+      'cc000000-0000-4000-8000-000000000021',
+      'cc000000-0000-4000-8000-000000000022'
+    )
+  )
+  and not exists (
+    select 1 from public.garage_services
+    where id in (
+      'cc000000-0000-4000-8000-000000000023',
+      'cc000000-0000-4000-8000-000000000024'
+    )
+  )
+  and not exists (
+    select 1 from public.garage_hours
+    where id = 'cc000000-0000-4000-8000-000000000025'
+  )
+  and not exists (
+    select 1 from public.garage_news
+    where id in (
+      'cc000000-0000-4000-8000-000000000026',
+      'cc000000-0000-4000-8000-000000000027'
+    )
+  )
+);
 
 select pg_temp.assert_true(
   'all denied and rolled-back operations preserve the core baseline',

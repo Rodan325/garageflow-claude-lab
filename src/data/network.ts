@@ -6,13 +6,12 @@ import { useMaintenanceReminders } from '@/data/reminders'
 import { demo, isDemo } from '@/lib/demo'
 import { networkDashboardEnabled } from '@/lib/features'
 import { supabase } from '@/lib/supabase'
-import { aggregateNetworkDashboard, type CenterNetworkMetrics } from '@/features/network/model'
-import type { GarageCenter } from '@/types/domain'
+import { aggregateNetworkDashboard, type CenterNetworkMetrics, type NetworkCenter } from '@/features/network/model'
 
 export function resolveNetworkCenters(
   demoMode: boolean,
-  queriedCenters: GarageCenter[] | undefined,
-  presentationCenters: GarageCenter[],
+  queriedCenters: NetworkCenter[] | undefined,
+  presentationCenters: NetworkCenter[],
 ) {
   return demoMode ? presentationCenters : queriedCenters ?? []
 }

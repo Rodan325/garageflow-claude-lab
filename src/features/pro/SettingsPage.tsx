@@ -7,8 +7,7 @@ import { Field, Input, Textarea } from '@/components/ui/input'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/ui/toast'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { useGarageHours } from '@/data/garagePublic'
-import { useUpdateGarage, useUploadLogo } from '@/data/catalog'
+import { useManageGarageHours, useUpdateGarage, useUploadLogo } from '@/data/catalog'
 import { shortTime } from '@/lib/format'
 import type { GarageRole } from '@/types/domain'
 import { roleLabel, weekdayLabel } from '@/i18n/domainLabels'
@@ -59,7 +58,7 @@ export function SettingsPage() {
     }
   }
 
-  const { data: hours } = useGarageHours(gid)
+  const { data: hours } = useManageGarageHours(gid)
 
   return (
     <div className="space-y-5">
