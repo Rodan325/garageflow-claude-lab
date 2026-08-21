@@ -22,7 +22,7 @@ import { BOOK_SERVICE_KEY } from '../ClientHomePage'
 import { openDays, slotsForDate } from '@/lib/slots'
 import { euro } from '@/lib/format'
 import { usePrefersReducedMotion } from '@/lib/motion'
-import type { GarageService } from '@/types/domain'
+import type { PublicGarageService } from '@/types/domain'
 import { LOCALES, useLang } from '@/i18n'
 import { localizeDemoText } from '@/i18n/demoContent'
 
@@ -85,7 +85,7 @@ export function BookingFlow() {
   const garageName = garages?.find((g) => g.id === selectedGarageId)?.name ?? ''
 
   const [step, setStep] = useState<Step>('service')
-  const [service, setService] = useState<GarageService | null>(null)
+  const [service, setService] = useState<PublicGarageService | null>(null)
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [note, setNote] = useState('')
@@ -475,7 +475,7 @@ export function BookingFlow() {
   )
 }
 
-function RecapCard({ service, date, time }: { service: GarageService | null; date: string; time: string }) {
+function RecapCard({ service, date, time }: { service: PublicGarageService | null; date: string; time: string }) {
   const { lang, tr } = useLang()
   return (
     <Card className="space-y-1.5 bg-muted/40 p-3 text-sm">

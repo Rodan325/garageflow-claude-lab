@@ -9,20 +9,116 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { parseEnv } from 'node:util'
+import {
+  buildFixtureRekeySql,
+  RLS_FIXTURE_ACCOUNTS,
+  validateFixtureRekeyPassword,
+} from './rls-fixture-accounts.mjs'
 import { fixtureSnapshotDifferences } from './rls-fixture-lifecycle.mjs'
+import {
+  findLocalSupabaseDatabase,
+  LOCAL_SUPABASE_DB_PORT,
+  LOCAL_SUPABASE_PROJECT_ID,
+} from './local-supabase-docker.mjs'
 import {
   APPROVED_STAGING_REF,
   FORBIDDEN_PRODUCTION_REF,
+  assertLocalPostgresUrl,
   assertSupabaseTestTarget,
 } from './rls-target-guard.mjs'
 
 const action = process.argv[2]
-if (!['prepare', 'cleanup'].includes(action)) {
-  console.error('RLS FIXTURE ADMIN: expected prepare or cleanup')
+if (!['prepare', 'cleanup', 'rekey'].includes(action)) {
+  console.error('RLS FIXTURE ADMIN: expected prepare, cleanup, or rekey')
   process.exit(2)
 }
 
 const targetMode = process.env.SUPABASE_TEST_TARGET || 'local'
+
+function hasNonEmptyEnvironmentValue(env, expectedName) {
+  const actualName = Object.keys(env).find((name) => name.toLowerCase() === expectedName.toLowerCase())
+  return actualName !== undefined && String(env[actualName]).length > 0
+}
+
+function rekeyChildEnvironment(env) {
+  const child = { ...env }
+  for (const name of Object.keys(child)) {
+    if (/^(?:PG|SUPABASE_|VITE_SUPABASE_|SEED_FIXTURE_PASSWORD$)/i.test(name)) delete child[name]
+  }
+  return child
+}
+
+function executeLocalRekey() {
+  if (targetMode !== 'local') throw new Error('fixture rekey is local-only')
+
+  assertSupabaseTestTarget(process.env.VITE_SUPABASE_URL, { mode: 'local' })
+  assertLocalPostgresUrl(process.env.SUPABASE_LOCAL_DB_URL, 'SUPABASE_LOCAL_DB_URL', {
+    expectedPort: LOCAL_SUPABASE_DB_PORT,
+    expectedDatabase: 'postgres',
+  })
+
+  let localMetadata
+  try {
+    localMetadata = parseEnv(readFileSync(resolve('.env.local'), 'utf8'))
+  } catch {
+    throw new Error('unable to read the established local environment metadata')
+  }
+  if (hasNonEmptyEnvironmentValue(localMetadata, 'SEED_FIXTURE_PASSWORD')) {
+    throw new Error('SEED_FIXTURE_PASSWORD must not be stored in .env.local')
+  }
+
+  const database = findLocalSupabaseDatabase({
+    projectId: LOCAL_SUPABASE_PROJECT_ID,
+    expectedHostPort: LOCAL_SUPABASE_DB_PORT,
+    requireHealthy: true,
+  })
+  const password = validateFixtureRekeyPassword(process.env.SEED_FIXTURE_PASSWORD)
+
+  // Build the credential-bearing SQL only after every local-target guard passes.
+  const sql = buildFixtureRekeySql(password)
+  const postgres = spawnSync(
+    'docker',
+    [
+      'exec', '-i', database.containerName,
+      'psql', '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'postgres', '-At',
+    ],
+    {
+      input: sql,
+      encoding: 'utf8',
+      env: rekeyChildEnvironment(process.env),
+      shell: false,
+      windowsHide: true,
+    },
+  )
+
+  if (postgres.error || postgres.status !== 0) {
+    throw new Error('local fixture rekey transaction failed')
+  }
+
+  const expectedMarkers = [
+    `FIXTURE_TARGET_COUNT=${RLS_FIXTURE_ACCOUNTS.length}`,
+    `FIXTURE_VALIDATED_COUNT=${RLS_FIXTURE_ACCOUNTS.length}`,
+    `FIXTURE_REKEY_COUNT=${RLS_FIXTURE_ACCOUNTS.length}`,
+    'NON_FIXTURE_AUTH_ROWS_CHANGED=0',
+  ]
+  const observed = new Set(postgres.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean))
+  if (!expectedMarkers.every((marker) => observed.has(marker))) {
+    throw new Error('local fixture rekey evidence is incomplete')
+  }
+  for (const marker of expectedMarkers) console.log(marker)
+}
+
+if (action === 'rekey') {
+  try {
+    executeLocalRekey()
+    process.exit(0)
+  } catch (error) {
+    console.error(`RLS FIXTURE ADMIN: rekey failed: ${error.message}`)
+    process.exit(1)
+  }
+}
+
 const fixtureRunId = process.env.RLS_FIXTURE_RUN_ID
 const baselineFile = process.env.RLS_FIXTURE_BASELINE_FILE
 const legalFixturesEnabled = process.env.LEGAL_V2_RLS_FIXTURES === 'true'

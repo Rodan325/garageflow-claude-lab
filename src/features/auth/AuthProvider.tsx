@@ -108,7 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle()
         setMembership(mem ?? null)
         if (mem) {
-          const { data: g } = await supabase.from('garages').select('*').eq('id', mem.garage_id).maybeSingle()
+          const { data: g } = await supabase
+            .rpc('get_managed_garage', { p_garage_id: mem.garage_id })
+            .maybeSingle()
           setGarage(g ?? null)
         } else setGarage(null)
       } else {

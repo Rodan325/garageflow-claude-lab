@@ -1,7 +1,7 @@
 import { Document, Font, Image, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
 import type { Lang } from '@/i18n'
 import { dateTime, shortDate } from '@/lib/format'
-import type { Garage, ServiceRequest } from '@/types/domain'
+import type { PublicGarage, ServiceRequest } from '@/types/domain'
 import type { ServiceRequestAttachment } from '@/features/attachments/model'
 import type { DeliveryReport } from './model'
 
@@ -113,7 +113,7 @@ function reportStyles(rtl: boolean, accent: string) {
 export interface DeliveryReportPdfData {
   report: DeliveryReport
   request: ServiceRequest
-  garage: Garage | null
+  garage: PublicGarage | null
   lang: Lang
   attachments?: ServiceRequestAttachment[]
   centerName?: string | null
@@ -218,7 +218,7 @@ export function deliveryReportDocument({
           <View>
             <Text style={styles.garage}>{garage?.name ?? 'Clikarage'}</Text>
             <Text style={styles.value}>{garage?.address ?? ''}</Text>
-            <Text style={styles.technical}>{[garage?.phone, garage?.email].filter(Boolean).join(' · ')}</Text>
+            <Text style={styles.technical}>{garage?.phone ?? ''}</Text>
           </View>
           <View>
             <Text style={styles.title}>{text.title}</Text>

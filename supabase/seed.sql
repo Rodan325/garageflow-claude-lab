@@ -89,17 +89,12 @@ values
   ('33111111-0000-4000-8000-000000000005', '11111111-1111-4111-8111-111111111111', 5, '08:00', '18:00', false),
   ('33111111-0000-4000-8000-000000000006', '11111111-1111-4111-8111-111111111111', 6, '08:00', '12:00', false),
   ('33111111-0000-4000-8000-000000000007', '11111111-1111-4111-8111-111111111111', 0, null, null, true)
-on conflict (garage_id, weekday) do update set
+on conflict (id) do update set
+  garage_id = excluded.garage_id,
+  weekday = excluded.weekday,
   open_time = excluded.open_time,
   close_time = excluded.close_time,
   is_closed = excluded.is_closed;
-
--- The center preparation migration creates a generic `principal` center for
--- existing garages. Replace that local-only placeholder so the independent
--- fixture remains exactly one organization with one active establishment.
-delete from public.garage_centers
-where garage_id = '11111111-1111-4111-8111-111111111111'
-  and id <> '11111111-1111-4111-8111-11111111c001';
 
 insert into public.garage_centers (id, garage_id, slug, name, address, city, postal_code, phone, is_active, sort_order)
 values
@@ -116,18 +111,6 @@ on conflict (id) do update set
   is_active = excluded.is_active,
   sort_order = excluded.sort_order;
 
-update public.service_requests
-set center_id = '11111111-1111-4111-8111-11111111c001'
-where garage_id = '11111111-1111-4111-8111-111111111111'
-  and center_id is null;
-
-update public.appointments appointment
-set center_id = request.center_id
-from public.service_requests request
-where appointment.service_request_id = request.id
-  and appointment.garage_id = request.garage_id
-  and appointment.center_id is null;
-
 -- Local fixture accounts. Passwords are NEVER stored in this repository.
 --
 -- THIS FILE IS NOT A ROTATION MECHANISM. Every insert is `on conflict do
@@ -136,8 +119,8 @@ where appointment.service_request_id = request.id
 -- it already had, whatever password you supply here — silently, and with no
 -- error. Re-running this file therefore never neutralises a credential.
 --
--- If a local database was seeded before this file changed, the only way to get
--- new credentials is to recreate it:
+-- If a local database was seeded before this file changed, recreating it is
+-- one way to get fresh random credentials:
 --     supabase db reset --local
 -- That drops and rebuilds the local database, so the fixtures are created fresh.
 -- Never point a reset, or this file, at a hosted project.
@@ -147,35 +130,10 @@ where appointment.service_request_id = request.id
 -- way — it connects with its own driver and inherits no environment — so a
 -- reset of a local database leaves no usable login behind.
 --
--- To sign in as a fixture locally, use the wrapper, which loads the value from
--- the environment and runs this file plus scripts/rls-fixtures.sql over one
--- connection. LOCAL DEVELOPMENT DATABASES ONLY; bash, so Git Bash or WSL on
--- Windows:
---   read -rs -p 'Fixture password: ' fixture_pw
---   printf '\n'
---   SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local
---   unset fixture_pw
---
--- Do not use PGOPTIONS for this. It is parsed as a list of server options, so a
--- value containing a space becomes extra options — a password of
--- `x -c statement_timeout=999` really did set that timeout — and a backslash is
--- swallowed, producing a different password with no error. The wrapper uses
--- psql's `\getenv` and `:'…'` literal quoting instead; spaces, backslashes,
--- quotes, newlines and a leading `-c` were all measured arriving byte-identical
--- with no option injected.
---
--- What this protects, and what it does not. `read -rs` echoes nothing and adds
--- no shell history entry, and a per-command assignment keeps the value out of
--- argv, so it is not in the command line `ps` shows by default. Wrapping the
--- block in a shell function with `local` scopes the variable to that function
--- and drops it when the function returns, including on an error return; what
--- happens on a signal depends on your shell, so treat `unset` as the reliable
--- step rather than an absolute guarantee.
--- It is not invisible either: while psql runs, the value sits in that process's
--- environment, and it travels inside a SQL statement. Under this project's
--- local default (`log_statement = ddl`) that statement is not written to the
--- server log; raising `log_statement` to `all` would capture it — measured.
--- Acceptable for a throwaway local password and for nothing else.
+-- `npm run db:seed:local` deliberately rejects SEED_FIXTURE_PASSWORD and runs
+-- both fixture files atomically inside the exact verified local Docker stack.
+-- Creating usable shared fixture credentials is a separate, explicit workflow;
+-- replaying this baseline never rotates an existing password hash.
 
 -- Warn — never rotate — when fixture accounts are already present.
 do $fixture_guard$
@@ -384,23 +342,9 @@ values
   ('72000000-0000-4000-8000-000000000007', 'f2222222-0000-4000-8000-000000000007', '22222222-2222-4222-8222-222222222222', '22222222-2222-4222-8222-22222222c003', 'vehicle_delivered', 'closed', 'b0000000-0000-4000-8000-000000000005', now() - interval '7 days', null, 'The service request is closed.', null, true, 'simulated')
 on conflict (id) do nothing;
 
--- Timeline inserts above intentionally exercise the notification triggers. In
--- seeded environments no provider is connected, so make those deterministic
--- fixtures visibly simulated instead of leaving them pending for dispatch.
--- The tuple filter keeps this update idempotent and scoped to seed-owned rows.
-update public.notification_outbox
-set status = 'simulated',
-    provider = 'demo-simulator',
-    provider_message_id = 'simulated-seed-' || id::text,
-    attempts = 1
-where (service_request_id, template_key) in (
-  ('f1111111-0000-4000-8000-000000000001'::uuid, 'appointment_confirmed'),
-  ('f2222222-0000-4000-8000-000000000001'::uuid, 'approval_required'),
-  ('f2222222-0000-4000-8000-000000000006'::uuid, 'vehicle_ready')
-)
-  and channel = 'in_app'
-  and status = 'pending'
-  and provider is null;
+-- Timeline inserts above intentionally exercise notification triggers. Their
+-- random outbox ids are trigger-owned, so the baseline leaves their natural
+-- pending state untouched instead of claiming ownership through a broad tuple.
 
 insert into public.workshop_recommendations (
   id, garage_id, center_id, service_request_id, title, description, category,

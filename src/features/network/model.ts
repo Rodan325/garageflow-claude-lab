@@ -17,6 +17,8 @@ export interface CenterNetworkMetrics {
   satisfaction: number | null
 }
 
+export type NetworkCenter = Pick<GarageCenter, 'id' | 'name' | 'is_active'>
+
 export function canViewNetworkDashboard(
   legacyRole: string | null | undefined,
   organizationRole: string | null | undefined,
@@ -40,7 +42,7 @@ function average(values: Array<number | null>) {
 }
 
 export function aggregateNetworkDashboard(input: {
-  centers: GarageCenter[]
+  centers: NetworkCenter[]
   requests: ServiceRequest[]
   quotes: Quote[]
   appointments: Appointment[]

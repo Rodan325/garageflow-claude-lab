@@ -56,7 +56,11 @@ const POSTGRES_PROTOCOLS = new Set(['postgres:', 'postgresql:'])
  *
  * Throws with an actionable message and never echoes the URL or the password.
  */
-export function assertLocalPostgresUrl(rawUrl, varName = 'SUPABASE_LOCAL_DB_URL') {
+export function assertLocalPostgresUrl(rawUrl, varName = 'SUPABASE_LOCAL_DB_URL', options = {}) {
+  if (typeof varName === 'object' && varName !== null) {
+    options = varName
+    varName = 'SUPABASE_LOCAL_DB_URL'
+  }
   if (rawUrl === undefined || rawUrl === null || String(rawUrl).trim() === '') {
     throw new Error(`${varName} is required and must not be empty`)
   }
@@ -94,6 +98,12 @@ export function assertLocalPostgresUrl(rawUrl, varName = 'SUPABASE_LOCAL_DB_URL'
   const database = decodeURIComponent(url.pathname.replace(/^\//, ''))
   if (!database) {
     throw new Error(`Refusing ${varName}: no database name in the URL path`)
+  }
+  if (options.expectedPort && url.port !== options.expectedPort) {
+    throw new Error(`Refusing ${varName}: expected local database port ${options.expectedPort}`)
+  }
+  if (options.expectedDatabase && database !== options.expectedDatabase) {
+    throw new Error(`Refusing ${varName}: expected database ${options.expectedDatabase}`)
   }
 
   return {

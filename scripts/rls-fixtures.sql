@@ -22,21 +22,10 @@
 -- Run this AFTER supabase/seed.sql: the service request below points at the
 -- seed's demo client, so on an empty database that one foreign key fails.
 --
--- The password is NEVER stored in this repository. By default the account gets
--- a random password nobody knows — keep that unless you actually need to sign
--- in. To do so, run scripts/seed-local.sql, which applies the seed and this
--- file over one connection with the value taken from the environment:
---
---   read -rs -p 'Fixture password: ' fixture_pw
---   printf '\n'
---   SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local
---   unset fixture_pw
---
--- Do not use PGOPTIONS: it is parsed as a list of server options, so a value
--- containing a space becomes extra options and a backslash is swallowed. See
--- scripts/seed-local.sql and supabase/seed.sql for the measurements and for the
--- residual exposure — absent from shell history and argv, present in psql's
--- environment while it runs. Local development databases only.
+-- The password is NEVER stored in this repository. The guarded baseline rejects
+-- SEED_FIXTURE_PASSWORD, applies both fixture files atomically, and gives this
+-- account a random password nobody knows. A later usable-password workflow must
+-- be explicit and separately guarded; this file remains creation-only.
 set search_path = public, extensions, auth;
 
 -- Warn — never rotate — when the Test B account is already present.

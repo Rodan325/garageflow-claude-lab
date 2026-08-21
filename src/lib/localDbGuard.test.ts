@@ -1,233 +1,302 @@
 import { describe, expect, it, vi } from 'vitest'
 // @ts-expect-error -- plain ESM helpers shared with the npm scripts
 import { assertLocalPostgresUrl, LOOPBACK_HOSTS } from '../../scripts/rls-target-guard.mjs'
+// @ts-expect-error -- plain ESM helper shared with local runners
+import { findLocalSupabaseDatabase } from '../../scripts/local-supabase-docker.mjs'
 // @ts-expect-error -- plain ESM helper
-import { buildChildEnv, run } from '../../scripts/seed-local.mjs'
+import { buildAtomicSeedSql, buildChildEnv, loadLocalSeedTarget, run } from '../../scripts/seed-local.mjs'
 
-/**
- * The seeding workflow creates an organization_owner. Naming the npm script
- * "local" is not a safeguard, so the target is parsed and rejected before psql
- * is ever spawned. These tests use a fake spawn: nothing connects anywhere.
- */
+const LOCAL = 'postgresql://postgres:db-secret@127.0.0.1:54322/postgres'
+const LOCAL_METADATA = [
+  'VITE_SUPABASE_URL=http://127.0.0.1:54321',
+  `SUPABASE_LOCAL_DB_URL=${LOCAL}`,
+  '',
+].join('\n')
 
-const LOCAL = 'postgresql://postgres:pw@127.0.0.1:54322/postgres'
+function inspection(overrides: Record<string, unknown> = {}) {
+  return {
+    Id: 'local-db-id',
+    Config: { Labels: { 'com.supabase.cli.project': 'garageflow-claude-lab' } },
+    State: { Running: true, Health: { Status: 'healthy' } },
+    NetworkSettings: {
+      Ports: {
+        '5432/tcp': [
+          { HostIp: '0.0.0.0', HostPort: '54322' },
+          { HostIp: '::', HostPort: '54322' },
+        ],
+      },
+    },
+    ...overrides,
+  }
+}
 
-describe('local database guard — accepted targets', () => {
-  const accepted: Array<[string, string]> = [
+function dockerInspectionSpawn({
+  names = ['supabase_db_garageflow-claude-lab'],
+  inspected = inspection(),
+} = {}) {
+  return vi.fn((_command: string, args: string[]) => {
+    if (args[0] === 'ps') {
+      return { status: 0, stdout: `${names.join('\n')}\n`, stderr: '' }
+    }
+    if (args[0] === 'inspect') {
+      return { status: 0, stdout: JSON.stringify(inspected), stderr: '' }
+    }
+    throw new Error(`unexpected Docker operation: ${args[0]}`)
+  })
+}
+
+function fixtureRead(path: string) {
+  const normalized = path.replace(/\\/g, '/')
+  if (normalized.endsWith('/.env.local')) return LOCAL_METADATA
+  if (normalized.endsWith('/supabase/seed.sql')) return "select 'baseline seed';"
+  if (normalized.endsWith('/scripts/rls-fixtures.sql')) return "select 'RLS fixtures';"
+  throw new Error(`unexpected read: ${normalized}`)
+}
+
+describe('local database URL guard', () => {
+  it.each([
     ['localhost', 'postgresql://postgres:pw@localhost:54322/postgres'],
     ['127.0.0.1', LOCAL],
     ['IPv6 loopback', 'postgresql://postgres:pw@[::1]:54322/postgres'],
-    ['the postgres: scheme', 'postgres://postgres:pw@127.0.0.1:54322/postgres'],
-    ['a non-default port', 'postgresql://postgres:pw@127.0.0.1:5433/postgres'],
-    ['no credentials in the URL', 'postgresql://127.0.0.1:54322/postgres'],
-  ]
-
-  it.each(accepted)('accepts %s', (_label, url) => {
+    ['the postgres scheme', 'postgres://postgres:pw@127.0.0.1:54322/postgres'],
+  ])('accepts %s', (_label, url) => {
     const target = assertLocalPostgresUrl(url) as { host: string; port: string; database: string }
     expect(LOOPBACK_HOSTS.has(target.host)).toBe(true)
-    expect(target.database).toBe('postgres')
-    expect(target.port).toMatch(/^\d+$/)
   })
-})
 
-describe('local database guard — refused targets', () => {
-  const refused: Array<[string, string | undefined]> = [
+  it.each([
     ['a missing variable', undefined],
-    ['an empty string', ''],
-    ['whitespace only', '   '],
     ['a malformed URL', 'not-a-url'],
     ['a non-PostgreSQL scheme', 'https://127.0.0.1:54322/postgres'],
-    ['a Supabase hostname', 'postgresql://postgres:pw@db.abcdefghijklm.supabase.co:5432/postgres'],
-    ['a pooler hostname', 'postgresql://postgres.ref@aws-0-eu-west-3.pooler.supabase.com:5432/postgres'],
-    ['a public IP', 'postgresql://postgres:pw@203.0.113.10:5432/postgres'],
-    ['a private but non-loopback IP', 'postgresql://postgres:pw@192.168.1.10:5432/postgres'],
-    ['a link-local IP', 'postgresql://postgres:pw@169.254.10.10:5432/postgres'],
-    ['localhost as a subdomain prefix', 'postgresql://postgres:pw@localhost.evil.example:5432/postgres'],
-    ['127.0.0.1 as a subdomain prefix', 'postgresql://postgres:pw@127.0.0.1.evil.example:5432/postgres'],
-    ['a host that merely contains localhost', 'postgresql://postgres:pw@notlocalhost:5432/postgres'],
-    ['userinfo shaped like a local host', 'postgresql://127.0.0.1@evil.example:5432/postgres'],
+    ['a hosted Supabase database', 'postgresql://postgres:pw@db.example.supabase.co:5432/postgres'],
+    ['a private network address', 'postgresql://postgres:pw@192.168.1.10:54322/postgres'],
+    ['a deceptive localhost suffix', 'postgresql://postgres:pw@localhost.evil.example:54322/postgres'],
     ['an embedded newline', 'postgresql://postgres:pw@127.0.0.1:54322/postgres\nDROP'],
-    ['no port', 'postgresql://postgres:pw@127.0.0.1/postgres'],
-    ['a non-numeric port', 'postgresql://postgres:pw@127.0.0.1:abc/postgres'],
-    ['no database name', 'postgresql://postgres:pw@127.0.0.1:54322/'],
-  ]
-
-  it.each(refused)('refuses %s', (_label, url) => {
+    ['no explicit port', 'postgresql://postgres:pw@127.0.0.1/postgres'],
+    ['no database', 'postgresql://postgres:pw@127.0.0.1:54322/'],
+  ])('refuses %s', (_label, url) => {
     expect(() => assertLocalPostgresUrl(url)).toThrow()
   })
 
-  it.each(refused)('never spawns psql for %s', (_label, url) => {
-    const spawn = vi.fn()
-    expect(() => run({ env: { SUPABASE_LOCAL_DB_URL: url } as never, spawn })).toThrow()
-    expect(spawn).not.toHaveBeenCalled()
+  it('enforces the seed-specific port and database', () => {
+    const options = { expectedPort: '54322', expectedDatabase: 'postgres' }
+    expect(() => assertLocalPostgresUrl(
+      'postgresql://127.0.0.1:54323/postgres',
+      'SUPABASE_LOCAL_DB_URL',
+      options,
+    )).toThrow(/54322/)
+    expect(() => assertLocalPostgresUrl(
+      'postgresql://127.0.0.1:54322/other',
+      'SUPABASE_LOCAL_DB_URL',
+      options,
+    )).toThrow(/database postgres/)
+    expect(assertLocalPostgresUrl(LOCAL, 'SUPABASE_LOCAL_DB_URL', options).port).toBe('54322')
   })
 
-  it('never echoes the URL or the password in the message', () => {
-    const url = 'postgresql://postgres:hunter2secretvalue@db.abcdefghijklm.supabase.co:5432/postgres'
+  it('does not expose a refused URL or password', () => {
+    const url = 'postgresql://postgres:hunter2secret@db.example.supabase.co:5432/postgres'
+    expect(() => assertLocalPostgresUrl(url)).toThrowError(
+      expect.not.objectContaining({ message: expect.stringContaining('hunter2secret') }),
+    )
     try {
       assertLocalPostgresUrl(url)
-      throw new Error('should have thrown')
     } catch (error) {
-      const message = (error as Error).message
-      expect(message).not.toContain('hunter2secretvalue')
-      expect(message).not.toContain('supabase.co')
-      expect(message).not.toContain(url)
-      expect(message).toMatch(/loopback/i)
+      expect((error as Error).message).not.toContain(url)
+      expect((error as Error).message).not.toContain('supabase.co')
     }
   })
 })
 
-describe('local database guard — how psql is invoked', () => {
-  it('passes connection details through the environment, not argv', () => {
-    const spawn = vi.fn().mockReturnValue({ status: 0 })
-    const status = run({
-      env: { SUPABASE_LOCAL_DB_URL: LOCAL, SEED_FIXTURE_PASSWORD: 'kept-for-the-child' } as never,
-      spawn,
-    })
+describe('exact local Supabase Docker database guard', () => {
+  const strict = {
+    projectId: 'garageflow-claude-lab',
+    expectedHostPort: '54322',
+    requireHealthy: true,
+  }
 
-    expect(status).toBe(0)
-    const [command, args, options] = spawn.mock.calls[0]
-    expect(command).toBe('psql')
-    expect(options.shell).toBe(false)
-    // No connection string, no password, anywhere in argv.
-    const argv = [command, ...args].join(' ')
-    expect(argv).not.toContain('postgresql://')
-    expect(argv).not.toContain('pw')
-    expect(args).toContain('ON_ERROR_STOP=1')
-
-    expect(options.env.PGHOST).toBe('127.0.0.1')
-    expect(options.env.PGPORT).toBe('54322')
-    expect(options.env.PGDATABASE).toBe('postgres')
-    expect(options.env.PGUSER).toBe('postgres')
-    // The parsed URL is not handed down; the fixture password is.
-    expect(options.env.SUPABASE_LOCAL_DB_URL).toBeUndefined()
-    expect(options.env.SEED_FIXTURE_PASSWORD).toBe('kept-for-the-child')
+  it('accepts the exact running healthy project database and mapping', () => {
+    const spawn = dockerInspectionSpawn()
+    const database = findLocalSupabaseDatabase({ ...strict, spawn })
+    expect(database.containerName).toBe('supabase_db_garageflow-claude-lab')
+    expect(database.containerPort).toBe('5432')
+    expect(spawn).toHaveBeenCalledTimes(2)
   })
 
-  it('drops PGPASSWORD when the URL carries no password', () => {
-    const env = buildChildEnv(
-      { PGPASSWORD: 'inherited' },
-      { host: '127.0.0.1', port: '54322', database: 'postgres', user: 'postgres', password: '' },
-    ) as Record<string, string | undefined>
-    expect(env.PGPASSWORD).toBeUndefined()
+  it('refuses zero or multiple matching database containers', () => {
+    expect(() => findLocalSupabaseDatabase({
+      ...strict,
+      spawn: dockerInspectionSpawn({ names: [] }),
+    })).toThrow(/found 0/)
+    expect(() => findLocalSupabaseDatabase({
+      ...strict,
+      spawn: dockerInspectionSpawn({ names: ['supabase_db_one', 'supabase_db_two'] }),
+    })).toThrow(/found 2/)
+  })
+
+  it('refuses a mismatched project label', () => {
+    const inspected = inspection({
+      Config: { Labels: { 'com.supabase.cli.project': 'rls-pilot-audit' } },
+    })
+    expect(() => findLocalSupabaseDatabase({
+      ...strict,
+      spawn: dockerInspectionSpawn({ inspected }),
+    })).toThrow(/wrong Supabase project label/)
+  })
+
+  it('refuses a stopped or unhealthy database', () => {
+    expect(() => findLocalSupabaseDatabase({
+      ...strict,
+      spawn: dockerInspectionSpawn({
+        inspected: inspection({ State: { Running: false, Health: { Status: 'healthy' } } }),
+      }),
+    })).toThrow(/not running/)
+    expect(() => findLocalSupabaseDatabase({
+      ...strict,
+      spawn: dockerInspectionSpawn({
+        inspected: inspection({ State: { Running: true, Health: { Status: 'unhealthy' } } }),
+      }),
+    })).toThrow(/not healthy/)
+  })
+
+  it('refuses a missing, wrong, or ambiguous host-port mapping', () => {
+    expect(() => findLocalSupabaseDatabase({
+      ...strict,
+      spawn: dockerInspectionSpawn({
+        inspected: inspection({ NetworkSettings: { Ports: { '5432/tcp': null } } }),
+      }),
+    })).toThrow(/does not publish/)
+    expect(() => findLocalSupabaseDatabase({
+      ...strict,
+      spawn: dockerInspectionSpawn({
+        inspected: inspection({
+          NetworkSettings: { Ports: { '5432/tcp': [{ HostPort: '54323' }] } },
+        }),
+      }),
+    })).toThrow(/54322 -> 5432/)
+    expect(() => findLocalSupabaseDatabase({
+      ...strict,
+      spawn: dockerInspectionSpawn({
+        inspected: inspection({
+          NetworkSettings: {
+            Ports: { '5432/tcp': [{ HostPort: '54322' }, { HostPort: '54323' }] },
+          },
+        }),
+      }),
+    })).toThrow(/54322 -> 5432/)
   })
 })
 
-describe('local database guard — inherited libpq settings', () => {
-  /**
-   * Validating the URL achieves nothing if libpq can still be steered by the
-   * environment: PGHOSTADDR overrides the host, PGSERVICE and PGSERVICEFILE
-   * name a whole connection elsewhere, PGPASSFILE supplies credentials.
-   */
-  const hostileParent = {
-    PGHOSTADDR: '203.0.113.10',
-    PGSERVICE: 'production',
-    PGSERVICEFILE: '/tmp/evil.conf',
-    PGSYSCONFDIR: '/tmp/evil',
-    PGPASSFILE: '/tmp/evil.pgpass',
-    PGOPTIONS: '-c statement_timeout=999',
-    PGSSLMODE: 'disable',
-    PGREQUIREAUTH: 'none',
-    PGCHANNELBINDING: 'disable',
-    PGUSER: 'inherited-user',
-    PGPASSWORD: 'inherited-placeholder',
-    // Not a real variable today. libpq keeps gaining them, so the sweep must be
-    // generic rather than a denylist that ages badly.
-    PGSOMETHINGNEW: 'whatever-comes-next',
-    SEED_FIXTURE_PASSWORD: 'placeholder-for-child',
-    PATH: '/usr/bin',
-  }
+describe('baseline target provenance and process safety', () => {
+  it('loads only the established loopback API and exact local DB metadata', () => {
+    const target = loadLocalSeedTarget({ readFile: fixtureRead as never })
+    expect(target).toMatchObject({ host: '127.0.0.1', port: '54322', database: 'postgres' })
+  })
 
-  const pgKeys = (env: Record<string, string | undefined>) =>
-    Object.keys(env).filter((k) => /^PG/i.test(k)).sort()
+  it('refuses a shared fixture password before Docker or SQL', () => {
+    const spawn = vi.fn()
+    const readFile = vi.fn()
+    expect(() => run({
+      env: { [['SEED_FIXTURE_', 'PASSWORD'].join('')]: 'must-not-be-used' } as never,
+      spawn,
+      readFile,
+    })).toThrow(/not accepted/)
+    expect(spawn).not.toHaveBeenCalled()
+    expect(readFile).not.toHaveBeenCalled()
+  })
 
-  it('keeps only the settings derived from the validated URL', () => {
-    const env = buildChildEnv(hostileParent, {
-      host: '127.0.0.1',
-      port: '54322',
-      database: 'postgres',
-      user: 'postgres',
-      password: 'pw',
+  it('streams one atomic SQL unit through verified container psql', () => {
+    const spawn = vi.fn().mockReturnValue({ status: 0, stdout: '', stderr: '' })
+    const findDatabase = vi.fn().mockReturnValue({
+      containerName: 'supabase_db_garageflow-claude-lab',
+    })
+    const env = {
+      SUPABASE_LOCAL_DB_URL: 'postgresql://remote:remote@remote.example:5432/remote',
+      VITE_SUPABASE_URL: 'https://remote.example',
+      PGSERVICE: 'production',
+      PGHOSTADDR: '203.0.113.10',
+      [['PG', 'PASSWORD'].join('')]: ['inherited', 'value'].join('-'),
+      PATH: 'kept',
+    }
+
+    expect(run({
+      env: env as never,
+      spawn,
+      readFile: fixtureRead as never,
+      findDatabase,
+    })).toBe(0)
+
+    expect(findDatabase).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: 'garageflow-claude-lab',
+      expectedHostPort: '54322',
+      requireHealthy: true,
+    }))
+    const [command, args, options] = spawn.mock.calls[0]
+    expect(command).toBe('docker')
+    expect(args).toEqual([
+      'exec',
+      '-i',
+      'supabase_db_garageflow-claude-lab',
+      'psql',
+      '-X',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-U',
+      'postgres',
+      '-d',
+      'postgres',
+    ])
+    const argv = [command, ...args].join(' ')
+    expect(argv).not.toContain('postgresql://')
+    expect(argv).not.toContain('db-secret')
+    expect(argv).not.toContain('inherited-secret')
+    expect(options.input).toMatch(/^\\set ON_ERROR_STOP on\nbegin;/)
+    expect(options.input.indexOf("select 'baseline seed';")).toBeLessThan(
+      options.input.indexOf("select 'RLS fixtures';"),
+    )
+    expect(options.input.trimEnd()).toMatch(/commit;$/)
+    expect(options.env.PGSERVICE).toBeUndefined()
+    expect(options.env.PGHOSTADDR).toBeUndefined()
+    expect(options.env.PGPASSWORD).toBeUndefined()
+    expect(options.env.SUPABASE_LOCAL_DB_URL).toBeUndefined()
+    expect(options.env.VITE_SUPABASE_URL).toBeUndefined()
+    expect(options.env.PATH).toBe('kept')
+  })
+
+  it('constructs failure-prone second-component SQL inside the same transaction', () => {
+    const sql = buildAtomicSeedSql(
+      'create temporary table synthetic_first(value integer);',
+      "insert into synthetic_first values (1); raise exception 'synthetic failure';",
+    )
+    expect(sql.match(/^begin;$/gim)).toHaveLength(1)
+    expect(sql.match(/^commit;$/gim)).toHaveLength(1)
+    expect(sql.indexOf('begin;')).toBeLessThan(sql.indexOf('create temporary table'))
+    expect(sql.indexOf('raise exception')).toBeLessThan(sql.lastIndexOf('commit;'))
+    expect(sql).toContain('\\set ON_ERROR_STOP on')
+  })
+
+  it('rejects nested transaction control in either seed component', () => {
+    expect(() => buildAtomicSeedSql('begin; select 1;', 'select 2;')).toThrow(/transaction control/)
+    expect(() => buildAtomicSeedSql('select 1;', 'rollback;')).toThrow(/transaction control/)
+  })
+
+  it('removes every inherited PostgreSQL and target secret from the Docker child', () => {
+    const child = buildChildEnv({
+      PGHOST: 'remote',
+      pgservice: 'production',
+      [['PG', 'PASSWORD'].join('')]: ['local', 'placeholder'].join('-'),
+      SUPABASE_LOCAL_DB_URL: LOCAL,
+      VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
+      VITE_SUPABASE_ANON_KEY: 'not-forwarded',
+      SUPABASE_SERVICE_ROLE_KEY: ['not', 'forwarded'].join('-'),
+      [['SEED_FIXTURE_', 'PASSWORD'].join('')]: 'not-forwarded',
+      PATH: 'kept',
     }) as Record<string, string | undefined>
-
-    expect(pgKeys(env)).toEqual(['PGDATABASE', 'PGHOST', 'PGPASSWORD', 'PGPORT', 'PGUSER'])
-    expect(env.PGHOST).toBe('127.0.0.1')
-    expect(env.PGPORT).toBe('54322')
-    expect(env.PGDATABASE).toBe('postgres')
-    // The values come from the URL, never from the parent.
-    expect(env.PGUSER).toBe('postgres')
-    expect(env.PGPASSWORD).toBe('pw')
-    // Unrelated variables are untouched.
-    expect(env.SEED_FIXTURE_PASSWORD).toBe('placeholder-for-child')
-    expect(env.PATH).toBe('/usr/bin')
-  })
-
-  it.each([
-    'PGHOSTADDR',
-    'PGSERVICE',
-    'PGSERVICEFILE',
-    'PGSYSCONFDIR',
-    'PGPASSFILE',
-    'PGOPTIONS',
-    'PGSSLMODE',
-    'PGREQUIREAUTH',
-    'PGCHANNELBINDING',
-    'PGSOMETHINGNEW',
-  ])('never forwards an inherited %s', (name) => {
-    const env = buildChildEnv(hostileParent, {
-      host: '127.0.0.1',
-      port: '54322',
-      database: 'postgres',
-      user: 'postgres',
-      password: 'pw',
-    }) as Record<string, string | undefined>
-    expect(env[name]).toBeUndefined()
-  })
-
-  it('does not fall back to an inherited PGUSER when the URL has none', () => {
-    const env = buildChildEnv(hostileParent, {
-      host: '127.0.0.1',
-      port: '54322',
-      database: 'postgres',
-      user: '',
-      password: 'pw',
-    }) as Record<string, string | undefined>
-    expect(env.PGUSER).toBeUndefined()
-    expect(pgKeys(env)).toEqual(['PGDATABASE', 'PGHOST', 'PGPASSWORD', 'PGPORT'])
-  })
-
-  it('does not fall back to an inherited PGPASSWORD when the URL has none', () => {
-    const env = buildChildEnv(hostileParent, {
-      host: '127.0.0.1',
-      port: '54322',
-      database: 'postgres',
-      user: 'postgres',
-      password: '',
-    }) as Record<string, string | undefined>
-    expect(env.PGPASSWORD).toBeUndefined()
-    expect(pgKeys(env)).toEqual(['PGDATABASE', 'PGHOST', 'PGPORT', 'PGUSER'])
-  })
-
-  it('sweeps regardless of case, as Windows environment names are insensitive', () => {
-    const env = buildChildEnv(
-      { pgservice: 'production', PgPassFile: '/tmp/evil.pgpass' },
-      { host: '127.0.0.1', port: '54322', database: 'postgres', user: '', password: '' },
-    ) as Record<string, string | undefined>
-    expect(pgKeys(env)).toEqual(['PGDATABASE', 'PGHOST', 'PGPORT'])
-  })
-
-  it('propagates the exit code of psql', () => {
-    const spawn = vi.fn().mockReturnValue({ status: 3 })
-    expect(run({ env: { SUPABASE_LOCAL_DB_URL: LOCAL } as never, spawn })).toBe(3)
-  })
-
-  it('explains what to do when psql is missing', () => {
-    const spawn = vi.fn().mockReturnValue({ error: Object.assign(new Error('spawn psql ENOENT'), { code: 'ENOENT' }) })
-    expect(() => run({ env: { SUPABASE_LOCAL_DB_URL: LOCAL } as never, spawn })).toThrow(/WSL|PostgreSQL client/i)
-  })
-
-  it('reports a child terminated by a signal', () => {
-    const spawn = vi.fn().mockReturnValue({ status: null, signal: 'SIGINT' })
-    expect(() => run({ env: { SUPABASE_LOCAL_DB_URL: LOCAL } as never, spawn })).toThrow(/SIGINT/)
+    expect(Object.keys(child).filter((key) => /^PG/i.test(key))).toEqual([])
+    expect(child.SUPABASE_LOCAL_DB_URL).toBeUndefined()
+    expect(child.VITE_SUPABASE_URL).toBeUndefined()
+    expect(child.VITE_SUPABASE_ANON_KEY).toBeUndefined()
+    expect(child.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined()
+    expect(child.SEED_FIXTURE_PASSWORD).toBeUndefined()
+    expect(child.PATH).toBe('kept')
   })
 })

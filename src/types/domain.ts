@@ -17,6 +17,52 @@ export type ClientVehicle = Tables<'client_vehicles'>
 export type GarageService = Tables<'garage_services'>
 export type GarageNews = Tables<'garage_news'>
 export type GarageHours = Tables<'garage_hours'>
+export type PublicGarage = Pick<Garage,
+  | 'id'
+  | 'slug'
+  | 'name'
+  | 'phone'
+  | 'website'
+  | 'address'
+  | 'city'
+  | 'postal_code'
+  | 'country'
+  | 'description'
+  | 'specialties'
+  | 'logo_url'
+  | 'accent_color'
+  | 'maps_url'
+>
+export type PublicGarageCenter = Pick<GarageCenter,
+  | 'id'
+  | 'garage_id'
+  | 'slug'
+  | 'name'
+  | 'address'
+  | 'city'
+  | 'postal_code'
+  | 'phone'
+  | 'is_active'
+  | 'sort_order'
+>
+export type PublicGarageService = Pick<GarageService,
+  | 'id'
+  | 'garage_id'
+  | 'name'
+  | 'description'
+  | 'category'
+  | 'duration_minutes'
+  | 'price_from'
+  | 'price_type'
+  | 'is_active'
+  | 'sort_order'
+>
+export type PublicGarageHours = Pick<GarageHours,
+  'id' | 'garage_id' | 'weekday' | 'open_time' | 'close_time' | 'is_closed'
+>
+export type PublicGarageNews = Pick<GarageNews,
+  'id' | 'garage_id' | 'title' | 'body' | 'image_url' | 'published_at'
+>
 export type ServiceRequest = Tables<'service_requests'>
 export type ServiceRequestMessage = Tables<'service_request_messages'>
 export type ServiceRequestTimelineEvent = Tables<'service_request_timeline'>

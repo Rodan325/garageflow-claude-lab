@@ -2151,6 +2151,14 @@ export type Database = {
           satisfaction: number | null
         }[]
       }
+      get_managed_garage: {
+        Args: { p_garage_id: string }
+        Returns: Database["public"]["Tables"]["garages"]["Row"][]
+      }
+      get_managed_garage_services: {
+        Args: { p_garage_id: string }
+        Returns: Database["public"]["Tables"]["garage_services"]["Row"][]
+      }
       decide_workshop_recommendation: {
         Args: {
           p_recommendation_id: string

@@ -6,6 +6,11 @@
  */
 import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import {
+  fixtureCredentials,
+  RLS_ANTILEAK_ACCOUNT_ALIASES,
+  RLS_FIXTURE_ACCOUNT_BY_ALIAS,
+} from './rls-fixture-accounts.mjs'
 import { assertPublishableKey, assertSupabaseTestTarget } from './rls-target-guard.mjs'
 
 const url = process.env.VITE_SUPABASE_URL
@@ -38,16 +43,16 @@ const IDS = {
   centerB1: '22222222-2222-4222-8222-22222222c001',
   centerB2: '22222222-2222-4222-8222-22222222c002',
   centerB3: '22222222-2222-4222-8222-22222222c003',
-  clientA1: 'c0000000-0000-4000-8000-000000000001',
-  clientA2: 'c0000000-0000-4000-8000-000000000002',
-  frontDeskA: 'a0000000-0000-4000-8000-000000000003',
-  clientB1: 'c2000000-0000-4000-8000-000000000001',
-  clientB2: 'c2000000-0000-4000-8000-000000000002',
+  clientA1: RLS_FIXTURE_ACCOUNT_BY_ALIAS.clientA1.id,
+  clientA2: RLS_FIXTURE_ACCOUNT_BY_ALIAS.clientA2.id,
+  frontDeskA: RLS_FIXTURE_ACCOUNT_BY_ALIAS.frontDeskA.id,
+  clientB1: RLS_FIXTURE_ACCOUNT_BY_ALIAS.clientB1.id,
+  clientB2: RLS_FIXTURE_ACCOUNT_BY_ALIAS.clientB2.id,
   requestBApproval: 'f2222222-0000-4000-8000-000000000001',
   requestBClosed: 'f2222222-0000-4000-8000-000000000007',
   // Test B — the private third garage created by scripts/rls-fixtures.sql.
   garageTestB: '33333333-3333-4333-8333-333333333333',
-  ownerTestB: 'b3333333-0000-4000-8000-000000000001',
+  ownerTestB: RLS_FIXTURE_ACCOUNT_BY_ALIAS.ownerTestB.id,
   customerTestB: 'd3333333-0000-4000-8000-000000000001',
   vehicleTestB: 'e3333333-0000-4000-8000-000000000001',
   requestTestB: 'f3333333-0000-4000-8000-000000000001',
@@ -57,35 +62,18 @@ const PASSWORD = process.env.SEED_FIXTURE_PASSWORD
 if (!PASSWORD) {
   console.error(
     'RLS SAFETY GUARD: SEED_FIXTURE_PASSWORD is not set.\n' +
-      'Fixtures no longer ship a password: by default each one gets a random value\n' +
-      'nobody knows. Seed them with a password of your choice, then pass that same\n' +
-      'value to this run, per command and never exported. The wrapper loads it\n' +
-      'from the environment and applies the seed plus the Test B fixtures over one\n' +
-      'connection. Bash — Git Bash or WSL on Windows — local databases only:\n' +
-      "  read -rs -p 'Fixture password: ' fixture_pw\n" +
-      "  printf '\\n'\n" +
-      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local\n' +
-      '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run test:rls\n' +
-      '  unset fixture_pw\n' +
-      'The value stays out of your shell history and out of argv, but it is\n' +
-      "readable in each child process's environment while that process runs.",
+      'Create a missing baseline with npm run db:seed:local; that guarded command\n' +
+      'deliberately creates random unusable fixture credentials and rejects a\n' +
+      'shared password. After validating the exact local fixture target set, pass\n' +
+      'one newly generated in-memory value only to the child process running:\n' +
+      '  node scripts/rls-fixture-admin.mjs rekey\n' +
+      'Pass the same ephemeral value only to this RLS child process, then remove it\n' +
+      'from process memory immediately. Never persist, export, log, or place it in\n' +
+      'argv, a file, shell history, or user/system environment configuration.',
   )
   process.exit(2)
 }
-const ACCOUNTS = {
-  ownerA: ['owner@demo-garage.fr', PASSWORD],
-  ownerTestB: ['owner.test-b@example.test', PASSWORD],
-  frontDeskA: ['frontdesk.independent@example.test', PASSWORD],
-  clientA1: ['client@demo.fr', PASSWORD],
-  clientA2: ['client.independent.two@example.test', PASSWORD],
-  ownerB: ['owner.network@example.test', PASSWORD],
-  networkManager: ['manager.network@example.test', PASSWORD],
-  centerNorth: ['manager.north@example.test', PASSWORD],
-  centerCenter: ['manager.center@example.test', PASSWORD],
-  technicianB: ['technician.network@example.test', PASSWORD],
-  clientB1: ['client.network.one@example.test', PASSWORD],
-  clientB2: ['client.network.two@example.test', PASSWORD],
-}
+const ACCOUNTS = fixtureCredentials(PASSWORD)
 
 let passed = 0
 let failed = 0
@@ -233,17 +221,33 @@ async function run() {
     ownerTestB = await signedIn('ownerTestB')
   } catch (cause) {
     throw new Error(
-      'Test B fixtures missing, or seeded with a different password. Apply them in\n' +
-        'the same run as the seed, with the same value:\n' +
-        '  SEED_FIXTURE_PASSWORD="$fixture_pw" npm run db:seed:local\n' +
+      'Test B fixtures are missing or do not match the ephemeral test credential.\n' +
+        'Validate the exact local target set, then run the explicit guarded rekey:\n' +
+        '  node scripts/rls-fixture-admin.mjs rekey\n' +
+        'Do not reseed with, persist, export, log, or place the credential in argv.\n' +
         `underlying error: ${cause.message}`,
     )
   }
 
-  const testBGarage = await ownerTestB.from('garages').select('id, slug, is_public').eq('id', IDS.garageTestB)
+  const testBGarageDirect = await ownerTestB
+    .from('garages')
+    .select('id, slug, is_public')
+    .eq('id', IDS.garageTestB)
   check(
-    'Test B garage exists and stays private',
-    !testBGarage.error && testBGarage.data.length === 1 && testBGarage.data[0].is_public === false,
+    'Test B direct internal garage projection is denied',
+    testBGarageDirect.error?.code === '42501',
+    testBGarageDirect.error ?? testBGarageDirect.data,
+  )
+
+  const testBGarage = await ownerTestB.rpc('get_managed_garage', {
+    p_garage_id: IDS.garageTestB,
+  })
+  check(
+    'Test B garage exists and stays private through the management RPC',
+    !testBGarage.error &&
+      testBGarage.data.length === 1 &&
+      testBGarage.data[0].id === IDS.garageTestB &&
+      testBGarage.data[0].is_public === false,
     testBGarage.error ?? testBGarage.data,
   )
 
@@ -293,19 +297,7 @@ async function run() {
     testBOwnRows[2].data?.[0]?.client_id,
   )
 
-  const accountNames = [
-    'ownerA',
-    'frontDeskA',
-    'clientA1',
-    'clientA2',
-    'ownerB',
-    'networkManager',
-    'centerNorth',
-    'centerCenter',
-    'technicianB',
-    'clientB1',
-    'clientB2',
-  ]
+  const accountNames = RLS_ANTILEAK_ACCOUNT_ALIASES.filter((alias) => alias !== 'ownerTestB')
   const sessions = testTarget === 'staging'
     ? await accountNames.reduce(async (pending, accountName) => [
         ...await pending,

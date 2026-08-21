@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { findLocalSupabaseDatabase } from './local-supabase-docker.mjs'
 import { assertSupabaseTestTarget } from './rls-target-guard.mjs'
 
 try {
@@ -16,34 +17,11 @@ if ((process.env.SUPABASE_TEST_TARGET || 'local') !== 'local') {
 }
 
 const projectName = basename(resolve('.'))
-const dockerList = spawnSync(
-  'docker',
-  [
-    'ps',
-    '--filter', `label=com.supabase.cli.project=${projectName}`,
-    '--format', '{{.Names}}',
-  ],
-  { encoding: 'utf8' },
-)
-
-if (dockerList.error || dockerList.status !== 0) {
-  console.error(
-    `CORE CAPABILITY SAFETY GUARD: ${
-      dockerList.error?.message || dockerList.stderr?.trim() || 'cannot inspect Docker'
-    }`,
-  )
-  process.exit(2)
-}
-
-const databaseContainers = dockerList.stdout
-  .split(/\r?\n/)
-  .map((name) => name.trim())
-  .filter((name) => name.startsWith('supabase_db_'))
-
-if (databaseContainers.length !== 1) {
-  console.error(
-    `CORE CAPABILITY SAFETY GUARD: expected one local database container, found ${databaseContainers.length}`,
-  )
+let databaseContainer
+try {
+  databaseContainer = findLocalSupabaseDatabase({ projectId: projectName })
+} catch (error) {
+  console.error(`CORE CAPABILITY SAFETY GUARD: ${error.message}`)
   process.exit(2)
 }
 
@@ -53,7 +31,7 @@ const contract = spawnSync(
   [
     'exec',
     '-i',
-    databaseContainers[0],
+    databaseContainer.containerName,
     'psql',
     '-v',
     'ON_ERROR_STOP=1',

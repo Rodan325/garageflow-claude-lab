@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import {
+  RLS_ANTILEAK_ACCOUNT_ALIASES,
+  RLS_FIXTURE_ACCOUNTS,
+  RLS_LEGAL_ACCOUNT_ALIASES,
+// @ts-expect-error -- plain ESM fixture contract shared with Node RLS scripts
+} from '../../scripts/rls-fixture-accounts.mjs'
 
 /**
  * `supabase/seed.sql` and `scripts/rls-fixtures.sql` both create fixtures, and
@@ -15,6 +21,16 @@ import { describe, expect, it } from 'vitest'
 
 const seed = readFileSync(resolve('supabase/seed.sql'), 'utf8')
 const fixtures = readFileSync(resolve('scripts/rls-fixtures.sql'), 'utf8')
+type FixtureAccount = Readonly<{
+  alias: string
+  id: string
+  email: string
+  source: string
+  suites: readonly string[]
+}>
+const canonicalAccounts = RLS_FIXTURE_ACCOUNTS as readonly FixtureAccount[]
+const antileakAliases = RLS_ANTILEAK_ACCOUNT_ALIASES as readonly string[]
+const legalAliases = RLS_LEGAL_ACCOUNT_ALIASES as readonly string[]
 
 /** Ids both files may legitimately name, with the reason each one is allowed. */
 const SHARED_ON_PURPOSE = new Map([
@@ -115,5 +131,59 @@ describe('fixture uuid namespaces', () => {
     // running the fixtures on an empty database fails that one foreign key.
     expect(fixtures).toContain('c0000000-0000-4000-8000-000000000001')
     expect(seed.indexOf('c0000000-0000-4000-8000-000000000001')).toBeGreaterThan(-1)
+  })
+})
+
+describe('canonical authenticated RLS fixture accounts', () => {
+  it('contains exactly the twelve independently derived login targets', () => {
+    expect(canonicalAccounts).toHaveLength(12)
+    expect(antileakAliases).toEqual(
+      canonicalAccounts.map((fixture) => fixture.alias),
+    )
+    expect(legalAliases).toEqual([
+      'ownerA',
+      'frontDeskA',
+      'ownerB',
+      'centerNorth',
+      'clientA1',
+    ])
+  })
+
+  it('keeps aliases, UUIDs, and identities unique and immutable', () => {
+    expect(new Set(canonicalAccounts.map((fixture) => fixture.alias)).size).toBe(12)
+    expect(new Set(canonicalAccounts.map((fixture) => fixture.id)).size).toBe(12)
+    expect(new Set(canonicalAccounts.map((fixture) => fixture.email)).size).toBe(12)
+    expect(Object.isFrozen(canonicalAccounts)).toBe(true)
+    expect(canonicalAccounts.every((fixture) => Object.isFrozen(fixture))).toBe(true)
+    expect(canonicalAccounts.every((fixture) => Object.isFrozen(fixture.suites))).toBe(true)
+  })
+
+  it('pins every account to its tracked creation source and active harness use', () => {
+    for (const fixture of canonicalAccounts) {
+      const source = fixture.source === 'supabase/seed.sql' ? seed : fixtures
+      expect(source, fixture.alias).toContain(fixture.id)
+      expect(source, fixture.alias).toContain(fixture.email)
+      expect(fixture.suites, fixture.alias).toContain('rls-antileak')
+    }
+  })
+
+  it('excludes seeded accounts that the authenticated suites never sign in as', () => {
+    const targets = new Set(canonicalAccounts.map((fixture) => fixture.id))
+    for (const unused of [
+      'a0000000-0000-4000-8000-000000000002',
+      'b0000000-0000-4000-8000-000000000005',
+      'b0000000-0000-4000-8000-000000000006',
+    ]) {
+      expect(targets.has(unused)).toBe(false)
+      expect(seed).toContain(unused)
+    }
+  })
+
+  it('has no import-time environment, filesystem, database, or network work', () => {
+    const source = readFileSync(resolve('scripts/rls-fixture-accounts.mjs'), 'utf8')
+    expect(source).not.toContain('process.env')
+    expect(source).not.toMatch(/from ['"]node:(?:fs|child_process|net|http|https)['"]/u)
+    expect(source).not.toMatch(/\b(?:fetch|createClient|spawn|exec)\s*\(/)
+    expect(canonicalAccounts.every((fixture) => !('password' in fixture))).toBe(true)
   })
 })

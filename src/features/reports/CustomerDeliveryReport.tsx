@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useDeliveryReport } from '@/data/reports'
 import { useAttachments } from '@/data/attachments'
-import { useGarages } from '@/data/garagePublic'
+import { useGarageDetails } from '@/data/catalog'
 import { useLang } from '@/i18n'
 import type { ServiceRequest } from '@/types/domain'
 
@@ -11,13 +11,12 @@ export function CustomerDeliveryReport({ request }: { request: ServiceRequest })
   const { lang, tr } = useLang()
   const { data: report } = useDeliveryReport(request.id, true)
   const { data: attachments } = useAttachments(request.id, true)
-  const { data: garages } = useGarages()
-  const garage = garages?.find((item) => item.id === request.garage_id) ?? null
+  const { data: garage } = useGarageDetails(request.garage_id)
   if (!report) return null
 
   async function download() {
     const { downloadDeliveryReportPdf } = await import('./reportPdf')
-    await downloadDeliveryReportPdf({ report: report!, request, garage, lang, attachments })
+    await downloadDeliveryReportPdf({ report: report!, request, garage: garage ?? null, lang, attachments })
   }
 
   return (
