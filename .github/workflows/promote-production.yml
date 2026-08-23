@@ -1,0 +1,111 @@
+name: Promote Production Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact staged forward release SHA reachable from main
+        required: true
+        type: string
+      staged_deployment_id:
+        description: Exact staged Vercel deployment ID
+        required: true
+        type: string
+      expected_current_production_deployment_id:
+        description: Current Production deployment ID observed before dispatch
+        required: true
+        type: string
+      expected_current_production_sha:
+        description: Current Production code SHA observed before dispatch
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Unprivileged promotion preflight
+    runs-on: ubuntu-latest
+    outputs:
+      release_sha: ${{ steps.preflight.outputs.release_sha }}
+      staged_deployment_id: ${{ steps.preflight.outputs.staged_deployment_id }}
+      expected_production_deployment_id: ${{ steps.preflight.outputs.expected_production_deployment_id }}
+      expected_production_sha: ${{ steps.preflight.outputs.expected_production_sha }}
+    steps:
+      - name: Require main dispatch
+        env:
+          GITHUB_REF_VALUE: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_VALUE" = "refs/heads/main"
+
+      - name: Checkout immutable trusted controller
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          path: controller
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node for release checks
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24.x
+
+      - name: Verify release SHA, CI, ancestry, and zero migration delta
+        id: preflight
+        working-directory: controller
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          STAGED_DEPLOYMENT_ID: ${{ inputs.staged_deployment_id }}
+          EXPECTED_CURRENT_PRODUCTION_DEPLOYMENT_ID: ${{ inputs.expected_current_production_deployment_id }}
+          EXPECTED_CURRENT_PRODUCTION_SHA: ${{ inputs.expected_current_production_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/release-controller/release-control.mjs preflight-promote
+
+  promote:
+    name: Protected controller-only REST promotion
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment: production-release
+    env:
+      RELEASE_SHA: ${{ needs.preflight.outputs.release_sha }}
+      STAGED_DEPLOYMENT_ID: ${{ needs.preflight.outputs.staged_deployment_id }}
+      EXPECTED_CURRENT_PRODUCTION_DEPLOYMENT_ID: ${{ needs.preflight.outputs.expected_production_deployment_id }}
+      EXPECTED_CURRENT_PRODUCTION_SHA: ${{ needs.preflight.outputs.expected_production_sha }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_PRODUCTION_DOMAIN: ${{ vars.VERCEL_PRODUCTION_DOMAIN }}
+    steps:
+      - name: Require main dispatch again
+        env:
+          GITHUB_REF_VALUE: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_VALUE" = "refs/heads/main"
+
+      - name: Checkout immutable trusted controller
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          path: controller
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up trusted Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24.x
+
+      - name: Run trusted controller promotion transaction
+        working-directory: controller
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node tools/release-controller/release-control.mjs promote-vercel
